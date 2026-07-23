@@ -7,7 +7,14 @@
     "trailingCommas": "onlyMultiLine"
   },
   "json": {},
-  "excludes": ["**/node_modules", "**/dist", "**/coverage", "bun.lock"],
+  "excludes": [
+    "**/node_modules",
+    "**/.repos",
+    "**/dist",
+    "**/coverage",
+    "crates/hot-core/target",
+    "bun.lock"
+  ],
   "plugins": [
     "https://plugins.dprint.dev/typescript-0.93.3.wasm",
     "https://plugins.dprint.dev/json-0.19.4.wasm"

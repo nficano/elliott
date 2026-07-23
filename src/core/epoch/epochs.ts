@@ -1,30 +1,104 @@
-// Kernel-owned monotonic epoch counters — TDD §0d, §1a. Policy changes,
-// revocations, activations, and catalog updates bump epochs; per-use paths
-// compare vectors and recompute synchronously on mismatch. Bumps are audit
-// events (audit-log wiring is deferred to M3).
+import { epoch, scopeId as makeScopeId } from "../brands";
+import { hashValue } from "../digest";
+import type { Epoch, EpochVector } from "../types";
+import type { RecordAppender } from "../waist/types";
+import type {
+  EpochBumpReason,
+  EpochCoordinates,
+  EpochReader,
+  EpochScope,
+} from "./types";
 
-import type { Epoch, EpochVector, ScopeLevel } from "../types";
+const GLOBAL_SLOT = 0;
+const DEFAULT_CAPACITY = 4096;
 
-const INITIAL_EPOCH = 0 as Epoch;
+class SharedEpochReader implements EpochReader {
+  readonly #view: Int32Array;
+  readonly #slots: ReadonlyMap<string, number>;
 
-export class EpochRegistry {
-  private global: Epoch = INITIAL_EPOCH;
-  private readonly counters = new Map<string, Epoch>();
-
-  current(level: ScopeLevel, scopeId: string): Epoch {
-    return this.counters.get(`${level}:${scopeId}`) ?? INITIAL_EPOCH;
+  constructor(
+    view: Int32Array,
+    slots: ReadonlyMap<string, number>,
+  ) {
+    this.#view = view;
+    this.#slots = slots;
   }
 
-  bump(level: ScopeLevel, scopeId: string): Epoch {
-    const key = `${level}:${scopeId}`;
-    const next = ((this.counters.get(key) ?? INITIAL_EPOCH) + 1) as Epoch;
-    this.counters.set(key, next);
-    this.global = (this.global + 1) as Epoch;
-    return next;
+  current(scope: EpochScope, scopeId: string): Epoch {
+    const slot = this.#slots.get(`${scope}:${scopeId}`);
+    return epoch(slot === undefined ? 0 : Atomics.load(this.#view, slot));
   }
 
   currentGlobal(): Epoch {
-    return this.global;
+    return epoch(Atomics.load(this.#view, GLOBAL_SLOT));
+  }
+
+  vector(coordinates: EpochCoordinates): EpochVector {
+    return {
+      org: this.current("organization", coordinates.organization),
+      workspace: this.current("workspace", coordinates.workspace),
+      agent: this.current("agent", coordinates.agent),
+      session: this.current("session", coordinates.session),
+      principal: this.current("principal", coordinates.principal),
+    };
+  }
+}
+
+export class EpochRegistry implements EpochReader {
+  readonly #view: Int32Array;
+  readonly #slots = new Map<string, number>();
+  readonly #records: RecordAppender;
+  #nextSlot = 1;
+
+  constructor(
+    records: RecordAppender,
+    capacity = DEFAULT_CAPACITY,
+  ) {
+    this.#records = records;
+    this.#view = new Int32Array(
+      new SharedArrayBuffer(Int32Array.BYTES_PER_ELEMENT * capacity),
+    );
+  }
+
+  current(scope: EpochScope, scopeId: string): Epoch {
+    const slot = this.#slots.get(`${scope}:${scopeId}`);
+    return epoch(slot === undefined ? 0 : Atomics.load(this.#view, slot));
+  }
+
+  currentGlobal(): Epoch {
+    return epoch(Atomics.load(this.#view, GLOBAL_SLOT));
+  }
+
+  vector(coordinates: EpochCoordinates): EpochVector {
+    return this.reader().vector(coordinates);
+  }
+
+  reader(): EpochReader {
+    return new SharedEpochReader(this.#view, new Map(this.#slots));
+  }
+
+  async bump(
+    scope: EpochScope,
+    scopeId: string,
+    reason: EpochBumpReason,
+  ): Promise<Epoch> {
+    const slot = this.#slot(scope, scopeId);
+    const next = epoch(Atomics.load(this.#view, slot) + 1);
+    await this.#records.append({
+      type: "epoch.bump",
+      scope: { level: scope, id: makeScopeId(scopeId) },
+      durability: "effect-gating",
+      classification: "internal",
+      payload: {
+        reason,
+        next,
+        global: Atomics.load(this.#view, GLOBAL_SLOT) + 1,
+        eventDigest: hashValue({ scope, scopeId, reason, next }),
+      },
+    });
+    Atomics.store(this.#view, slot, next);
+    Atomics.add(this.#view, GLOBAL_SLOT, 1);
+    return next;
   }
 
   vectorMatches(cached: EpochVector, live: EpochVector): boolean {
@@ -33,5 +107,18 @@ export class EpochRegistry {
       && cached.agent === live.agent
       && cached.session === live.session
       && cached.principal === live.principal;
+  }
+
+  #slot(scope: EpochScope, scopeId: string): number {
+    const key = `${scope}:${scopeId}`;
+    const known = this.#slots.get(key);
+    if (known !== undefined) return known;
+    if (this.#nextSlot >= this.#view.length) {
+      throw new Error("Epoch table capacity exhausted");
+    }
+    const slot = this.#nextSlot;
+    this.#nextSlot += 1;
+    this.#slots.set(key, slot);
+    return slot;
   }
 }

@@ -47,7 +47,14 @@ const securityRules = {
 };
 
 export default tseslint.config(
-  { ignores: ["dist/**", "coverage/**"] }, // node_modules is ignored by default
+  {
+    ignores: [
+      "dist/**",
+      "coverage/**",
+      ".repos/**",
+      "crates/hot-core/target/**",
+    ],
+  }, // node_modules is ignored by default
   js.configs.recommended,
   ...tseslint.configs.recommendedTypeChecked, // type-aware rules
   unicorn.configs.recommended,
@@ -68,7 +75,11 @@ export default tseslint.config(
         // Type-aware linting; allowDefaultProject lets this config file (which
         // no tsconfig includes) resolve via the default project.
         projectService: {
-          allowDefaultProject: ["eslint.config.js", "eslint-rules/*.js"],
+          allowDefaultProject: [
+            "eslint.config.js",
+            "eslint-rules/*.js",
+            "scripts/*.ts",
+          ],
         },
         tsconfigRootDir: import.meta.dirname,
       },

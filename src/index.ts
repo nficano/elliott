@@ -12,4 +12,5 @@ export {
 } from "./core/errors";
 export { ComponentRegistry } from "./core/registry/registry";
 export type * from "./core/types";
+export type * from "./core/waist/types";
 export { AgentKernel } from "./kernel";

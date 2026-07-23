@@ -3,6 +3,9 @@
   "version": "0.0.0",
   "type": "module",
   "description": "Standalone TypeScript framework for composing secure personal AI agents from one universal primitive: the Component.",
+  "bin": {
+    "elliott": "./src/cli.ts"
+  },
   "exports": {
     ".": "./src/index.ts",
     "./core": "./src/core/index.ts",
@@ -23,6 +26,10 @@
     "./config": "./src/config/index.ts"
   },
   "scripts": {
+    "prepare": "./scripts/prepare-effect.sh",
+    "footprint:check": "bun scripts/check-footprint.ts",
+    "hot-core:check": "cargo test --manifest-path crates/hot-core/Cargo.toml",
+    "check": "bun run typecheck && bun run lint && bun run format:check && bun test && bun run footprint:check && bun run hot-core:check",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",

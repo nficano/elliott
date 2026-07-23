@@ -3,10 +3,11 @@
 // restricted. The active posture (§0e) selects how much of the lattice
 // exists; under `standard` the lattice is the single level `internal`.
 
-import type { ComponentRef } from "../../core/types";
-import type { DataClassification, ModelMessage } from "../../model/types";
+import type * as Brand from "effect/Brand";
+import type { ComponentRef, DataClassification } from "../../core/types";
+import type { ModelMessage } from "../../model/types";
 
-export type FrameId = string & { readonly __brand: unique symbol; };
+export type FrameId = Brand.Branded<string, "FrameId">;
 
 /** Untrusted-content marking carried by frames, envelopes, and prompt
  *  segments. Renamed from Taint/TaintRecord (TDD revision 6 note). */
@@ -42,11 +43,32 @@ export interface MergeRequest {
 
 export interface MergeTicket {
   readonly id: string;
-  readonly status: "queued" | "applied" | "rejected";
+  readonly result: Promise<MergeResult>;
+}
+
+export interface MergeResult {
+  readonly type: "merged" | "blocked-declassification" | "stale-merge";
+  readonly output?: string;
 }
 
 export interface ContextManager {
   readonly activeFrame: FrameId;
   fork(requestedClassification: DataClassification, reason: string): FrameId;
   merge(request: MergeRequest): Promise<MergeTicket>;
+}
+
+export interface SanitizedMerge {
+  readonly approved: boolean;
+  readonly output?: string;
+}
+
+export interface FrameSanitizer {
+  sanitize(request: MergeRequest): Promise<SanitizedMerge>;
+}
+
+export interface FrameWireInput {
+  readonly frame: FrameId;
+  readonly messages: readonly ModelMessage[];
+  readonly tags: readonly SecurityTag[];
+  readonly sourceClassification: DataClassification;
 }

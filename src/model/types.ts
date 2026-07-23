@@ -1,6 +1,8 @@
 // Provider-neutral model protocol and orthogonal routing — TDD §4, §5.
 
-import type { Digest } from "../core/types";
+import type { DataClassification, Digest } from "../core/types";
+
+export type { DataClassification } from "../core/types";
 
 export type ModelCapability =
   | "text"
@@ -12,12 +14,6 @@ export type ModelCapability =
   | "reasoning"
   | "prompt-caching"
   | "long-context";
-
-export type DataClassification =
-  | "public"
-  | "internal"
-  | "confidential"
-  | "restricted";
 
 /** Reserved profiles order capability/cost only, never latency (§5a). Custom
  *  profiles are namespaced so a typo cannot mint a reserved-looking one. */
@@ -103,18 +99,4 @@ export interface ModelRoute {
   readonly model: string;
   readonly priority: number;
   readonly costMetric: number;
-}
-
-/** Pre-filtered, pre-sorted candidates keyed by
- *  (profile, effective classification, required-capability set) — §5d. */
-export interface RouteTableEntry {
-  readonly candidates: readonly ModelRoute[];
-  readonly builtFromDigests: readonly Digest[];
-}
-
-export interface ModelSelectionRecord {
-  readonly task: ModelTask;
-  readonly effectiveClassification: DataClassification;
-  readonly selected?: ModelRoute;
-  readonly tableVersion: string;
 }

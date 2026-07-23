@@ -16,6 +16,8 @@ export abstract class Component<
   Kind extends ComponentKind = ComponentKind,
   Config = unknown,
 > {
+  readonly #kind: Kind;
+
   protected constructor(
     public readonly instance: ComponentInstance,
     protected readonly config: Readonly<Config>,
@@ -30,6 +32,7 @@ export abstract class Component<
         instance.manifest.schema.kind,
       );
     }
+    this.#kind = expectedKind;
   }
 
   public get manifest(): ComponentManifest {
@@ -37,7 +40,7 @@ export abstract class Component<
   }
 
   public get kind(): Kind {
-    return this.manifest.schema.kind as Kind; // safe: verified in constructor
+    return this.#kind;
   }
 
   public supports(protocol: ProtocolId): boolean {
@@ -56,4 +59,15 @@ export abstract class Component<
    *  kernel releases the GrantHandle on entry to `closed` or `failed`. */
   protected async onOpen(): Promise<void> {}
   protected async onClose(): Promise<void> {}
+
+  /** @internal Lifecycle entrypoints are invoked only by the kernel-owned
+   * instance state machine. */
+  public openForKernel(): Promise<void> {
+    return this.onOpen();
+  }
+
+  /** @internal See {@link openForKernel}. */
+  public closeForKernel(): Promise<void> {
+    return this.onClose();
+  }
 }

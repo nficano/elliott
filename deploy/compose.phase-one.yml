@@ -1,0 +1,69 @@
+services:
+  elliott-kernel:
+    image: elliott/kernel
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+      - seccomp=./seccomp/kernel.json
+      - apparmor=elliott-kernel
+    userns_mode: private
+    volumes:
+      - ../packages:/elliott/packages:ro
+      - ../skills:/elliott/skills:ro
+      - ../schemas:/elliott/schemas:ro
+      - ../policies:/elliott/policies:ro
+    networks: [control]
+
+  elliott-audit:
+    image: elliott/audit
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+      - seccomp=./seccomp/audit.json
+      - apparmor=elliott-audit
+    userns_mode: private
+    volumes:
+      - audit-data:/elliott/audit
+    networks: [control]
+
+  component-pool:
+    image: elliott/component-pool
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+      - seccomp=./seccomp/component.json
+      - apparmor=elliott-component
+    userns_mode: private
+    volumes:
+      - ../packages:/elliott/packages:ro
+      - ../skills:/elliott/skills:ro
+      - ../schemas:/elliott/schemas:ro
+      - ../policies:/elliott/policies:ro
+    networks: [internal]
+
+  provider-pool:
+    image: elliott/provider-pool
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+      - seccomp=./seccomp/provider.json
+      - apparmor=elliott-provider
+    userns_mode: private
+    networks: [internal]
+
+networks:
+  control:
+    internal: true
+  internal:
+    internal: true
+
+volumes:
+  audit-data:

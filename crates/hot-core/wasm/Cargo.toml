@@ -1,0 +1,12 @@
+[package]
+name = "elliott-hot-core-wasm"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+elliott-hot-core = { path = "../core" }
+wasm-bindgen.workspace = true
