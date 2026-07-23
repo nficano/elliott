@@ -1,0 +1,16 @@
+store:
+  dsn: postgres://localhost:5432/agent_spec_fixture
+llm:
+  base_url: http://litellm.fixture.local
+  api_key: fixture-key
+  models:
+    utility: { model: m-utility }
+    trivial: { model: m-trivial }
+    fast: { model: m-fast }
+    standard: { model: m-standard }
+    deep: { model: m-deep }
+    embed: { model: m-embed }
+  profiles: {}
+skills:
+  webpage:
+    timeout_note: from-consumer-config

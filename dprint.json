@@ -10,6 +10,7 @@
   "excludes": [
     "**/node_modules",
     "**/.repos",
+    "**/vendor",
     "**/dist",
     "**/coverage",
     "crates/hot-core/target",

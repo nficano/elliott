@@ -1,0 +1,52 @@
+runtime:
+  timezone: America/New_York
+  http: { port: 8080 }
+  control_token: ${VAULT:secret/services/oslo#agent_kit_read_token}
+
+store:
+  dsn: ${VAULT:secret/services/oslo#postgres_dsn}
+  pool: { max: 10 }
+  vectors: { dim: 768, type: vector }
+
+browser:
+  daemon_url: http://agent-browser:3000
+  token: ${VAULT:secret/services/oslo#browser_token}
+  allowed_domains: []
+
+llm:
+  base_url: https://api.litellm.h12o.io/v1
+  api_key: ${VAULT:secret/services/oslo#litellm_key}
+  max_parallel: 12
+  models:
+    utility: { model: tier-local, context_window: 32768 }
+    trivial: { model: tier-local, context_window: 32768 }
+    fast: { model: anthropic/claude-haiku-4-5, context_window: 200000 }
+    standard: { model: anthropic/claude-sonnet-5, context_window: 200000 }
+    deep: { model: anthropic/claude-opus-4-8, context_window: 200000 }
+    embed: { model: tier-local-embed }
+  profiles:
+    default: { max_tokens: 4096, temperature: 0.4 }
+    writing: { max_tokens: 32768, temperature: 0.7 }
+
+budgets:
+  cold_tokens_max: 12000
+  monthly_usd_max: 200
+  per_turn_usd_max: 2
+
+observability:
+  otel: { endpoint: http://host.docker.internal:4318 }
+  glitchtip:
+    dsn: ${VAULT:secret/services/oslo#glitchtip_dsn}
+    environment: prod
+
+notify:
+  webhook_url: https://api.h12o.io/api/notify
+  default_channels: [slack]
+
+channels:
+  slack:
+    enabled: true
+    bot_token: ${VAULT:secret/services/oslo#slack_bot_token}
+    app_token: ${VAULT:secret/services/oslo#slack_app_token}
+    owner_id: "U0BJU9L5QMP"
+    default_channel: "#the-end"

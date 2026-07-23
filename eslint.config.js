@@ -52,6 +52,7 @@ export default tseslint.config(
       "dist/**",
       "coverage/**",
       ".repos/**",
+      "vendor/**",
       "crates/hot-core/target/**",
     ],
   }, // node_modules is ignored by default

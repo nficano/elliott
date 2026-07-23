@@ -1,0 +1,79 @@
+name: elliott
+
+services:
+  elliott:
+    image: elliott:latest
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: elliott
+    restart: unless-stopped
+    init: true
+    stop_grace_period: 30s
+    env_file: ["${ELLIOTT_ENV_FILE:-.env}"]
+    environment:
+      TZ: America/New_York
+      ELLIOTT_ENV: prod
+      ELLIOTT_RELEASE: ${ELLIOTT_RELEASE:-dev}
+      HOME: /app/.elliott-runtime
+      XDG_CACHE_HOME: /app/.elliott-runtime/cache
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "127.0.0.1:18082:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [default, browser]
+    read_only: true
+    tmpfs:
+      - /tmp:size=512m,mode=1777
+      - /app/.elliott-runtime:size=64m,mode=0700,uid=1000,gid=1000
+      - /app/data:size=64m,mode=0700,uid=1000,gid=1000
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    logging:
+      driver: json-file
+      options: { max-size: "50m", max-file: "3" }
+
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: elliott-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: oslo
+      POSTGRES_USER: oslo
+      POSTGRES_PASSWORD: ${postgres_password:?rendered from Vault}
+    volumes:
+      - elliott-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U oslo -d oslo"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  agent-browser:
+    image: ghcr.io/browserless/chromium:latest
+    container_name: elliott-browser
+    restart: unless-stopped
+    shm_size: 1gb
+    environment:
+      TOKEN: ${browser_token:?rendered from Vault}
+      PORT: "3000"
+      CONCURRENT: "3"
+      TIMEOUT: "60000"
+    networks: [browser]
+
+networks:
+  default:
+  browser:
+
+volumes:
+  elliott-postgres:

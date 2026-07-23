@@ -1,0 +1,11 @@
+.git
+.github
+.repos
+.elliott-runtime
+node_modules
+coverage
+crates/hot-core/target
+test
+*.log
+.env
+BLOCKERS.md

@@ -29,6 +29,9 @@
   },
   "scripts": {
     "prepare": "./scripts/prepare-effect.sh",
+    "start": "bun src/runtime/main.ts",
+    "dev": "ELLIOTT_ENV=dev bun src/runtime/main.ts",
+    "deploy:spruce": "./scripts/deploy-spruce.sh",
     "footprint:check": "bun scripts/check-footprint.ts",
     "hot-core:check": "cargo test --manifest-path crates/hot-core/Cargo.toml",
     "check": "bun run typecheck && bun run lint && bun run format:check && bun test && bun run footprint:check && bun run hot-core:check",
@@ -40,6 +43,7 @@
     "test": "bun test"
   },
   "dependencies": {
+    "agent-kit": "file:vendor/agent-kit",
     "effect": "^4.0.0-beta.100",
     "yaml": "^2.6.1"
   },
