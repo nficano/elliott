@@ -4,7 +4,11 @@
 // exists; under `standard` the lattice is the single level `internal`.
 
 import type * as Brand from "effect/Brand";
-import type { ComponentRef, DataClassification } from "../../core/types";
+import type {
+  ComponentRef,
+  DataClassification,
+  Digest,
+} from "../../core/types";
 import type { ModelMessage } from "../../model/types";
 
 export type FrameId = Brand.Branded<string, "FrameId">;
@@ -39,10 +43,14 @@ export interface MergeRequest {
   /** Declared by the requester, verified by the kernel against the sanitizer
    *  schema class. Commutative merges may be queued (§6c). */
   readonly ordering: "commutative" | "revision-dependent";
+  readonly policySetDigest?: Digest;
+  readonly schemaDigest?: Digest;
+  readonly sanitizerComponentDigest?: Digest;
 }
 
 export interface MergeTicket {
   readonly id: string;
+  readonly mergeId: string;
   readonly result: Promise<MergeResult>;
 }
 
@@ -60,6 +68,8 @@ export interface ContextManager {
 export interface SanitizedMerge {
   readonly approved: boolean;
   readonly output?: string;
+  readonly appendSafe?: boolean;
+  readonly approvedVia?: "schema" | "schema+tle" | "human";
 }
 
 export interface FrameSanitizer {
@@ -71,4 +81,11 @@ export interface FrameWireInput {
   readonly messages: readonly ModelMessage[];
   readonly tags: readonly SecurityTag[];
   readonly sourceClassification: DataClassification;
+}
+
+export interface MergeApplyInput {
+  readonly request: MergeRequest;
+  readonly output: string;
+  readonly sanitized: boolean;
+  readonly appendSafe: boolean;
 }

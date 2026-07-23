@@ -1,4 +1,5 @@
-// MCP architecture — TDD §14g: endpoints, exposures, virtual child
-// components, protocol version seam. Not an MCP fork (§0f). deferred to M6.
-
-export {};
+export { McpEndpoint } from "./endpoint/index";
+export { McpExposure } from "./exposure/index";
+export { LegacyMcpDriver } from "./legacy-driver/index";
+export { ModernMcpDriver } from "./modern-driver/index";
+export type * from "./types";

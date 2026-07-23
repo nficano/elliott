@@ -23,7 +23,9 @@
     "./audit": "./src/audit/index.ts",
     "./loop": "./src/loop/index.ts",
     "./observability": "./src/observability/index.ts",
-    "./config": "./src/config/index.ts"
+    "./config": "./src/config/index.ts",
+    "./catalog": "./src/catalog/index.ts",
+    "./agent": "./src/agent/index.ts"
   },
   "scripts": {
     "prepare": "./scripts/prepare-effect.sh",
