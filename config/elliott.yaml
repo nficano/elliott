@@ -1,7 +1,6 @@
 runtime:
   timezone: America/New_York
   http: { port: 8080 }
-  control_token: ${VAULT:secret/services/oslo#agent_kit_read_token}
 
 store:
   dsn: ${VAULT:secret/services/oslo#postgres_dsn}
@@ -50,3 +49,8 @@ channels:
     app_token: ${VAULT:secret/services/oslo#slack_app_token}
     owner_id: "U0BJU9L5QMP"
     default_channel: "#the-end"
+  bluebubbles:
+    enabled: false
+    server_url: http://host.docker.internal:1234
+    default_recipient: ""
+    allowed_recipients: []

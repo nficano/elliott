@@ -1,0 +1,14 @@
+apiVersion: elliott/v1
+kind: mcp-endpoint
+profile: mcp-endpoint-standard
+metadata: { namespace: core, name: mcp-client, version: 1.0.0 }
+spec:
+  document: MCP.md
+  protocols: [tool.executor, resource.reader, prompt.source]
+  capabilities:
+    - { capability: network.connect, resources: [declared://server-host] }
+  egress: { class: declared, hosts: [] }
+  isolation: container
+  outputTrust: untrusted
+  exports:
+    - { ref: mcp-endpoint/mcp-client, implementation: src/index.ts }

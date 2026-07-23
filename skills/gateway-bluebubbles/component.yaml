@@ -1,0 +1,16 @@
+apiVersion: elliott/v1
+kind: gateway
+profile: gateway-standard
+metadata: { namespace: core, name: gateway-bluebubbles, version: 1.0.0 }
+spec:
+  document: GATEWAY.md
+  protocols: [message.source, message.sink, identity.resolver]
+  capabilities:
+    - { capability: network.connect, resources: [lan://bluebubbles] }
+    - { capability: secret.use, resources: [secret://gateways/bluebubbles] }
+  egress: { class: lan }
+  isolation: remote
+  senderAllowlist: required
+  outputTrust: untrusted
+  exports:
+    - { ref: gateway/bluebubbles, implementation: src/index.ts }

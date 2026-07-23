@@ -17,3 +17,19 @@ export interface WorkspacePathGrant {
   readonly root: string;
   readonly additionalRoots: readonly string[];
 }
+
+export interface BundledExport {
+  readonly ref: string;
+  readonly implementation: string;
+}
+
+export interface BundledPackage {
+  readonly name: string;
+  readonly kind: ComponentKind;
+  readonly profile: string;
+  readonly directory: string;
+  readonly document: string;
+  readonly protocols: readonly string[];
+  readonly exports: readonly BundledExport[];
+  readonly entrypoint?: string;
+}

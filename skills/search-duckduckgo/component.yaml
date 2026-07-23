@@ -1,0 +1,14 @@
+apiVersion: elliott/v1
+kind: tool
+profile: tool-standard
+metadata: { namespace: core, name: search-duckduckgo, version: 1.0.0 }
+spec:
+  document: TOOL.md
+  protocols: [search.provider]
+  capabilities:
+    - { capability: network.connect, resources: [duckduckgo.com] }
+  egress: { class: declared, hosts: [duckduckgo.com] }
+  isolation: container
+  outputTrust: untrusted
+  exports:
+    - { ref: tool/duckduckgo-search, implementation: src/index.ts }

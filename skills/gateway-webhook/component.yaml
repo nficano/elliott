@@ -1,0 +1,15 @@
+apiVersion: elliott/v1
+kind: gateway
+profile: gateway-standard
+metadata: { namespace: core, name: gateway-webhook, version: 1.0.0 }
+spec:
+  document: GATEWAY.md
+  protocols: [message.source, identity.resolver]
+  capabilities:
+    - { capability: secret.use, resources: [secret://gateways/webhook] }
+  egress: { class: none }
+  isolation: container
+  senderAllowlist: required
+  outputTrust: untrusted
+  exports:
+    - { ref: gateway/webhook, implementation: src/index.ts }

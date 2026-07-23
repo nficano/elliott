@@ -158,6 +158,18 @@ bun run lint       # eslint (with custom Effect + IFC rules)
 bun run format     # dprint fmt
 ```
 
+## Bundled skills and gateways
+
+Elliott's first-party components live in [`skills/`](skills). The directory
+contains the complete packages for web search and browsing, MCP, Slack,
+Home Assistant, Gmail/email, BlueBubbles, webhooks, local files and execution,
+SSH, fetch, cloudflared, and scheduling. Each package includes a
+`component.yaml` authority manifest and its standard kind document.
+
+The production entry point is Elliott-native: it discovers those packages,
+connects configured MCP endpoints, exposes their tools to the model, and runs
+the Slack Socket Mode gateway. No second agent framework is vendored or loaded.
+
 ## Project status
 
 Elliott is implemented across three cumulative phases (nothing in a later phase weakens an invariant established earlier):

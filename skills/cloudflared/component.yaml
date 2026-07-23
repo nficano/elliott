@@ -1,0 +1,17 @@
+apiVersion: elliott/v1
+kind: extension
+profile: extension-standard
+metadata: { namespace: core, name: cloudflared, version: 1.0.0 }
+spec:
+  document: EXTENSION.md
+  protocols: [health.checker]
+  capabilities:
+    - { capability: network.connect, resources: [cloudflare-edge] }
+    - { capability: secret.use, resources: [secret://gateways/cloudflared] }
+  egress: { class: declared, hosts: [cloudflare-edge] }
+  isolation: container
+  companions:
+    - name: cloudflared
+      image: cloudflare/cloudflared@sha256:operator-pinned
+      egress: { class: declared, hosts: [cloudflare-edge] }
+      endpoint: webhook-only

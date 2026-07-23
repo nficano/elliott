@@ -1,0 +1,12 @@
+apiVersion: elliott/v1
+kind: scheduler
+profile: scheduler-standard
+metadata: { namespace: core, name: scheduler, version: 1.0.0 }
+spec:
+  document: SCHEDULER.md
+  protocols: [scheduler]
+  capabilities: []
+  egress: { class: none }
+  isolation: container
+  exports:
+    - { ref: scheduler/reminders, implementation: src/index.ts }

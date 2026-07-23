@@ -1,0 +1,15 @@
+apiVersion: elliott/v1
+kind: tool
+profile: tool-standard
+metadata: { namespace: core, name: web-firecrawl, version: 1.0.0 }
+spec:
+  document: TOOL.md
+  protocols: [search.provider, content.extractor]
+  capabilities:
+    - { capability: network.connect, resources: [api.firecrawl.dev] }
+    - { capability: secret.use, resources: [secret://web/firecrawl/api-key] }
+  egress: { class: declared, hosts: [api.firecrawl.dev] }
+  isolation: container
+  outputTrust: untrusted
+  exports:
+    - { ref: tool/firecrawl, implementation: src/index.ts }

@@ -1,0 +1,12 @@
+apiVersion: elliott/v1
+kind: tool
+profile: tool-local-only
+metadata: { namespace: core, name: terminal, version: 1.0.0 }
+spec:
+  document: TOOL.md
+  protocols: [tool.executor]
+  capabilities:
+    - { capability: process.execute, resources: [declared://executables] }
+  egress: { class: none }
+  isolation: container
+  outputTrust: untrusted

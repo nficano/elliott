@@ -1,0 +1,13 @@
+apiVersion: elliott/v1
+kind: tool
+profile: tool-local-only
+metadata: { namespace: core, name: files, version: 1.0.0 }
+spec:
+  document: TOOL.md
+  protocols: [resource.reader, resource.writer]
+  capabilities:
+    - { capability: fs.read, resources: [workspace://granted-paths] }
+    - { capability: fs.write, resources: [workspace://granted-paths] }
+  egress: { class: none }
+  isolation: container
+  outputTrust: untrusted

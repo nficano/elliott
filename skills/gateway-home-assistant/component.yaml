@@ -1,0 +1,14 @@
+apiVersion: elliott/v1
+kind: gateway
+profile: gateway-standard
+metadata: { namespace: core, name: gateway-home-assistant, version: 1.0.0 }
+spec:
+  document: GATEWAY.md
+  protocols: [message.source, message.sink, tool.executor]
+  capabilities:
+    - { capability: network.connect, resources: [lan://home-assistant] }
+    - { capability: secret.use, resources: [secret://gateways/home-assistant] }
+  egress: { class: lan }
+  isolation: container
+  senderAllowlist: required
+  outputTrust: untrusted

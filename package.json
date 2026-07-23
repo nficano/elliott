@@ -43,7 +43,6 @@
     "test": "bun test"
   },
   "dependencies": {
-    "agent-kit": "file:vendor/agent-kit",
     "effect": "^4.0.0-beta.100",
     "yaml": "^2.6.1"
   },

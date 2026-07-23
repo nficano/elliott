@@ -1,67 +1,31 @@
-name: elliott
-persona: assets/prompts/elliott.md
-channels: [slack]
-
-model:
-  default: fast
-
-permissions:
-  browser: read
-  brave: read
-  firecrawl: read
-  webpage: read
-  sitemap: read
-  page-audit: read
-  gmail: write
-  github: write
-  watch: read
-  reminders: write
-  youtube: write
-
-tools:
-  - uses: browser
-  - uses: brave
-    secrets:
-      api_key: ${{ secrets.brave_api_key }}
-  - uses: firecrawl
-    secrets:
-      api_key: ${{ secrets.firecrawl_api_key }}
-  - uses: webpage
-  - uses: sitemap
-  - uses: page-audit
-  - uses: gmail
-    secrets:
-      client_id: ${{ secrets.gmail_client_id }}
-      client_secret: ${{ secrets.gmail_client_secret }}
-      refresh_token: ${{ secrets.gmail_refresh_token }}
-  - uses: github
-    secrets:
-      token: ${{ secrets.github_token }}
-  - uses: watch
-  - uses: reminders
-  - uses: youtube
-    secrets:
-      client_id: ${{ secrets.youtube_client_id }}
-      client_secret: ${{ secrets.youtube_client_secret }}
-      refresh_token: ${{ secrets.youtube_refresh_token }}
-
-mcp:
-  - uses: mcp/h12o
-    with:
-      url: "https://mcp.h12o.io/mcp"
-      bundle: ops
-  - uses: mcp/home-assistant
-    with:
-      url: "http://172.16.10.235:8123/mcp_server/sse"
+apiVersion: elliott/v1
+kind: agent
+metadata:
+  namespace: workspace
+  name: elliott
+  version: 1.0.0
+spec:
+  persona: assets/prompts/elliott.md
+  modelProfile: fast
+  components:
+    - core/gateway/gateway-slack
+    - core/gateway/gateway-gmail
+    - core/gateway/gateway-bluebubbles
+    - core/gateway/gateway-webhook
+    - core/gateway/gateway-home-assistant
+    - core/mcp-endpoint/mcp-client
+    - core/tool/search-duckduckgo
+    - core/tool/search-brave
+    - core/tool/web-firecrawl
+    - core/tool/web-parallel
+    - core/extension/browser
+    - core/tool/fetch
+    - core/scheduler/scheduler
+  mcp:
+    - id: h12o
+      url: https://mcp.h12o.io/mcp
+      transport: streamable-http
+    - id: home-assistant
+      url: http://172.16.10.235:8123/mcp_server/sse
       transport: sse
-      bundle: home
-    secrets:
-      token: ${{ secrets.ha_token }}
-
-jobs:
-  hello:
-    on: { manual: true }
-    steps:
-      - turn:
-          prompt: prompts/hello.md
-          model: fast
+      authorizationSecret: ha_token

@@ -1,0 +1,14 @@
+apiVersion: elliott/v1
+kind: tool
+profile: tool-standard
+metadata: { namespace: core, name: fetch, version: 1.0.0 }
+spec:
+  document: TOOL.md
+  protocols: [tool.executor, content.extractor]
+  capabilities:
+    - { capability: network.connect, resources: [declared://request-hosts] }
+  egress: { class: declared, hosts: [] }
+  isolation: container
+  outputTrust: untrusted
+  exports:
+    - { ref: tool/fetch-url, implementation: src/index.ts }

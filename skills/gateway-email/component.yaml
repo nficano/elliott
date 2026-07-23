@@ -1,0 +1,14 @@
+apiVersion: elliott/v1
+kind: gateway
+profile: gateway-standard
+metadata: { namespace: core, name: gateway-email, version: 1.0.0 }
+spec:
+  document: GATEWAY.md
+  protocols: [message.source, message.sink, identity.resolver]
+  capabilities:
+    - { capability: network.connect, resources: [declared://mail-hosts] }
+    - { capability: secret.use, resources: [secret://gateways/email] }
+  egress: { class: declared, hosts: [] }
+  isolation: container
+  senderAllowlist: required
+  outputTrust: untrusted

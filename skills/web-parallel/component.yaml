@@ -1,0 +1,15 @@
+apiVersion: elliott/v1
+kind: tool
+profile: tool-standard
+metadata: { namespace: core, name: web-parallel, version: 1.0.0 }
+spec:
+  document: TOOL.md
+  protocols: [search.provider, content.extractor]
+  capabilities:
+    - { capability: network.connect, resources: [api.parallel.ai] }
+    - { capability: secret.use, resources: [secret://web/parallel/api-key] }
+  egress: { class: declared, hosts: [api.parallel.ai] }
+  isolation: container
+  outputTrust: untrusted
+  exports:
+    - { ref: tool/parallel-search, implementation: src/index.ts }

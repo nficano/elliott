@@ -1,0 +1,16 @@
+apiVersion: elliott/v1
+kind: gateway
+profile: gateway-standard
+metadata: { namespace: core, name: gateway-slack, version: 1.0.0 }
+spec:
+  document: GATEWAY.md
+  protocols: [message.source, message.sink, identity.resolver]
+  capabilities:
+    - { capability: network.connect, resources: [slack.com, slack-edge.com] }
+    - { capability: secret.use, resources: [secret://gateways/slack] }
+  egress: { class: declared, hosts: [slack.com, slack-edge.com] }
+  isolation: container
+  senderAllowlist: required
+  outputTrust: untrusted
+  exports:
+    - { ref: gateway/slack, implementation: src/index.ts }

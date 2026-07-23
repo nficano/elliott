@@ -33,6 +33,34 @@ const templates: readonly CapabilityTemplate[] = Object.freeze([
     version: "1",
     capabilities: [],
   },
+  {
+    name: "extension-standard",
+    version: "1",
+    capabilities: [
+      { capability: "network.fetch", resources: ["declared://hosts/**"] },
+    ],
+  },
+  {
+    name: "gateway-standard",
+    version: "1",
+    capabilities: [
+      { capability: "network.fetch", resources: ["declared://hosts/**"] },
+      { capability: "message.receive", resources: ["declared://routes/**"] },
+      { capability: "message.send", resources: ["declared://routes/**"] },
+    ],
+  },
+  {
+    name: "mcp-endpoint-standard",
+    version: "1",
+    capabilities: [
+      { capability: "network.fetch", resources: ["declared://servers/**"] },
+    ],
+  },
+  {
+    name: "scheduler-standard",
+    version: "1",
+    capabilities: [],
+  },
 ]);
 
 export const capabilityTemplates = (): readonly CapabilityTemplate[] =>

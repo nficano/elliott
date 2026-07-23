@@ -52,7 +52,6 @@ export default tseslint.config(
       "dist/**",
       "coverage/**",
       ".repos/**",
-      "vendor/**",
       "crates/hot-core/target/**",
     ],
   }, // node_modules is ignored by default
@@ -192,7 +191,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ["src/**/*.ts"],
+    files: ["src/**/*.ts", "skills/**/*.ts"],
     rules: {
       "local/no-mixed-schema-types": "error",
       "local/no-types-outside-type-modules": "error",
