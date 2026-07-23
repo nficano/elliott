@@ -1,6 +1,12 @@
 // Typed kernel errors — TDD §1, §2, §5d.
 
-import type { ComponentKind, LifecycleState } from "./types";
+import type {
+  ComponentKind,
+  ComponentRef,
+  Digest,
+  IsolationLevel,
+  LifecycleState,
+} from "./types";
 
 export class ComponentKindMismatchError extends Error {
   constructor(
@@ -38,5 +44,66 @@ export class NoEligibleRouteError extends Error {
   ) {
     super(`No eligible model route; emptied by step "${emptiedBy}"`);
     this.name = "NoEligibleRouteError";
+  }
+}
+
+export class SchemaResolutionError extends Error {
+  constructor(public readonly schemaDigest: Digest) {
+    super(`Unable to resolve component schema ${schemaDigest}`);
+    this.name = "SchemaResolutionError";
+  }
+}
+
+export class IsolationFloorError extends Error {
+  constructor(
+    public readonly requested: IsolationLevel,
+    public readonly required: IsolationLevel,
+  ) {
+    super(`Isolation ${requested} is below required floor ${required}`);
+    this.name = "IsolationFloorError";
+  }
+}
+
+export class LifecycleHookError extends Error {
+  constructor(
+    public readonly phase: "open" | "close",
+    public override readonly cause: unknown,
+  ) {
+    super(`Component lifecycle ${phase} hook failed`, { cause });
+    this.name = "LifecycleHookError";
+  }
+}
+
+export class RegistryCollisionError extends Error {
+  constructor(public readonly ref: ComponentRef) {
+    super(`Same-scope collision for ${ref}`);
+    this.name = "RegistryCollisionError";
+  }
+}
+
+export class PinnedShadowError extends Error {
+  constructor(public readonly ref: ComponentRef) {
+    super(`A narrower scope cannot shadow pinned component ${ref}`);
+    this.name = "PinnedShadowError";
+  }
+}
+
+export class RuntimeContractMismatchError extends Error {
+  constructor(
+    public readonly staticDigest: Digest,
+    public readonly runtimeDigest: Digest,
+  ) {
+    super("Runtime contract differs from the validated static manifest");
+    this.name = "RuntimeContractMismatchError";
+  }
+}
+
+export class ManifestValidationError extends Error {
+  constructor(
+    public readonly reason: string,
+    public override readonly cause?: unknown,
+  ) {
+    super(`Manifest validation failed: ${reason}`, { cause });
+    this.name = "ManifestValidationError";
   }
 }

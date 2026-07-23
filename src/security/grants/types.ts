@@ -2,16 +2,21 @@
 // Capabilities compose by intersection; resource limits compose by
 // element-wise minimum. Budgets are not capabilities.
 
-import type { EpochVector, GrantHandle } from "../../core/types";
+import type { EpochCoordinates, EpochScope } from "../../core/epoch/types";
+import type { Digest, EpochVector, GrantHandle } from "../../core/types";
 
 export interface Capability {
   readonly capability: string;
   readonly resources: readonly string[];
+  readonly deferred?: boolean;
 }
 
 export interface ResourceLimits {
   readonly maxConcurrency?: number;
+  readonly cpuQuota?: number;
   readonly memoryMb?: number;
+  readonly pids?: number;
+  readonly ioBytesPerSecond?: number;
   readonly maxCostUsd?: number;
   readonly maxTokens?: number;
 }
@@ -35,4 +40,61 @@ export interface ResolvedGrantEntry {
 export interface GrantExplanation {
   readonly capability: string;
   readonly removedBy?: string;
+}
+
+export type CapabilityGrantSource =
+  | "request"
+  | "package"
+  | "organization"
+  | "workspace"
+  | "agent"
+  | "principal"
+  | "session";
+
+export type LimitGrantSource =
+  | "organization"
+  | "workspace"
+  | "agent"
+  | "session"
+  | "invocation";
+
+export interface CapabilitySource {
+  readonly name: CapabilityGrantSource;
+  readonly capabilities: readonly Capability[];
+}
+
+export interface LimitSource {
+  readonly name: LimitGrantSource;
+  readonly limits: ResourceLimits;
+}
+
+export interface GrantResolutionInput {
+  readonly sources: readonly CapabilitySource[];
+  readonly limitSources: readonly LimitSource[];
+}
+
+export interface GrantIssueInput extends GrantResolutionInput {
+  readonly handle: GrantHandle;
+  readonly coordinates: EpochCoordinates;
+  readonly policyDigests: readonly Digest[];
+  readonly onDrain: () => void;
+}
+
+export interface GrantPolicyState extends GrantIssueInput {
+  readonly activeDeferred: ReadonlySet<string>;
+  readonly revoked: boolean;
+}
+
+export interface GrantConsumption {
+  readonly concurrency: number;
+  readonly costUsd: number;
+  readonly tokens: number;
+}
+
+export interface GrantPolicyUpdate {
+  readonly sources: readonly CapabilitySource[];
+  readonly limitSources: readonly LimitSource[];
+  readonly policyDigests: readonly Digest[];
+  readonly changedScope: EpochScope;
+  readonly changedScopeId: string;
 }

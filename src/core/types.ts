@@ -1,5 +1,7 @@
 // Core ontology and object model — TDD §1, §2.
 
+import type * as Brand from "effect/Brand";
+
 export type ComponentKind =
   | "agent"
   | "skill"
@@ -33,7 +35,7 @@ export type IsolationLevel =
   | "remote";
 
 /** Monotonic counters owned by the kernel. See §0d and §1a. */
-export type Epoch = number & { readonly __brand: unique symbol; };
+export type Epoch = Brand.Branded<number, "Epoch">;
 
 export interface EpochVector {
   readonly org: Epoch;
@@ -43,21 +45,24 @@ export interface EpochVector {
   readonly principal: Epoch;
 }
 
-export type Digest = string & { readonly __digestBrand: unique symbol; };
-export type ComponentRef = string & { readonly __refBrand: unique symbol; };
-export type ProtocolId = string & { readonly __protocolBrand: unique symbol; };
-export type PrincipalId = string & {
-  readonly __principalBrand: unique symbol;
-};
-export type SnapshotId = string & { readonly __snapshotBrand: unique symbol; };
-export type ScopeId = string & { readonly __scopeBrand: unique symbol; };
-export type GrantHandle = string & { readonly __grantBrand: unique symbol; };
-export type PlacementRef = string & {
-  readonly __placementBrand: unique symbol;
-};
+export type Digest = Brand.Branded<string, "Digest">;
+export type ComponentRef = Brand.Branded<string, "ComponentRef">;
+export type ProtocolId = Brand.Branded<string, "ProtocolId">;
+export type PrincipalId = Brand.Branded<string, "PrincipalId">;
+export type SnapshotId = Brand.Branded<string, "SnapshotId">;
+export type ScopeId = Brand.Branded<string, "ScopeId">;
+export type GrantHandle = Brand.Branded<string, "GrantHandle">;
+export type PlacementRef = Brand.Branded<string, "PlacementRef">;
+
+export type DataClassification =
+  | "public"
+  | "internal"
+  | "confidential"
+  | "restricted";
 
 export type ScopeLevel =
   | "invocation"
+  | "principal"
   | "session"
   | "agent"
   | "workspace"
@@ -87,7 +92,10 @@ export interface CapabilityRequest {
 
 export interface ResourceLimitRequest {
   readonly maxConcurrency?: number;
+  readonly cpuQuota?: number;
   readonly memoryMb?: number;
+  readonly pids?: number;
+  readonly ioBytesPerSecond?: number;
   readonly maxCostUsd?: number;
   readonly maxTokens?: number;
 }
@@ -190,6 +198,7 @@ export interface ComponentCreateInput<Config> {
 export interface ComponentLike {
   readonly instance: ComponentInstance;
   readonly manifest: ComponentManifest;
+  readonly kind: ComponentKind;
   supports(protocol: ProtocolId): boolean;
 }
 

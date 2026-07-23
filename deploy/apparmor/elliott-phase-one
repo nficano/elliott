@@ -1,0 +1,37 @@
+#include <tunables/global>
+
+profile elliott-kernel flags=(attach_disconnected,mediate_deleted) {
+  #include <abstractions/base>
+  network,
+  deny mount,
+  deny ptrace,
+  /elliott/** r,
+  /tmp/** rw,
+}
+
+profile elliott-audit flags=(attach_disconnected,mediate_deleted) {
+  #include <abstractions/base>
+  network unix,
+  deny mount,
+  deny ptrace,
+  /elliott/audit/** rw,
+  /tmp/** rw,
+}
+
+profile elliott-component flags=(attach_disconnected,mediate_deleted) {
+  #include <abstractions/base>
+  network unix,
+  deny mount,
+  deny ptrace,
+  /elliott/** r,
+  /tmp/** rw,
+}
+
+profile elliott-provider flags=(attach_disconnected,mediate_deleted) {
+  #include <abstractions/base>
+  network,
+  deny mount,
+  deny ptrace,
+  /elliott/** r,
+  /tmp/** rw,
+}

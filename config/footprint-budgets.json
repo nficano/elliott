@@ -1,0 +1,20 @@
+[
+  {
+    "metric": "prompt.stablePrefixTokens",
+    "baseline": 2048,
+    "current": 2048,
+    "maximumRegressionRatio": 0.05
+  },
+  {
+    "metric": "runtime.epochTableBytes",
+    "baseline": 16384,
+    "current": 16384,
+    "maximumRegressionRatio": 0.05
+  },
+  {
+    "metric": "runtime.routeTableBytes",
+    "baseline": 65536,
+    "current": 65536,
+    "maximumRegressionRatio": 0.1
+  }
+]
