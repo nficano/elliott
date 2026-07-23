@@ -1,5 +1,8 @@
-// Memory providers — TDD §14d hermes-agent method: curated store,
-// session store, single external slot. Records carry classification across
-// sessions (§6b). deferred to M7.
-
-export {};
+export { FileCuratedMemoryPersistence } from "./curated/file";
+export {
+  CuratedMemoryStore,
+  InMemoryCuratedPersistence,
+} from "./curated/index";
+export { ExternalMemorySlot } from "./external-slot/index";
+export { SessionStore } from "./session-store/index";
+export type * from "./types";

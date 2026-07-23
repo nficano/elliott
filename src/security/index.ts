@@ -15,5 +15,7 @@ export {
   residencySatisfies,
 } from "./residency/residency";
 export type * from "./residency/types";
+export { SanitizerPipeline } from "./sanitizer/sanitizer";
+export type * from "./sanitizer/types";
 export { isSecretUri, OpaqueSecretStore } from "./secrets/secrets";
 export type * from "./secrets/types";

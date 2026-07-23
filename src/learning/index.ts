@@ -1,4 +1,10 @@
-// Governed learning loop — TDD §11c. Learning produces Proposals; the
-// running agent cannot rewrite active policy. deferred to P3.
-
-export {};
+export { LearnSkillAuthor, SkillCurator } from "./curator/index";
+export {
+  approveProposal,
+  EVALUATION_STAGES,
+  promoteProposal,
+  ProposalEvaluator,
+} from "./evaluation/index";
+export { FileProposalStore } from "./proposals/index";
+export { SignalDetector, signalsPermitPromotion } from "./signals/index";
+export type * from "./types";

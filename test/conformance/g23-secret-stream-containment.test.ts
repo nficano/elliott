@@ -1,14 +1,59 @@
 import { describe, expect, it } from "bun:test";
-import { grantHandle, principalId } from "../../src/core/brands";
+import {
+  digest,
+  grantHandle,
+  placementRef,
+  principalId,
+  scopeId,
+} from "../../src/core/brands";
 import { EpochRegistry } from "../../src/core/epoch/epochs";
 import { MemoryRecordAppender } from "../../src/core/waist/records";
 import { LinearDfaScanner } from "../../src/hotcore/index";
+import { CompanionManager } from "../../src/placement/companions/index";
+import { egressClass } from "../../src/placement/egress";
+import type { SecurityContext } from "../../src/placement/types";
 import { CapabilityBroker } from "../../src/security/broker/broker";
 import { GrantManager } from "../../src/security/grants/manager";
 import { OpaqueSecretStore } from "../../src/security/secrets/secrets";
 import { makeGrantIssue, makeInvocation } from "../helpers";
 
 describe("G23 secret and streamed-argument containment", () => {
+  it("binds companion reachability, egress, context, and lifecycle to its owner", async () => {
+    const manager = new CompanionManager({
+      async probe() {
+        return false;
+      },
+    });
+    const owner = placementRef("owner");
+    const other = placementRef("other");
+    const context: SecurityContext = {
+      effectiveCeilingDigest: digest("ceiling"),
+      maximumClassification: "confidential",
+      trustDomain: "workspace",
+      scope: { level: "workspace", id: scopeId("workspace") },
+      securityCritical: false,
+    };
+    const companion = await manager.open({
+      owner,
+      context,
+      ownerEgress: egressClass("declared", ["database.local"]),
+      declaration: {
+        name: "database",
+        image: "example/database@sha256:1234",
+        egress: egressClass("none"),
+        endpoint: "database",
+        tmpfs: [],
+        secretRefs: [],
+        manifestDigest: digest("manifest-with-image"),
+      },
+    });
+    expect(companion.securityContext).toBe(context);
+    expect(companion.effectiveEgress.kind).toBe("none");
+    expect(manager.canReach(companion.id, owner)).toBe(true);
+    expect(manager.canReach(companion.id, other)).toBe(false);
+    expect(manager.drainOwner(owner)[0]?.state).toBe("closed");
+  });
+
   it("carries scanner state across chunks and blocks before dispatch", async () => {
     const records = new MemoryRecordAppender();
     const grants = new GrantManager(new EpochRegistry(records));

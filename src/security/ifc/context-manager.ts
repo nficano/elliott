@@ -10,18 +10,22 @@ import type {
   FrameId,
   FrameSanitizer,
   FrameWireInput,
+  MergeApplyInput,
   MergeRequest,
   MergeResult,
   MergeTicket,
 } from "./types";
 
 const makeFrameId = Brand.nominal<FrameId>();
+const DEFAULT_MERGE_LIMIT = 128;
 
 export class KernelContextManager implements ContextManager {
   readonly #frames = new Map<FrameId, ContextFrame>();
   readonly #records: RecordAppender;
   readonly #sanitizer: FrameSanitizer;
   readonly #standard: boolean;
+  readonly #applyQueues = new Map<FrameId, Promise<void>>();
+  readonly #mergeCounts = new Map<FrameId, number>();
   #active: FrameId;
 
   constructor(
@@ -76,30 +80,66 @@ export class KernelContextManager implements ContextManager {
   }
 
   async merge(request: MergeRequest): Promise<MergeTicket> {
+    const count = (this.#mergeCounts.get(request.sourceFrame) ?? 0) + 1;
+    if (count > DEFAULT_MERGE_LIMIT) {
+      return this.#ticket(
+        Promise.resolve({ type: "blocked-declassification" }),
+      );
+    }
+    this.#mergeCounts.set(request.sourceFrame, count);
     const result = this.#resolveMerge(request);
-    return Object.freeze({ id: newId("merge"), result });
+    return this.#ticket(result);
   }
 
   async #resolveMerge(request: MergeRequest): Promise<MergeResult> {
     const source = this.frame(request.sourceFrame);
     const target = this.frame(request.targetFrame);
-    if (
-      request.ordering === "revision-dependent"
-      && request.sourceRevision !== source.revision
-    ) return { type: "stale-merge" };
     const requiresSanitizer = maximumClassification([
           source.classification,
           target.classification,
         ]) === source.classification
       && source.classification !== target.classification;
     let output = request.rawOutput;
+    let appendSafe = false;
     if (requiresSanitizer) {
       const decision = await this.#sanitizer.sanitize(request);
       if (!decision.approved || decision.output === undefined) {
         return { type: "blocked-declassification" };
       }
       output = decision.output;
+      appendSafe = decision.appendSafe ?? false;
     }
+    return this.#enqueueApply({
+      request,
+      output,
+      sanitized: requiresSanitizer,
+      appendSafe,
+    });
+  }
+
+  async #enqueueApply(input: MergeApplyInput): Promise<MergeResult> {
+    const { request } = input;
+    const previous = this.#applyQueues.get(request.targetFrame)
+      ?? Promise.resolve();
+    const result = previous.then(() => this.#apply(input));
+    this.#applyQueues.set(
+      request.targetFrame,
+      result.then(() => undefined).catch(() => undefined),
+    );
+    return result;
+  }
+
+  async #apply(input: MergeApplyInput): Promise<MergeResult> {
+    const { request, output, sanitized, appendSafe } = input;
+    const source = this.frame(request.sourceFrame);
+    const effectiveOrdering = request.ordering === "commutative" && appendSafe
+      ? "commutative"
+      : "revision-dependent";
+    if (
+      effectiveOrdering === "revision-dependent"
+      && request.sourceRevision !== source.revision
+    ) return { type: "stale-merge" };
+    const target = this.frame(request.targetFrame);
     this.wire({
       frame: target.id,
       messages: [{ role: "tool", content: output }],
@@ -114,10 +154,15 @@ export class KernelContextManager implements ContextManager {
       payload: {
         source: source.id,
         target: target.id,
-        sanitized: requiresSanitizer,
+        sanitized,
       },
     });
     return { type: "merged", output };
+  }
+
+  #ticket(result: Promise<MergeResult>): MergeTicket {
+    const id = newId("merge");
+    return Object.freeze({ id, mergeId: id, result });
   }
 
   #classification(value: DataClassification): DataClassification {

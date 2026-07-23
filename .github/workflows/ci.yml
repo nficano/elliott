@@ -16,8 +16,14 @@ permissions:
 
 jobs:
   test:
-    name: Test
+    name: Test (${{ matrix.posture }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        posture: [standard, hardened, regulated]
+    env:
+      ELLIOTT_POSTURE: ${{ matrix.posture }}
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
@@ -30,3 +36,5 @@ jobs:
       - run: bun test
       - run: bun run footprint:check
       - run: bun run hot-core:check
+      - run: cargo fmt --manifest-path crates/hot-core/Cargo.toml --all -- --check
+      - run: cargo clippy --manifest-path crates/hot-core/Cargo.toml --workspace --all-targets -- -D warnings

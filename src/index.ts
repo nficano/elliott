@@ -1,6 +1,8 @@
 // Elliott public surface. Consumers install Elliott as a standalone package
 // and compose agents declaratively (TDD §0f, §16).
 
+export { AgentComposer, scaffoldConsumerAgent } from "./agent/index";
+export { BUNDLED_CATALOG } from "./catalog/index";
 export { Component } from "./core/component/component";
 export { defineComponent } from "./core/component/define";
 export { EpochRegistry } from "./core/epoch/epochs";
