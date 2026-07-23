@@ -13,6 +13,14 @@ import {
   stringArrayAt,
   stringAt,
 } from "./settings";
+import {
+  optionalCloudflared,
+  optionalFiles,
+  optionalHomeAssistant,
+  optionalSmtp,
+  optionalSsh,
+  optionalTerminal,
+} from "./settings-tools";
 import type { RuntimeSettings, SecretResolver } from "./types";
 
 const DEFAULT_PORT = 8080;
@@ -42,8 +50,19 @@ export const loadRuntimeSettings = async (
   const secrets = await loadSecrets(root, resolver);
   const agent = await loadYaml(path.join(root, "agents/elliott.yaml"));
   const resolved = await resolveTree(config, resolver);
+  return {
+    ...coreSettings(root, resolved, agent),
+    ...optionalSettings(root, resolved, secrets),
+    mcp: mcpSettings(agent, secrets),
+  };
+};
+
+const coreSettings = (
+  root: string,
+  resolved: unknown,
+  agent: unknown,
+): RuntimeSettings => {
   const modelProfile = stringAt(agent, ["spec", "modelProfile"]);
-  const model = stringAt(resolved, ["llm", "models", modelProfile, "model"]);
   return {
     environment: runtimeName,
     release: environment["ELLIOTT_RELEASE"] ?? "dev",
@@ -51,7 +70,7 @@ export const loadRuntimeSettings = async (
     port: optionalNumberAt(resolved, ["runtime", "http", "port"])
       ?? DEFAULT_PORT,
     persona: path.join(root, stringAt(agent, ["spec", "persona"])),
-    model,
+    model: stringAt(resolved, ["llm", "models", modelProfile, "model"]),
     maxTokens: optionalNumberAt(
       resolved,
       ["llm", "profiles", "default", "max_tokens"],
@@ -68,22 +87,35 @@ export const loadRuntimeSettings = async (
       token: stringAt(resolved, ["browser", "token"]),
       allowedDomains: stringArrayAt(resolved, ["browser", "allowed_domains"]),
     },
-    ...optionalValue("braveApiKey", secrets["brave_api_key"]),
-    ...optionalValue("firecrawlApiKey", secrets["firecrawl_api_key"]),
-    ...optionalValue("parallelApiKey", secrets["parallel_api_key"]),
-    ...optionalValue("webhookSecret", secrets["webhook_signing_secret"]),
-    ...optionalSlack(resolved),
-    ...optionalGmail(secrets),
-    ...optionalBlueBubbles(resolved, secrets),
-    mcp: mcpSettings(agent, secrets),
-    ...optionalStringProperty("glitchtipDsn", resolved, [
-      "observability",
-      "glitchtip",
-      "dsn",
-    ]),
-    ...optionalStringProperty("postgresDsn", resolved, ["store", "dsn"]),
+    mcp: [],
   };
 };
+
+const optionalSettings = (
+  root: string,
+  resolved: unknown,
+  secrets: Readonly<Record<string, string>>,
+): Partial<RuntimeSettings> => ({
+  ...optionalValue("braveApiKey", secrets["brave_api_key"]),
+  ...optionalValue("firecrawlApiKey", secrets["firecrawl_api_key"]),
+  ...optionalValue("parallelApiKey", secrets["parallel_api_key"]),
+  ...optionalValue("webhookSecret", secrets["webhook_signing_secret"]),
+  ...optionalSlack(resolved),
+  ...optionalGmail(secrets),
+  ...optionalBlueBubbles(resolved, secrets),
+  ...optionalFiles(resolved, root),
+  ...optionalTerminal(resolved, root),
+  ...optionalSsh(resolved, secrets),
+  ...optionalSmtp(resolved, secrets),
+  ...optionalHomeAssistant(resolved, secrets),
+  ...optionalCloudflared(resolved),
+  ...optionalStringProperty("glitchtipDsn", resolved, [
+    "observability",
+    "glitchtip",
+    "dsn",
+  ]),
+  ...optionalStringProperty("postgresDsn", resolved, ["store", "dsn"]),
+});
 
 const loadYaml = async (file: string): Promise<unknown> => {
   const raw = await readFile(file, "utf8");

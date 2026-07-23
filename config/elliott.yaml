@@ -54,3 +54,32 @@ channels:
     server_url: http://host.docker.internal:1234
     default_recipient: ""
     allowed_recipients: []
+  email:
+    enabled: false
+    smtp_host: smtp.example.com
+    smtp_port: 465
+    username: ""
+    from: ""
+    allowed_recipients: []
+  home_assistant:
+    enabled: false
+    base_url: http://172.16.10.235:8123
+
+tools:
+  files:
+    enabled: true
+    root: .elliott-runtime/workspace
+  terminal:
+    enabled: false
+    root: .elliott-runtime/workspace
+    allowed_commands: []
+  ssh:
+    enabled: false
+    user: elliott
+    hosts: []
+
+gateways:
+  cloudflared:
+    # ready_url points at the local cloudflared metrics /ready endpoint;
+    # unset means the health checker stays dormant.
+    ready_url: ""

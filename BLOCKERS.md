@@ -1,30 +1,40 @@
 # Non-blocking catalog gaps
 
 Elliott's production runtime on Spruce is operational. Every bundled component
-package in `skills/` that has an executable module (declared via `exports` in
-its `component.yaml`) registers directly with the runtime. The remaining gaps
-are configuration or descriptor-only entries, not missing code:
+in `skills/` now ships an executable module (declared via `exports` in its
+`component.yaml`) and registers directly with the runtime. Nothing in the TDD
+§14 catalog is descriptor-only anymore. The remaining items are provisioning
+and activation decisions, not missing code:
 
 - `web-parallel`: implemented, but `secret/services/oslo` has no
-  `parallel_api_key`, so the tool stays unregistered.
+  `parallel_api_key`, so the tool stays unregistered until one is added.
+- `gateway-email`: implemented (SMTP-over-TLS outbound with a recipient
+  allowlist), but `channels.email.enabled` is false and no `smtp_password`
+  or allowlist is configured. Inbound IMAP is not implemented; Gmail inbound
+  is served by `gateway-gmail`.
 - `gateway-webhook`: implemented (HMAC-verified inbound route), but
   `secret/services/oslo` has no `webhook_signing_secret`; the route stays
   unregistered until one is provisioned.
 - `gateway-bluebubbles`: the outbound adapter is bundled and the password
   exists, but `channels.bluebubbles.enabled` stays false until a LAN server
-  endpoint and recipient allowlist are verified. Inbound iMessage support is
-  not implemented.
-- `gateway-email`: Gmail is configured (`gateway-gmail` is live), but no
-  generic IMAP/SMTP credentials or adapter are available.
-- `cloudflared`: no tunnel token is present, and the current control/health
-  API is intentionally bound to Spruce loopback while Slack uses Socket Mode.
-- `files`, `terminal`, and `ssh`: these remain architectural descriptors.
-  They need sandbox/allowlist policy and (for SSH) a scoped key and host
-  allowlist before an executable module would be safe to ship; none are
-  present in Vault, so bundling one now would bypass Elliott's stated
-  security model.
-- `gateway-home-assistant`: descriptor-only; Home Assistant is reached today
-  through the `home-assistant` MCP endpoint in `agents/elliott.yaml`.
+  endpoint and recipient allowlist are verified. Inbound iMessage is not
+  implemented.
+- `gateway-home-assistant`: implemented (REST state/entities/service tools),
+  but `channels.home_assistant.enabled` is false by default because Home
+  Assistant is also reachable through the `home-assistant` MCP endpoint in
+  `agents/elliott.yaml`; enable one path or the other.
+- `terminal` and `ssh`: implemented, but disabled by default and inert
+  without an explicit allowlist. `terminal` needs `tools.terminal.enabled`
+  plus a non-empty `allowed_commands`; `ssh` needs `tools.ssh.enabled`, a
+  non-empty `hosts` list, and an `ssh_private_key` in Vault. Absent those,
+  they register nothing, preserving Elliott's stated security model.
+- `cloudflared`: the tunnel health checker is implemented but dormant until
+  `gateways.cloudflared.ready_url` points at a local cloudflared `/ready`
+  metrics endpoint. The control/health API remains bound to Spruce loopback
+  while Slack uses Socket Mode.
+
+`files` is enabled by default, contained to `.elliott-runtime/workspace` with
+symlink-escape checks on every read and write.
 
 A secret listed in `config/secrets.yaml` whose Vault field is missing is
 omitted at boot rather than fatal: the skills that need it stay unregistered

@@ -10,3 +10,5 @@ spec:
   egress: { class: none }
   isolation: container
   outputTrust: untrusted
+  exports:
+    - { ref: tool/terminal, implementation: src/index.ts }

@@ -36,6 +36,39 @@ export interface BlueBubblesSettings {
   readonly allowedRecipients: readonly string[];
 }
 
+export interface FilesSettings {
+  readonly root: string;
+}
+
+export interface TerminalSettings {
+  readonly root: string;
+  readonly allowedCommands: readonly string[];
+}
+
+export interface SshSettings {
+  readonly user: string;
+  readonly hosts: readonly string[];
+  readonly privateKey: string;
+}
+
+export interface SmtpSettings {
+  readonly host: string;
+  readonly port: number;
+  readonly username: string;
+  readonly password: string;
+  readonly from: string;
+  readonly allowedRecipients: readonly string[];
+}
+
+export interface HomeAssistantSettings {
+  readonly baseUrl: string;
+  readonly token: string;
+}
+
+export interface CloudflaredSettings {
+  readonly readyUrl: string;
+}
+
 export interface RuntimeSettings {
   readonly environment: string;
   readonly release: string;
@@ -55,6 +88,12 @@ export interface RuntimeSettings {
   readonly slack?: SlackSettings;
   readonly gmail?: GmailSettings;
   readonly bluebubbles?: BlueBubblesSettings;
+  readonly files?: FilesSettings;
+  readonly terminal?: TerminalSettings;
+  readonly ssh?: SshSettings;
+  readonly smtp?: SmtpSettings;
+  readonly homeAssistant?: HomeAssistantSettings;
+  readonly cloudflared?: CloudflaredSettings;
   readonly webhookSecret?: string;
   readonly mcp: readonly McpEndpointSettings[];
   readonly glitchtipDsn?: string;

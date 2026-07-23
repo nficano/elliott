@@ -15,3 +15,5 @@ spec:
       image: cloudflare/cloudflared@sha256:operator-pinned
       egress: { class: declared, hosts: [cloudflare-edge] }
       endpoint: webhook-only
+  exports:
+    - { ref: extension/cloudflared, implementation: src/index.ts }

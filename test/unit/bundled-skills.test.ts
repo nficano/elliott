@@ -7,15 +7,21 @@ const root = path.resolve(import.meta.dir, "../..");
 
 const IMPLEMENTED = [
   "browser",
+  "cloudflared",
   "fetch",
+  "files",
   "gateway-bluebubbles",
+  "gateway-email",
   "gateway-gmail",
+  "gateway-home-assistant",
   "gateway-slack",
   "gateway-webhook",
   "mcp-client",
   "scheduler",
   "search-brave",
   "search-duckduckgo",
+  "ssh",
+  "terminal",
   "web-firecrawl",
   "web-parallel",
 ];

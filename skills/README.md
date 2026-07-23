@@ -31,6 +31,8 @@ Bundled components:
 - Local execution: `files`, `terminal`, `ssh`
 - Automation: `scheduler`
 
-Descriptor-only entries (no `exports`): `gateway-email`,
-`gateway-home-assistant`, `cloudflared`, `files`, `terminal`, `ssh` — see
-`BLOCKERS.md` for why each remains unimplemented.
+Every entry ships an executable module. Several stay dormant until the
+operator provisions a secret or flips an enable flag (e.g. `terminal` and
+`ssh` require an explicit allowlist; `gateway-email` requires SMTP
+credentials and a recipient allowlist). See `BLOCKERS.md` for the current
+activation state of each.

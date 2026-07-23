@@ -12,3 +12,5 @@ spec:
   isolation: container
   senderAllowlist: required
   outputTrust: untrusted
+  exports:
+    - { ref: gateway/email, implementation: src/index.ts }

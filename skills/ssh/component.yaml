@@ -11,3 +11,5 @@ spec:
   egress: { class: declared, hosts: [] }
   isolation: container
   outputTrust: untrusted
+  exports:
+    - { ref: tool/ssh, implementation: src/index.ts }
