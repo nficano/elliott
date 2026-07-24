@@ -1,0 +1,172 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://elliott.dev/schemas/component.json",
+  "title": "Elliott Component (component.yaml)",
+  "description": "Manifest for an elliott/v1 component (tool, gateway, extension, mcp-endpoint, scheduler, …).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["apiVersion", "kind", "profile", "metadata", "spec"],
+  "properties": {
+    "apiVersion": {
+      "const": "elliott/v1",
+      "description": "Manifest API version. Only elliott/v1 is understood by the loader."
+    },
+    "kind": {
+      "description": "Component kind. See src/core/types.ts ComponentKind.",
+      "enum": [
+        "agent",
+        "skill",
+        "tool",
+        "resource",
+        "gateway",
+        "mcp-endpoint",
+        "mcp-exposure",
+        "extension",
+        "interaction-profile",
+        "memory",
+        "policy",
+        "evaluator",
+        "model-provider",
+        "model-profile",
+        "scheduler"
+      ]
+    },
+    "profile": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Security/interaction profile name, e.g. gateway-standard, tool-standard, tool-local-only, extension-standard."
+    },
+    "metadata": { "$ref": "#/definitions/metadata" },
+    "spec": { "$ref": "#/definitions/spec" }
+  },
+  "definitions": {
+    "metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["namespace", "name", "version"],
+      "properties": {
+        "namespace": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1 },
+        "version": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$",
+          "description": "Semantic version, e.g. 1.0.0."
+        }
+      }
+    },
+    "egress": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["class"],
+      "properties": {
+        "class": {
+          "enum": ["none", "lan", "declared"],
+          "description": "Egress posture. `declared` requires an explicit `hosts` allowlist."
+        },
+        "hosts": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Allowlisted egress hosts (used with class: declared)."
+        }
+      }
+    },
+    "capability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["capability"],
+      "properties": {
+        "capability": {
+          "type": "string",
+          "description": "Capability name, e.g. network.connect, secret.use, fs.read, fs.write, process.execute."
+        },
+        "resources": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "deferred": {
+          "type": "boolean",
+          "description": "JIT operator approval on first use."
+        }
+      }
+    },
+    "companion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "image"],
+      "properties": {
+        "name": { "type": "string" },
+        "image": {
+          "type": "string",
+          "description": "Container image reference, ideally digest-pinned."
+        },
+        "endpoint": { "type": "string" },
+        "egress": { "$ref": "#/definitions/egress" },
+        "volumes": {
+          "type": "array",
+          "items": { "type": "object" }
+        }
+      }
+    },
+    "export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ref", "implementation"],
+      "properties": {
+        "ref": {
+          "type": "string",
+          "description": "Exported component ref, e.g. gateway/slack, tool/files."
+        },
+        "implementation": {
+          "type": "string",
+          "description": "Path to the implementation module, relative to the component root."
+        }
+      }
+    },
+    "spec": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "document",
+        "protocols",
+        "capabilities",
+        "egress",
+        "isolation",
+        "exports"
+      ],
+      "properties": {
+        "document": {
+          "type": "string",
+          "description": "Human-facing document filename, e.g. TOOL.md, GATEWAY.md, EXTENSION.md, MCP.md, SCHEDULER.md."
+        },
+        "protocols": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "capabilities": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/capability" }
+        },
+        "egress": { "$ref": "#/definitions/egress" },
+        "isolation": {
+          "enum": ["declarative", "in-process", "process", "container", "remote"],
+          "description": "Requested isolation level. See src/core/types.ts IsolationLevel."
+        },
+        "outputTrust": {
+          "enum": ["trusted", "untrusted"]
+        },
+        "senderAllowlist": {
+          "enum": ["required", "optional", "none"]
+        },
+        "companions": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/companion" }
+        },
+        "exports": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/definitions/export" }
+        }
+      }
+    }
+  }
+}

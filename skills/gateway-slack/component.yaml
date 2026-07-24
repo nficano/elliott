@@ -1,7 +1,7 @@
 apiVersion: elliott/v1
 kind: gateway
 profile: gateway-standard
-metadata: { namespace: core, name: gateway-slack, version: 1.0.0 }
+metadata: { namespace: core, name: gateway-slack, version: 1.1.0 }
 spec:
   document: GATEWAY.md
   protocols: [message.source, message.sink, identity.resolver]

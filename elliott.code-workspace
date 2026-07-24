@@ -1,8 +1,14 @@
 {
-	"folders": [
-		{
-			"path": "."
-		}
+  "folders": [
+    {
+      "path": "."
+    }
   ],
-  "settings": {}
+  "settings": {
+    "// Elliott YAML schemas": "Explicit associations below take priority over the JSON Schema Store catalog, which otherwise mismatches skills/*/component.yaml to the unrelated 'Cloud-Pipelines / Pipeline component' schema.",
+    "yaml.schemas": {
+      "./schemas/elliott-component.json": "**/skills/*/component.yaml",
+      "./schemas/elliott-agent.json": "**/agents/*.yaml"
+    }
+  }
 }

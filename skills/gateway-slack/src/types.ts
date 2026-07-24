@@ -1,3 +1,5 @@
+export type SlackJson = Readonly<Record<string, unknown>>;
+
 export interface SlackSocket {
   send(value: string): void;
   close(): void;

@@ -1,13 +1,15 @@
 import { isJsonRecord } from "../../../src/providers/http";
 import type { GatewayEvents } from "../../../src/runtime/skills/types";
 import type { InboundMessage, SlackSettings } from "../../../src/runtime/types";
+import { markdownBlock, postMessage, slackRequest } from "./client";
 import type { SlackSocket, SlackSocketHandlers } from "./types";
 
 export const GATEWAY_NAME = "gateway-slack";
 
-const SLACK_API = "https://slack.com/api";
 const RETRY_DELAY_MILLISECONDS = 3000;
-const MESSAGE_CHUNK_CHARACTERS = 3900;
+// A markdown block accepts up to 12,000 characters; chunk below that so a long
+// reply stays inside one block per message.
+const MESSAGE_CHUNK_CHARACTERS = 11_500;
 
 export class SlackGateway {
   readonly name = GATEWAY_NAME;
@@ -36,19 +38,16 @@ export class SlackGateway {
   }
 
   async send(channel: string, text: string, thread?: string): Promise<void> {
+    const target = channel || this.#settings.defaultChannel;
     for (const chunk of chunkText(text)) {
-      const response = await slackRequest(
-        "chat.postMessage",
-        this.#settings.botToken,
-        {
-          channel: channel || this.#settings.defaultChannel,
-          text: chunk,
-          ...(thread !== undefined && { thread_ts: thread }),
-        },
-      );
-      if (response["ok"] !== true) {
-        throw new Error(`Slack delivery failed: ${String(response["error"])}`);
-      }
+      // Render the reply through a markdown block so standard markdown from the
+      // model formats correctly; keep the raw text as the notification fallback.
+      await postMessage(this.#settings.botToken, {
+        channel: target,
+        text: chunk,
+        blocks: [markdownBlock(chunk)],
+        ...(thread !== undefined && { thread_ts: thread }),
+      });
     }
   }
 
@@ -165,26 +164,6 @@ const decodeMessage = (
     sender,
     text,
   };
-};
-
-const slackRequest = async (
-  method: string,
-  token: string,
-  body?: Readonly<Record<string, unknown>>,
-): Promise<Readonly<Record<string, unknown>>> => {
-  const response = await fetch(`${SLACK_API}/${method}`, {
-    method: "POST",
-    headers: {
-      authorization: `Bearer ${token}`,
-      "content-type": "application/json",
-    },
-    body: JSON.stringify(body ?? {}),
-  });
-  const value: unknown = await response.json();
-  if (!response.ok || !isJsonRecord(value)) {
-    throw new Error(`Slack ${method} returned HTTP ${response.status}`);
-  }
-  return value;
 };
 
 const openSocket = (
