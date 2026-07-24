@@ -1,0 +1,231 @@
+{
+  "operation": "compare",
+  "run": {
+    "id": "evr_smoke004",
+    "principalId": "EvolutionProposalAuthor",
+    "baselineSnapshotId": "snapshot-baseline",
+    "engineRef": "organization/evaluator/dspy-gepa",
+    "engineKind": "gepa",
+    "configurationDigest": "sha256:configuration",
+    "signalIds": [],
+    "datasetId": "evd_smoke004",
+    "datasetDigest": "sha256:dataset",
+    "optimizationSeed": 7,
+    "target": {
+      "targetClass": "skill",
+      "componentRef": "workspace/skill/smoke",
+      "baselineDigest": "sha256:baseline",
+      "riskClass": "C1",
+      "mutationPath": "skills/smoke/SKILL.md",
+      "allowedMutationPaths": ["skills/smoke/SKILL.md"],
+      "frozenPaths": ["skills/smoke/component.yaml"]
+    },
+    "budgets": {
+      "maximumCandidates": 2,
+      "maximumTokens": 100,
+      "maximumCostUsd": 1,
+      "maximumDurationMilliseconds": 10000,
+      "maximumConcurrency": 1
+    },
+    "state": {
+      "_tag": "shortlisted",
+      "candidateIds": ["evc_smoke004"],
+      "sealedAt": "2026-01-01T00:00:00Z"
+    },
+    "createdAt": "2026-01-01T00:00:00Z",
+    "updatedAt": "2026-01-01T00:00:00Z"
+  },
+  "candidate": {
+    "id": "evc_smoke004",
+    "runId": "evr_smoke004",
+    "targetDigest": "sha256:baseline",
+    "candidateDigest": "sha256:candidate",
+    "patch": "--- a/skills/smoke/SKILL.md\n+++ b/skills/smoke/SKILL.md\n",
+    "materializedContent": "candidate",
+    "engineTraceDigest": "sha256:trace",
+    "usage": {
+      "inputTokens": 10,
+      "outputTokens": 10,
+      "costUsd": 0.01,
+      "latencyMilliseconds": 10
+    },
+    "constraints": [
+      {
+        "constraint": "syntax",
+        "passed": true,
+        "detail": "valid",
+        "evidenceDigests": ["sha256:constraint"]
+      }
+    ],
+    "createdAt": "2026-01-01T00:00:00Z"
+  },
+  "dataset": {
+    "id": "evd_smoke004",
+    "targetDigest": "sha256:baseline",
+    "digest": "sha256:dataset",
+    "splitSeed": 7,
+    "splitDigests": {
+      "train": "sha256:train",
+      "validation": "sha256:validation",
+      "holdout": "sha256:holdout"
+    },
+    "classification": "internal",
+    "sources": [],
+    "cases": [
+      {
+        "id": "case-train",
+        "groupId": "group-train",
+        "split": "train",
+        "input": {
+          "fixtureScores": { "baseline": 0.5, "candidate": 0.8 }
+        },
+        "expected": { "correct": true },
+        "classification": "internal",
+        "sourceDigests": ["sha256:source"],
+        "timeoutMilliseconds": 1000,
+        "maximumCostUsd": 0.1,
+        "allowedEffects": []
+      },
+      {
+        "id": "case-validation",
+        "groupId": "group-validation",
+        "split": "validation",
+        "input": {
+          "fixtureScores": { "baseline": 0.5, "candidate": 0.8 }
+        },
+        "expected": { "correct": true },
+        "classification": "internal",
+        "sourceDigests": ["sha256:source"],
+        "timeoutMilliseconds": 1000,
+        "maximumCostUsd": 0.1,
+        "allowedEffects": []
+      },
+      {
+        "id": "case-holdout",
+        "groupId": "group-holdout",
+        "split": "holdout",
+        "input": {
+          "fixtureScores": { "baseline": 0.5, "candidate": 0.8 }
+        },
+        "expected": { "correct": true },
+        "classification": "internal",
+        "sourceDigests": ["sha256:source"],
+        "timeoutMilliseconds": 1000,
+        "maximumCostUsd": 0.1,
+        "allowedEffects": []
+      }
+    ],
+    "createdAt": "2026-01-01T00:00:00Z",
+    "sealedAt": "2026-01-01T00:00:00Z",
+    "holdoutSealed": true
+  },
+  "baselineSnapshotId": "snapshot-baseline",
+  "candidateSnapshotId": "snapshot-candidate",
+  "evaluatorRef": "organization/evaluator/agent-benchmarks",
+  "authoringRouteDigest": "sha256:authoring-route",
+  "evaluationRouteDigest": "sha256:evaluation-route",
+  "evaluationPlanDigest": "sha256:5d7fdc28723efcc51fef07609ab31023298987481fa30b8cfd31a9de8efe42c3",
+  "environmentDigest": "sha256:environment",
+  "seed": 7,
+  "metrics": [
+    {
+      "name": "correctness",
+      "direction": "maximize",
+      "weight": 1,
+      "regressionFloor": 0
+    }
+  ],
+  "confidenceLevel": 0.95,
+  "bootstrapIterations": 100,
+  "multipleComparisonCount": 1,
+  "requiredConstraints": ["syntax"],
+  "benchmarkGates": [
+    {
+      "benchmarkRef": "target-syntax",
+      "operation": "runSubset",
+      "applicable": true
+    },
+    {
+      "benchmarkRef": "immutable-field-check",
+      "operation": "runSubset",
+      "applicable": true
+    },
+    {
+      "benchmarkRef": "permission-and-containment",
+      "operation": "runSubset",
+      "applicable": true
+    },
+    {
+      "benchmarkRef": "static-security",
+      "operation": "runSubset",
+      "applicable": true
+    },
+    {
+      "benchmarkRef": "focused-contract-tests",
+      "operation": "runSubset",
+      "applicable": true
+    },
+    {
+      "benchmarkRef": "elliott-check",
+      "operation": "runFull",
+      "applicable": true
+    },
+    {
+      "benchmarkRef": "tblite-fast",
+      "operation": "runSubset",
+      "applicable": true
+    },
+    {
+      "benchmarkRef": "task-specific-subset",
+      "operation": "runSubset",
+      "applicable": true
+    },
+    {
+      "benchmarkRef": "task-specific-validation",
+      "operation": "runFull",
+      "applicable": true
+    },
+    {
+      "benchmarkRef": "independent-holdout",
+      "operation": "compareBaseline",
+      "applicable": true
+    },
+    {
+      "benchmarkRef": "tblite-full",
+      "operation": "runFull",
+      "applicable": true
+    },
+    {
+      "benchmarkRef": "yc-bench",
+      "operation": "runFull",
+      "applicable": false,
+      "notApplicableReason": "yc-bench does not apply to skill"
+    },
+    {
+      "benchmarkRef": "terminalbench2",
+      "operation": "runFull",
+      "applicable": false,
+      "notApplicableReason": "terminalbench2 does not apply to skill"
+    }
+  ],
+  "footprintLimits": [
+    {
+      "category": "prompt",
+      "metric": "target-utf8-bytes",
+      "baseline": 9,
+      "maximumRegressionRatio": 0.1
+    },
+    {
+      "category": "inference",
+      "metric": "evaluation-cost-usd",
+      "baseline": 0,
+      "maximumRegressionRatio": 0.1
+    },
+    {
+      "category": "runtime",
+      "metric": "evaluation-latency-milliseconds",
+      "baseline": 0,
+      "maximumRegressionRatio": 0.1
+    }
+  ]
+}

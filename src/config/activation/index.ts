@@ -39,6 +39,29 @@ export class ConfigurationActivationManager {
     this.#active = candidate;
     return Object.freeze({ type: "activated", active: candidate, delta });
   }
+
+  async rollback(previous: ConfigurationRevision): Promise<ActivationResult> {
+    if (this.#active.parentDigest !== previous.digest) {
+      return Object.freeze({ type: "stale", active: this.#active });
+    }
+    const delta = await this.#hooks.evaluateSecurityDelta(
+      this.#active,
+      previous,
+    );
+    await this.#hooks.startCandidate(previous);
+    const healthy = await this.#hooks.healthCheck(previous);
+    if (!healthy) {
+      await this.#hooks.discard(previous);
+      return Object.freeze({ type: "rejected", active: this.#active, delta });
+    }
+    await this.#hooks.commit(Object.freeze({
+      revision: previous,
+      touchedEpochs: previous.touchedEpochs,
+      policyDigests: previous.policyDigests,
+    }));
+    this.#active = previous;
+    return Object.freeze({ type: "activated", active: previous, delta });
+  }
 }
 
 export type * from "./types";

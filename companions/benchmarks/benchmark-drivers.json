@@ -1,0 +1,256 @@
+{
+  "schemaVersion": 1,
+  "drivers": {
+    "target-syntax": {
+      "name": "elliott-snapshot-executor",
+      "source": "elliott",
+      "revision": "workspace",
+      "scope": "candidate",
+      "maximumRegressionRatio": 0,
+      "argv": [
+        "python",
+        "/opt/elliott/snapshot_executor_driver.py",
+        "--request",
+        "{request}",
+        "--result",
+        "{result}",
+        "--source",
+        "elliott",
+        "--revision",
+        "workspace"
+      ]
+    },
+    "immutable-field-check": {
+      "name": "elliott-snapshot-executor",
+      "source": "elliott",
+      "revision": "workspace",
+      "scope": "candidate",
+      "maximumRegressionRatio": 0,
+      "argv": [
+        "python",
+        "/opt/elliott/snapshot_executor_driver.py",
+        "--request",
+        "{request}",
+        "--result",
+        "{result}",
+        "--source",
+        "elliott",
+        "--revision",
+        "workspace"
+      ]
+    },
+    "permission-and-containment": {
+      "name": "elliott-snapshot-executor",
+      "source": "elliott",
+      "revision": "workspace",
+      "scope": "candidate",
+      "maximumRegressionRatio": 0,
+      "argv": [
+        "python",
+        "/opt/elliott/snapshot_executor_driver.py",
+        "--request",
+        "{request}",
+        "--result",
+        "{result}",
+        "--source",
+        "elliott",
+        "--revision",
+        "workspace"
+      ]
+    },
+    "static-security": {
+      "name": "elliott-snapshot-executor",
+      "source": "elliott",
+      "revision": "workspace",
+      "scope": "candidate",
+      "maximumRegressionRatio": 0,
+      "argv": [
+        "python",
+        "/opt/elliott/snapshot_executor_driver.py",
+        "--request",
+        "{request}",
+        "--result",
+        "{result}",
+        "--source",
+        "elliott",
+        "--revision",
+        "workspace"
+      ]
+    },
+    "focused-contract-tests": {
+      "name": "elliott-snapshot-executor",
+      "source": "elliott",
+      "revision": "workspace",
+      "scope": "candidate",
+      "maximumRegressionRatio": 0,
+      "argv": [
+        "python",
+        "/opt/elliott/snapshot_executor_driver.py",
+        "--request",
+        "{request}",
+        "--result",
+        "{result}",
+        "--source",
+        "elliott",
+        "--revision",
+        "workspace"
+      ]
+    },
+    "elliott-check": {
+      "name": "elliott-snapshot-executor",
+      "source": "elliott",
+      "revision": "workspace",
+      "scope": "shortlist",
+      "maximumRegressionRatio": 0,
+      "argv": [
+        "python",
+        "/opt/elliott/snapshot_executor_driver.py",
+        "--request",
+        "{request}",
+        "--result",
+        "{result}",
+        "--source",
+        "elliott",
+        "--revision",
+        "workspace"
+      ]
+    },
+    "tblite-fast": {
+      "name": "harbor-openthoughts-tblite",
+      "source": "https://github.com/open-thoughts/OpenThoughts-TBLite",
+      "revision": "5c37b41f00ce04719a4453061076ae9f46b74b7d",
+      "scope": "candidate",
+      "maximumRegressionRatio": 0.02,
+      "argv": [
+        "python",
+        "/opt/elliott/snapshot_executor_driver.py",
+        "--request",
+        "{request}",
+        "--result",
+        "{result}",
+        "--source",
+        "https://github.com/open-thoughts/OpenThoughts-TBLite",
+        "--revision",
+        "5c37b41f00ce04719a4453061076ae9f46b74b7d"
+      ]
+    },
+    "task-specific-subset": {
+      "name": "elliott-snapshot-executor",
+      "source": "elliott",
+      "revision": "workspace",
+      "scope": "candidate",
+      "maximumRegressionRatio": 0,
+      "argv": [
+        "python",
+        "/opt/elliott/snapshot_executor_driver.py",
+        "--request",
+        "{request}",
+        "--result",
+        "{result}",
+        "--source",
+        "elliott",
+        "--revision",
+        "workspace"
+      ]
+    },
+    "task-specific-validation": {
+      "name": "elliott-snapshot-executor",
+      "source": "elliott",
+      "revision": "workspace",
+      "scope": "shortlist",
+      "maximumRegressionRatio": 0,
+      "argv": [
+        "python",
+        "/opt/elliott/snapshot_executor_driver.py",
+        "--request",
+        "{request}",
+        "--result",
+        "{result}",
+        "--source",
+        "elliott",
+        "--revision",
+        "workspace"
+      ]
+    },
+    "independent-holdout": {
+      "name": "elliott-snapshot-executor",
+      "source": "elliott",
+      "revision": "workspace",
+      "scope": "shortlist",
+      "maximumRegressionRatio": 0,
+      "argv": [
+        "python",
+        "/opt/elliott/snapshot_executor_driver.py",
+        "--request",
+        "{request}",
+        "--result",
+        "{result}",
+        "--source",
+        "elliott",
+        "--revision",
+        "workspace"
+      ]
+    },
+    "tblite-full": {
+      "name": "harbor-openthoughts-tblite",
+      "source": "https://github.com/open-thoughts/OpenThoughts-TBLite",
+      "revision": "5c37b41f00ce04719a4453061076ae9f46b74b7d",
+      "scope": "shortlist",
+      "maximumRegressionRatio": 0.02,
+      "argv": [
+        "python",
+        "/opt/elliott/snapshot_executor_driver.py",
+        "--request",
+        "{request}",
+        "--result",
+        "{result}",
+        "--source",
+        "https://github.com/open-thoughts/OpenThoughts-TBLite",
+        "--revision",
+        "5c37b41f00ce04719a4453061076ae9f46b74b7d"
+      ]
+    },
+    "yc-bench": {
+      "name": "yc-bench",
+      "source": "https://github.com/collinear-ai/yc-bench",
+      "revision": "e7d606789be4c52a34f9fa5b04ada4a2eaf9d731",
+      "scope": "release",
+      "maximumRegressionRatio": 0,
+      "argv": [
+        "python",
+        "/opt/elliott/snapshot_executor_driver.py",
+        "--request",
+        "{request}",
+        "--result",
+        "{result}",
+        "--source",
+        "https://github.com/collinear-ai/yc-bench",
+        "--revision",
+        "e7d606789be4c52a34f9fa5b04ada4a2eaf9d731"
+      ]
+    },
+    "terminalbench2": {
+      "name": "harbor-terminal-bench-2",
+      "source": "https://github.com/laude-institute/terminal-bench-2",
+      "revision": "2fd12b88aafdd04a52c298e3940bcb189f9766d6",
+      "scope": "release",
+      "maximumRegressionRatio": 0,
+      "argv": [
+        "python",
+        "/opt/elliott/snapshot_executor_driver.py",
+        "--request",
+        "{request}",
+        "--result",
+        "{result}",
+        "--source",
+        "https://github.com/laude-institute/terminal-bench-2",
+        "--revision",
+        "2fd12b88aafdd04a52c298e3940bcb189f9766d6"
+      ]
+    }
+  },
+  "harbor": {
+    "source": "https://github.com/laude-institute/harbor",
+    "revision": "ff69e554fac1c751aa608e03de027db9043a2eac"
+  }
+}

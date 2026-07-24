@@ -1,0 +1,80 @@
+{
+  "run": {
+    "id": "evr_smoke001",
+    "principalId": "EvolutionOptimizer",
+    "baselineSnapshotId": "snapshot-baseline",
+    "engineRef": "organization/evaluator/dspy",
+    "engineKind": "gepa",
+    "configurationDigest": "sha256:configuration",
+    "signalIds": [],
+    "target": {
+      "targetClass": "skill",
+      "componentRef": "workspace/skill/smoke",
+      "baselineDigest": "sha256:baseline",
+      "riskClass": "C1",
+      "mutationPath": "SKILL.md",
+      "allowedMutationPaths": ["SKILL.md"],
+      "frozenPaths": ["component.yaml"]
+    },
+    "budgets": {
+      "maximumCandidates": 2,
+      "maximumTokens": 100,
+      "maximumCostUsd": 1,
+      "maximumDurationMilliseconds": 10000,
+      "maximumConcurrency": 1
+    },
+    "state": {
+      "_tag": "optimizing",
+      "startedAt": "2026-01-01T00:00:00Z",
+      "candidateCount": 0
+    },
+    "createdAt": "2026-01-01T00:00:00Z",
+    "updatedAt": "2026-01-01T00:00:00Z"
+  },
+  "dataset": {
+    "id": "evd_smoke001",
+    "targetDigest": "sha256:baseline",
+    "digest": "sha256:dataset",
+    "splitSeed": 7,
+    "trainDigest": "sha256:train",
+    "validationDigest": "sha256:validation",
+    "classification": "public",
+    "sources": [],
+    "trainCases": [
+      {
+        "id": "train-1",
+        "groupId": "train-group",
+        "split": "train",
+        "input": { "question": "hello" },
+        "expected": { "answer": "hello" },
+        "classification": "public",
+        "sourceDigests": ["sha256:source"],
+        "timeoutMilliseconds": 1000,
+        "maximumCostUsd": 1,
+        "allowedEffects": []
+      }
+    ],
+    "validationCases": [
+      {
+        "id": "validation-1",
+        "groupId": "validation-group",
+        "split": "validation",
+        "input": { "question": "goodbye" },
+        "expected": { "answer": "goodbye" },
+        "classification": "public",
+        "sourceDigests": ["sha256:source"],
+        "timeoutMilliseconds": 1000,
+        "maximumCostUsd": 1,
+        "allowedEffects": []
+      }
+    ],
+    "holdoutSealed": true
+  },
+  "baselineContent": "Answer the user's question accurately.",
+  "maximumCandidates": 2,
+  "maximumTokens": 100,
+  "maximumCostUsd": 1,
+  "maximumDurationMilliseconds": 10000,
+  "maximumConcurrency": 1,
+  "seed": 7
+}

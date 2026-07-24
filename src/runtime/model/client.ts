@@ -1,3 +1,4 @@
+import { hashValue } from "../../core/digest";
 import { isJsonRecord, recordArray } from "../../providers/http";
 import type {
   ModelMessage,
@@ -8,6 +9,7 @@ import type {
   ToolDefinition,
 } from "../types";
 import { decodeCompletionStream } from "./stream";
+import { decodeRuntimeModelUsage } from "./usage";
 
 const RESPONSE_DETAIL_MAX_CHARACTERS = 500;
 
@@ -42,6 +44,7 @@ export class RuntimeModelClient {
           max_tokens: this.#settings.maxTokens,
           temperature: this.#settings.temperature,
           stream: streaming,
+          ...(streaming && { stream_options: { include_usage: true } }),
         }),
       },
     );
@@ -52,11 +55,31 @@ export class RuntimeModelClient {
       );
       throw new Error(`LiteLLM ${response.status}: ${detail}`);
     }
-    if (onTextDelta !== undefined) {
-      return decodeCompletionStream(response, onTextDelta);
-    }
-    const payload: unknown = await response.json();
-    return decodeCompletion(payload);
+    const result = onTextDelta === undefined
+      ? decodeCompletion(await response.json())
+      : await decodeCompletionStream(response, onTextDelta);
+    return this.#attest(result);
+  }
+
+  #attest(result: ModelTurnResult): ModelTurnResult {
+    const routeDigest = hashValue({
+      baseUrl: this.#settings.llmBaseUrl,
+      model: this.#settings.model,
+    });
+    return {
+      ...result,
+      selection: {
+        routeDigest,
+        usageReference: hashValue({
+          routeDigest,
+          usage: result.usage ?? null,
+          response: hashValue({
+            text: result.text,
+            toolCalls: result.toolCalls,
+          }),
+        }),
+      },
+    };
   }
 }
 
@@ -99,9 +122,11 @@ const decodeCompletion = (payload: unknown): ModelTurnResult => {
   const message = choice?.["message"];
   if (!isJsonRecord(message)) throw new Error("LiteLLM returned no message");
   const content = message["content"];
+  const usage = decodeRuntimeModelUsage(payload);
   return {
     text: typeof content === "string" ? content : "",
     toolCalls: recordArray(message, "tool_calls").map(decodeToolCall),
+    ...(usage !== undefined && { usage }),
   };
 };
 

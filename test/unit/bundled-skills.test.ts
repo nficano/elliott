@@ -8,6 +8,9 @@ const root = path.resolve(import.meta.dir, "../..");
 const IMPLEMENTED = [
   "browser",
   "cloudflared",
+  "evaluator-agent-benchmarks",
+  "evaluator-darwinian",
+  "evaluator-dspy",
   "fetch",
   "files",
   "gateway-bluebubbles",

@@ -37,12 +37,35 @@ export interface ProposalArtifacts {
   readonly evidenceYaml: string;
   readonly permissionDiffYaml: string;
   readonly evaluationPlanYaml: string;
+  readonly candidateYaml?: string;
+  readonly lineageYaml?: string;
+  readonly datasetYaml?: string;
+  readonly comparisonYaml?: string;
+  readonly footprintsYaml?: string;
+  readonly benchmarksYaml?: string;
+  readonly rollbackYaml?: string;
   readonly support: Readonly<Record<string, string>>;
+}
+
+export interface ProposalEvolutionMetadata {
+  readonly runId: string;
+  readonly targetClass:
+    | "skill"
+    | "tool-description"
+    | "prompt-segment"
+    | "code";
+  readonly riskClass: "C1" | "C2" | "C3" | "C4";
+  readonly candidateDigest: string;
+  readonly baselineSnapshotId: string;
+  readonly candidateSnapshotId: string;
+  readonly evaluationReportId: string;
+  readonly datasetDigest: string;
 }
 
 export type ProposalStatus =
   | "authored"
   | "evaluated"
+  | "awaiting-review"
   | "approved"
   | "promoted"
   | "rejected"
@@ -57,6 +80,8 @@ export interface Proposal {
   readonly artifacts: ProposalArtifacts;
   readonly status: ProposalStatus;
   readonly approver?: PrincipalId;
+  readonly approvers?: readonly PrincipalId[];
+  readonly evolution?: ProposalEvolutionMetadata;
 }
 
 export type ProposalEvaluationStage =
@@ -107,6 +132,7 @@ export interface ProposalAuthorInput {
   readonly target: ProposalTarget;
   readonly signals: readonly LearningSignal[];
   readonly artifacts: ProposalArtifacts;
+  readonly evolution?: ProposalEvolutionMetadata;
 }
 
 export type SkillLifecycle = "active" | "candidate" | "archived";

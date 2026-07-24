@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "build": {
+    "observedAt": "2026-07-24T10:01:33Z",
+    "platform": "linux/arm64",
+    "commonSourceDigest": "sha256:0db0ba8c4935dd7489fd58ee96dacb40fd58d42f9007b2e2c54f65e98b599680",
+    "distribution": "local-oci",
+    "publishedRegistry": null
+  },
+  "images": {
+    "evaluator-dspy": {
+      "localReference": "elliott/evaluator-dspy@sha256:83644cc6c9bdcf08bd5c8b1f47f76eb2bab4eafefb2f75b7214ce30eb5b26a3e",
+      "ociManifestDigest": "sha256:83644cc6c9bdcf08bd5c8b1f47f76eb2bab4eafefb2f75b7214ce30eb5b26a3e",
+      "sourceDigest": "sha256:99fecdfed15003471efd070156c4165f9930e1bbb9d44a69384101419458ab1b",
+      "artifact": ".artifacts/evolution-companions/evaluator-dspy.oci.tar",
+      "dependency": {
+        "name": "dspy",
+        "version": "3.2.1",
+        "lock": "companions/dspy/uv.lock"
+      },
+      "fixtureSmokePassed": true
+    },
+    "evaluator-darwinian": {
+      "localReference": "elliott/evaluator-darwinian@sha256:c6cfd9830f0b91a8e1879c0d18ae97ea42f08b80a136baa54b146252c02bf297",
+      "ociManifestDigest": "sha256:c6cfd9830f0b91a8e1879c0d18ae97ea42f08b80a136baa54b146252c02bf297",
+      "sourceDigest": "sha256:39406b1c516c92bd64226913493828bb6f271d9f86cd6ce504a81fd16c340dd4",
+      "artifact": ".artifacts/evolution-companions/evaluator-darwinian.oci.tar",
+      "dependency": {
+        "name": "darwinian-evolver",
+        "source": "https://github.com/imbue-ai/darwinian_evolver",
+        "revision": "7f12365d2059c47e29068a5a6f498a293148d2a9",
+        "license": "AGPL-3.0"
+      },
+      "fixtureSmokePassed": true,
+      "correspondingSourcePath": "/usr/share/darwinian-evolver/source"
+    },
+    "evaluator-agent-benchmarks": {
+      "localReference": "elliott/evaluator-agent-benchmarks@sha256:f71445244f0a74512cd92f1d9d62355052c3ea82c26e3b0ca7f1c97057cc4245",
+      "ociManifestDigest": "sha256:f71445244f0a74512cd92f1d9d62355052c3ea82c26e3b0ca7f1c97057cc4245",
+      "sourceDigest": "sha256:5427d3ca9c5de08403fcd3973e2fb45c87d8e62ea05f1c1922402d2165238f24",
+      "artifact": ".artifacts/evolution-companions/evaluator-agent-benchmarks.oci.tar",
+      "dependencyLock": "companions/benchmarks/benchmark-drivers.json",
+      "fixtureSmokePassed": true
+    }
+  }
+}

@@ -1,0 +1,12 @@
+apiVersion: elliott/v1
+kind: skill
+profile: skill-standard
+metadata: { namespace: core, name: research, version: 1.0.0 }
+spec:
+  document: SKILL.md
+  protocols: [prompt.source]
+  capabilities: []
+  egress: { class: none }
+  isolation: container
+  outputTrust: untrusted
+  exports: []

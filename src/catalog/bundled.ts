@@ -12,6 +12,7 @@ const DOCUMENTS: ReadonlySet<string> = new Set([
   "MCP.md",
   "EXTENSION.md",
   "SCHEDULER.md",
+  "EVALUATOR.md",
 ]);
 
 export const loadBundledPackages = async (
@@ -106,6 +107,7 @@ const decodeKind = (value: unknown): ComponentKind => {
     "mcp-endpoint",
     "extension",
     "scheduler",
+    "evaluator",
   ];
   const result = kinds.find((kind) => kind === value);
   if (result === undefined) {

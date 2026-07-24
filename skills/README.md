@@ -23,6 +23,7 @@ a package with no `exports` at all is a zero-authority descriptor.
 
 Bundled components:
 
+- Agent instruction sources: `code-review`, `research`, `debugging`
 - Search and web: `search-duckduckgo`, `search-brave`, `web-firecrawl`,
   `web-parallel`, `browser`, `fetch`
 - Connectivity: `mcp-client`, `gateway-slack`, `gateway-bluebubbles`,
@@ -31,7 +32,8 @@ Bundled components:
 - Local execution: `files`, `terminal`, `ssh`
 - Automation: `scheduler`
 
-Every entry ships an executable module. Several stay dormant until the
+Executable entries ship a registration module. Zero-authority prompt sources
+need no executable module. Several executable entries stay dormant until the
 operator provisions a secret or flips an enable flag (e.g. `terminal` and
 `ssh` require an explicit allowlist; `gateway-email` requires SMTP
 credentials and a recipient allowlist). See `BLOCKERS.md` for the current

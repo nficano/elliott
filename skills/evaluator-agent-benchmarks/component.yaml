@@ -1,0 +1,22 @@
+apiVersion: elliott/v1
+kind: evaluator
+profile: evaluator-benchmark-isolated
+metadata: { namespace: organization, name: evaluator-agent-benchmarks, version: 1.0.0 }
+spec:
+  document: EVALUATOR.md
+  protocols: [evaluation.runner, benchmark.runner]
+  capabilities:
+    - { capability: evaluation.run, resources: [snapshot://granted/**] }
+    - { capability: evolution.dataset.read, resources: [dataset://sealed/holdout/**] }
+    - { capability: evolution.candidate.read, resources: [candidate://granted/**] }
+  egress: { class: none }
+  isolation: container
+  outputTrust: untrusted
+  companions:
+    - name: agent-benchmarks
+      image: elliott/evaluator-agent-benchmarks@sha256:f71445244f0a74512cd92f1d9d62355052c3ea82c26e3b0ca7f1c97057cc4245
+      endpoint: http://127.0.0.1:9073
+      egress: { class: none }
+      volumes: []
+  exports:
+    - { ref: evaluator/agent-benchmarks, implementation: src/index.ts }

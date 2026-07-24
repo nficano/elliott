@@ -5,4 +5,5 @@ export interface AgentKernelOptions {
   readonly runtimeLoader?: RuntimeContractLoader;
   readonly validationLogicVersion?: string;
   readonly posture?: Posture;
+  readonly snapshotDirectory?: string;
 }

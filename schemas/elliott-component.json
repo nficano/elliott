@@ -136,7 +136,7 @@
       "properties": {
         "document": {
           "type": "string",
-          "description": "Human-facing document filename, e.g. TOOL.md, GATEWAY.md, EXTENSION.md, MCP.md, SCHEDULER.md."
+          "description": "Human-facing document filename, e.g. TOOL.md, GATEWAY.md, EXTENSION.md, MCP.md, SCHEDULER.md, EVALUATOR.md."
         },
         "protocols": {
           "type": "array",

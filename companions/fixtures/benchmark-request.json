@@ -1,0 +1,59 @@
+{
+  "operation": "runSubset",
+  "run": {
+    "id": "evr_smoke003",
+    "principalId": "EvolutionEvaluator",
+    "baselineSnapshotId": "snapshot-baseline",
+    "engineRef": "organization/evaluator/dspy",
+    "engineKind": "gepa",
+    "configurationDigest": "sha256:configuration",
+    "signalIds": [],
+    "target": {
+      "targetClass": "prompt-segment",
+      "componentRef": "core/prompt/smoke",
+      "baselineDigest": "sha256:baseline",
+      "riskClass": "C1",
+      "mutationPath": "body",
+      "allowedMutationPaths": ["body"],
+      "frozenPaths": []
+    },
+    "budgets": {
+      "maximumCandidates": 2,
+      "maximumTokens": 100,
+      "maximumCostUsd": 1,
+      "maximumDurationMilliseconds": 10000,
+      "maximumConcurrency": 1
+    },
+    "state": {
+      "_tag": "shortlisted",
+      "candidateIds": ["evc_smoke003"],
+      "sealedAt": "2026-01-01T00:00:00Z"
+    },
+    "createdAt": "2026-01-01T00:00:00Z",
+    "updatedAt": "2026-01-01T00:00:00Z"
+  },
+  "candidate": {
+    "id": "evc_smoke003",
+    "runId": "evr_smoke003",
+    "targetDigest": "sha256:baseline",
+    "candidateDigest": "sha256:candidate",
+    "patch": "--- a/body\n+++ b/body\n",
+    "materializedContent": "candidate",
+    "engineTraceDigest": "sha256:trace",
+    "usage": {
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "costUsd": 0,
+      "latencyMilliseconds": 0
+    },
+    "constraints": [],
+    "createdAt": "2026-01-01T00:00:00Z"
+  },
+  "benchmarkRef": "tblite-fast",
+  "baselineSnapshotId": "snapshot-baseline",
+  "candidateSnapshotId": "snapshot-candidate",
+  "environmentDigest": "sha256:environment",
+  "seed": 7,
+  "timeoutMilliseconds": 10000,
+  "maximumCostUsd": 1
+}

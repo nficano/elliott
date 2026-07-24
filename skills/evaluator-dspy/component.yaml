@@ -1,0 +1,19 @@
+apiVersion: elliott/v1
+kind: evaluator
+profile: evaluator-isolated
+metadata: { namespace: organization, name: evaluator-dspy, version: 1.0.0 }
+spec:
+  document: EVALUATOR.md
+  protocols: [optimization.engine, evaluation.runner]
+  capabilities: []
+  egress: { class: none }
+  isolation: container
+  outputTrust: untrusted
+  companions:
+    - name: dspy-optimizer
+      image: elliott/evaluator-dspy@sha256:83644cc6c9bdcf08bd5c8b1f47f76eb2bab4eafefb2f75b7214ce30eb5b26a3e
+      endpoint: http://127.0.0.1:9071
+      egress: { class: none }
+      volumes: []
+  exports:
+    - { ref: evaluator/dspy, implementation: src/index.ts }

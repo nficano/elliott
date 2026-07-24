@@ -29,6 +29,10 @@ const CLASSIFICATION_ORDER: readonly DataClassification[] = [
   "restricted",
 ];
 
+const PROMPT_SEGMENT_TARGET = "prompt-segment";
+const ZERO_AUTHORITY = "zero";
+const DEFAULT_MAXIMUM_TOKEN_RATIO = 1.2;
+
 export const maximumClassification = (
   values: readonly DataClassification[],
 ): DataClassification =>
@@ -71,6 +75,7 @@ export const interactionProfileSegment = (
   input: InteractionProfileInput,
 ): PromptSegment =>
   Object.freeze({
+    id: `interaction-profile:${input.source}`,
     purpose: "interaction-profile",
     source: input.source,
     digest: input.digest,
@@ -78,6 +83,13 @@ export const interactionProfileSegment = (
     securityTags: Object.freeze([]),
     classification: "internal",
     content: input.content,
+    evolution: Object.freeze({
+      id: `interaction-profile:${input.source}`,
+      targetClass: PROMPT_SEGMENT_TARGET,
+      evolvable: true,
+      authority: ZERO_AUTHORITY,
+      maximumTokenRatio: DEFAULT_MAXIMUM_TOKEN_RATIO,
+    }),
   });
 
 export const assertZeroAuthorityInteractionProfile = (

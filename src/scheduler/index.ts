@@ -1,9 +1,53 @@
+import * as Cron from "effect/Cron";
 import { scopeId } from "../core/brands";
 import type { LeasedJob, ScheduledJob, ScheduledJobStore } from "./types";
-import type { ScheduledRunResult, SchedulerDependencies } from "./types";
+import type {
+  ScheduledRescheduleInput,
+  ScheduledRunResult,
+  SchedulerDependencies,
+} from "./types";
 
 const DEFAULT_LEASE_MILLISECONDS = 60_000;
 const DEFAULT_TICK_LIMIT = 64;
+
+const recurringJob = (
+  job: ScheduledJob,
+  now: Date,
+  succeeded: boolean,
+): ScheduledJob | undefined => {
+  const recurrence = job.recurrence;
+  if (recurrence === undefined) return undefined;
+  const retryAttempt = job.retryAttempt ?? 0;
+  const retry = !succeeded && retryAttempt < recurrence.maximumRetryAttempts;
+  const delay = Math.min(
+    recurrence.failureBackoffMilliseconds * (2 ** retryAttempt),
+    recurrence.maximumBackoffMilliseconds,
+  );
+  const parsed = recurrence.timeZone === undefined
+    ? Cron.parseUnsafe(recurrence.cron)
+    : Cron.parseUnsafe(recurrence.cron, recurrence.timeZone);
+  const runAt = retry
+    ? new Date(now.getTime() + delay).toISOString()
+    : Cron.next(parsed, now).toISOString();
+  return Object.freeze({
+    ...job,
+    runAt,
+    retryAttempt: retry ? retryAttempt + 1 : 0,
+  });
+};
+
+const settleScheduledJob = async (
+  dependencies: SchedulerDependencies,
+  input: ScheduledRescheduleInput,
+): Promise<void> => {
+  const next = recurringJob(input.job, input.now, input.succeeded);
+  if (!input.succeeded && next === undefined) {
+    await dependencies.store.release(input.job.id, input.owner);
+    return;
+  }
+  await dependencies.store.complete(input.job.id, input.owner);
+  if (next !== undefined) await dependencies.store.schedule(next);
+};
 
 export class InMemoryScheduledJobStore implements ScheduledJobStore {
   readonly #jobs = new Map<string, ScheduledJob>();
@@ -74,10 +118,10 @@ export class Scheduler {
       owner,
       DEFAULT_TICK_LIMIT,
     );
-    return Promise.all(leases.map((lease) => this.#fire(lease)));
+    return Promise.all(leases.map((lease) => this.#fire(lease, now)));
   }
 
-  async #fire(lease: LeasedJob): Promise<ScheduledRunResult> {
+  async #fire(lease: LeasedJob, now: Date): Promise<ScheduledRunResult> {
     const job = lease.job;
     const allowed = await this.#dependencies.authority.resolve(
       job.principal,
@@ -96,11 +140,21 @@ export class Scheduler {
     try {
       await this.#record(job, "scheduler.fire", "effect-gating");
       await this.#dependencies.executor.execute(job, frame);
-      await this.#dependencies.store.complete(job.id, lease.owner);
+      await settleScheduledJob(this.#dependencies, {
+        job,
+        owner: lease.owner,
+        now,
+        succeeded: true,
+      });
       return Object.freeze({ jobId: job.id, type: "completed", frame });
     } catch (error) {
       void error;
-      await this.#dependencies.store.release(job.id, lease.owner);
+      await settleScheduledJob(this.#dependencies, {
+        job,
+        owner: lease.owner,
+        now,
+        succeeded: false,
+      });
       return Object.freeze({ jobId: job.id, type: "failed", frame });
     }
   }

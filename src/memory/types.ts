@@ -82,6 +82,75 @@ export interface SessionAnalytics {
   readonly costUsd: number;
 }
 
+export interface SessionRunEvidence {
+  readonly id: string;
+  readonly sessionId: string;
+  readonly snapshotId: string;
+  readonly agentRef: string;
+  readonly disposition: "success" | "failure" | "cancelled" | "unknown";
+  readonly startedAt: string;
+  readonly finishedAt?: string;
+}
+
+export interface ComponentUseEvidence {
+  readonly id: string;
+  readonly runId: string;
+  readonly componentRef: string;
+  readonly componentDigest: string;
+  readonly operation: string;
+  readonly outcome: "success" | "failure" | "unknown";
+  readonly createdAt: string;
+}
+
+export interface ToolCallEvidence {
+  readonly id: string;
+  readonly runId: string;
+  readonly requestedTool?: string;
+  readonly selectedTool?: string;
+  readonly schemaDigest: string;
+  readonly argumentsDigest?: string;
+  readonly resultDigest?: string;
+  readonly latencyMilliseconds: number;
+  readonly errorTag?: string;
+  readonly createdAt: string;
+}
+
+export interface ToolFailureEvidenceSummary {
+  readonly failures: readonly ToolCallEvidence[];
+  readonly totalCalls: number;
+}
+
+export interface FeedbackEvidence {
+  readonly id: string;
+  readonly runId: string;
+  readonly targetRef: string;
+  readonly kind:
+    | "explicit-correction"
+    | "confirmed-success"
+    | "confirmed-failure";
+  readonly evidenceDigest: string;
+  readonly createdAt: string;
+}
+
+export interface EvaluationLabelEvidence {
+  readonly id: string;
+  readonly runId: string;
+  readonly evaluatorRef: string;
+  readonly rubricDigest: string;
+  readonly score: number;
+  readonly confidence: number;
+  readonly source: string;
+  readonly createdAt: string;
+}
+
+export interface ModelSelectionEvidence {
+  readonly id: string;
+  readonly runId: string;
+  readonly routeDigest: string;
+  readonly usageReference: string;
+  readonly createdAt: string;
+}
+
 export interface ScheduledJobRow {
   readonly id: string;
   readonly principal: string;
@@ -89,6 +158,8 @@ export interface ScheduledJobRow {
   readonly requestedCapabilities: string;
   readonly runAt: string;
   readonly payload: string;
+  readonly recurrence: string | null;
+  readonly retryAttempt: number | null;
 }
 
 export interface ExternalMemoryRecord {

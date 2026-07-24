@@ -19,7 +19,16 @@ export type PromptTrust =
   | "external"
   | "untrusted";
 
+export interface PromptEvolutionTarget {
+  readonly id: string;
+  readonly targetClass: "prompt-segment";
+  readonly evolvable: boolean;
+  readonly authority: "zero" | "governed" | "forbidden";
+  readonly maximumTokenRatio: number;
+}
+
 export interface PromptSegment {
+  readonly id?: string;
   readonly purpose: PromptPurpose;
   readonly source: string;
   readonly digest: Digest;
@@ -27,6 +36,7 @@ export interface PromptSegment {
   readonly securityTags: readonly SecurityTagValue[];
   readonly classification: DataClassification;
   readonly content: string;
+  readonly evolution?: PromptEvolutionTarget;
 }
 
 export interface PromptAssembly {

@@ -1,5 +1,6 @@
 import { isJsonRecord, nestedRecord, recordArray } from "../../providers/http";
-import type { ModelTurnResult, ToolCall } from "../types";
+import type { ModelTurnResult, RuntimeModelUsage, ToolCall } from "../types";
+import { decodeRuntimeModelUsage } from "./usage";
 
 export const decodeCompletionStream = async (
   response: Response,
@@ -9,6 +10,7 @@ export const decodeCompletionStream = async (
     throw new Error("LiteLLM returned an empty stream");
   }
   let text = "";
+  let usage: RuntimeModelUsage | undefined;
   const calls = new Map<
     number,
     { id: string; name: string; arguments: string; }
@@ -16,6 +18,7 @@ export const decodeCompletionStream = async (
   await readServerEvents(response.body, async (data) => {
     if (data === "[DONE]") return;
     const payload = parseEvent(data);
+    usage = decodeRuntimeModelUsage(payload) ?? usage;
     const choice = recordArray(payload, "choices")[0];
     const delta = choice === undefined
       ? undefined
@@ -33,6 +36,7 @@ export const decodeCompletionStream = async (
     toolCalls: [...calls]
       .sort(([left], [right]) => left - right)
       .map(([, call]) => completeToolCall(call)),
+    ...(usage !== undefined && { usage }),
   };
 };
 

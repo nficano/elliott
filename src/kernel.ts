@@ -11,7 +11,7 @@ import { ValidationCache } from "./core/discovery/validation-cache";
 import { EpochRegistry } from "./core/epoch/epochs";
 import { ComponentRegistry } from "./core/registry/registry";
 import { ComponentSchemaRegistry } from "./core/schema/schema";
-import { SnapshotStore } from "./core/snapshot/snapshot";
+import { FileSnapshotStore, SnapshotStore } from "./core/snapshot/snapshot";
 import type { AgentKernelOptions } from "./kernel/types";
 import { ProviderStateRegistry } from "./model/provider";
 import { ModelDispatcher } from "./model/resolver";
@@ -35,7 +35,7 @@ class MissingRuntimeLoader implements RuntimeContractLoader {
 export class AgentKernel {
   readonly registry = new ComponentRegistry();
   readonly schemas = new ComponentSchemaRegistry();
-  readonly snapshots = new SnapshotStore();
+  readonly snapshots: SnapshotStore;
   readonly validationCache = new ValidationCache();
   readonly auditAdapter = new MemoryCommitAdapter();
   readonly records = new AuditLog(this.auditAdapter);
@@ -58,6 +58,9 @@ export class AgentKernel {
   #started = false;
 
   constructor(options: AgentKernelOptions = {}) {
+    this.snapshots = options.snapshotDirectory === undefined
+      ? new SnapshotStore()
+      : new FileSnapshotStore(options.snapshotDirectory);
     this.postures = new PostureController(options.posture ?? "standard");
     this.residency = new ResidencyRegistry(this.records, async (provider) => {
       this.routeTables.invalidateProvider(provider);

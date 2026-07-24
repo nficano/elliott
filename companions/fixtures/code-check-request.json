@@ -1,0 +1,39 @@
+{
+  "operation": "checkCandidate",
+  "run": {
+    "id": "evr_codecheck1",
+    "target": {
+      "targetClass": "code",
+      "baselineDigest": "sha256:baseline"
+    }
+  },
+  "candidate": {
+    "id": "evc_codecheck1",
+    "runId": "evr_codecheck1",
+    "targetDigest": "sha256:baseline",
+    "candidateDigest": "sha256:3d844efb6f2cbb888ed99af04d256dacb2417544fe6572ed47aa937f4312ccca",
+    "materializedContent": "{\"files\":{\"src/value.ts\":\"export const value = 2;\\n\"}}"
+  },
+  "codeSandbox": {
+    "checkoutRef": "candidate://code-check",
+    "checkoutFiles": [
+      {
+        "path": "src/value.ts",
+        "digest": "sha256:5d8f65d2774e206bc9f7a7a4ad39ca2dc563b5c31e46ab57ef4874961237ce29",
+        "content": "export const value = 1;\n",
+        "executable": false
+      }
+    ],
+    "targetFiles": ["src/value.ts"],
+    "testCommands": [["bun", "test"]],
+    "cpuQuota": 1,
+    "memoryMb": 512,
+    "pids": 64,
+    "timeoutMilliseconds": 30000,
+    "networkEnabled": false,
+    "repositoryCredentialsMounted": false,
+    "gitRemotePresent": false,
+    "activeTreeWritable": false,
+    "containerRuntimeSocketMounted": false
+  }
+}

@@ -1,3 +1,4 @@
+/* eslint-disable max-lines */
 export interface SecretResolver {
   env(name: string): string | undefined;
   vault(path: string, field: string): Promise<string>;
@@ -70,6 +71,84 @@ export interface CloudflaredSettings {
   readonly readyUrl: string;
 }
 
+export interface RuntimeEvolutionSettings {
+  readonly controlToken: string;
+  readonly operatorPrincipalId: string;
+  readonly operatorCapabilities: readonly string[];
+  readonly agentCapabilities: readonly string[];
+  readonly dspyEndpoint?: string;
+  readonly darwinianEndpoint?: string;
+  readonly evaluatorEndpoint?: string;
+  readonly candidateCheckEndpoint?: string;
+  readonly canaryEndpoint?: string;
+  readonly authoringRouteDigest?: string;
+  readonly evaluationRouteDigest?: string;
+  readonly schedulerPrincipalId?: string;
+  readonly schedulerCapabilities: readonly string[];
+}
+
+export interface RuntimeEvolutionIntegration {
+  readonly controlPlane: EvolutionControlPlaneBinding;
+  readonly agentTools: readonly ToolDefinition[];
+  readonly decorateTools: (
+    tools: readonly ToolDefinition[],
+  ) => readonly ToolDefinition[];
+  readonly decoratePersona: (
+    personaPath: string,
+    baselineContent: string,
+  ) => () => string;
+  readonly targetsForTool: (
+    toolName: string,
+  ) => readonly RuntimeEvolutionTargetIdentity[];
+  readonly turnTargets: () => readonly RuntimeEvolutionTargetIdentity[];
+  readonly continuousService?: RuntimeContinuousEvolutionService;
+}
+
+export interface RuntimeEvolutionTargetIdentity {
+  readonly targetRef: string;
+  readonly digest: string;
+}
+
+export interface RuntimeEvolutionEvidenceInput {
+  readonly sink: Pick<
+    SessionEvolutionStore,
+    | "recordRun"
+    | "finishRun"
+    | "recordToolCall"
+    | "recordComponentUse"
+    | "recordFeedback"
+    | "recordModelSelection"
+  >;
+  readonly targetsForTool: (
+    toolName: string,
+  ) => readonly RuntimeEvolutionTargetIdentity[];
+  readonly turnTargets: () => readonly RuntimeEvolutionTargetIdentity[];
+  readonly toolNames: readonly string[];
+  readonly report: (error: unknown) => void;
+  readonly now?: () => Date;
+  readonly newId?: (prefix: string) => string;
+}
+
+export interface RuntimeEvolutionTurnEvidence {
+  readonly runId: string;
+  readonly observer: TurnObserver;
+  finish(disposition: SessionRunEvidence["disposition"]): void;
+}
+
+export interface RuntimeContinuousEvolutionService {
+  readonly name: "evolution-continuous";
+  start(): Promise<void>;
+  stop(): Promise<void>;
+  health(): Readonly<Record<string, number>>;
+}
+
+export interface RuntimeSnapshotInput {
+  readonly store: SnapshotStore;
+  readonly settings: RuntimeSettings;
+  readonly packages: readonly BundledPackage[];
+  readonly root: string;
+}
+
 export interface RuntimeSettings {
   readonly environment: string;
   readonly release: string;
@@ -99,6 +178,8 @@ export interface RuntimeSettings {
   readonly mcp: readonly McpEndpointSettings[];
   readonly glitchtipDsn?: string;
   readonly postgresDsn?: string;
+  readonly evolution?: EvolutionConfig;
+  readonly evolutionRuntime?: RuntimeEvolutionSettings;
 }
 
 export interface ToolDefinition {
@@ -126,6 +207,19 @@ export interface ModelMessage {
 export interface ModelTurnResult {
   readonly text: string;
   readonly toolCalls: readonly ToolCall[];
+  readonly usage?: RuntimeModelUsage;
+  readonly selection?: RuntimeModelSelection;
+}
+
+export interface RuntimeModelUsage {
+  readonly inputTokens: number;
+  readonly outputTokens: number;
+  readonly costUsd: number;
+}
+
+export interface RuntimeModelSelection {
+  readonly routeDigest: string;
+  readonly usageReference: string;
 }
 
 export interface ModelTurnRequest {
@@ -133,6 +227,13 @@ export interface ModelTurnRequest {
   readonly messages: readonly ModelMessage[];
   readonly tools: readonly ToolDefinition[];
   readonly allowTools: boolean;
+}
+
+export interface RuntimeModelCompleter {
+  readonly complete: (
+    request: ModelTurnRequest,
+    onTextDelta?: (delta: string) => Promise<void>,
+  ) => Promise<ModelTurnResult>;
 }
 
 export interface GlitchTipTarget {
@@ -182,11 +283,20 @@ export interface TurnToolProgress {
   readonly id: string;
   readonly name: string;
   readonly status: "in_progress" | "complete" | "error";
+  readonly requestedTool?: string;
+  readonly selectedTool?: string;
+  readonly schemaDigest?: string;
+  readonly argumentsDigest?: string;
+  readonly resultDigest?: string;
+  readonly errorTag?: string;
 }
 
 export interface TurnObserver {
   readonly onTextDelta?: (delta: string) => Promise<void>;
   readonly onToolProgress?: (progress: TurnToolProgress) => Promise<void>;
+  readonly onModelSelection?: (
+    selection: RuntimeModelSelection,
+  ) => Promise<void>;
 }
 
 export interface TurnOptions {
@@ -203,3 +313,18 @@ export interface RuntimeHealth {
   readonly gateways: Readonly<Record<string, string>>;
   readonly services: Readonly<Record<string, Readonly<Record<string, number>>>>;
 }
+
+export interface RuntimeStartedEvent {
+  readonly environment: string;
+  readonly release: string;
+  readonly skills: number;
+  readonly tools: number;
+  readonly gateways: readonly string[];
+  readonly services: readonly string[];
+}
+import type { BundledPackage } from "../catalog/types";
+import type { SnapshotStore } from "../core/snapshot/snapshot";
+import type { EvolutionControlPlaneBinding } from "../learning/evolution/cli";
+import type { EvolutionConfig } from "../learning/evolution/config";
+import type { SessionEvolutionStore } from "../memory/session-store/evolution";
+import type { SessionRunEvidence } from "../memory/types";

@@ -1,3 +1,4 @@
+/* eslint-disable max-lines */
 import { digest } from "../core/brands";
 import { egressClass } from "../placement/egress";
 import type { BundledComponentDescriptor } from "./types";
@@ -35,6 +36,36 @@ const cloudflaredCompanion = Object.freeze({
 
 export const BUNDLED_CATALOG: readonly BundledComponentDescriptor[] = Object
   .freeze([
+    descriptor({
+      name: "code-review",
+      kind: "skill",
+      protocols: ["prompt.source"],
+      egress: egressClass("none"),
+      isolation: "container",
+      secretRefs: [],
+      senderAllowlistRequired: false,
+      untrustedOutput: true,
+    }),
+    descriptor({
+      name: "debugging",
+      kind: "skill",
+      protocols: ["prompt.source"],
+      egress: egressClass("none"),
+      isolation: "container",
+      secretRefs: [],
+      senderAllowlistRequired: false,
+      untrustedOutput: true,
+    }),
+    descriptor({
+      name: "research",
+      kind: "skill",
+      protocols: ["prompt.source"],
+      egress: egressClass("none"),
+      isolation: "container",
+      secretRefs: [],
+      senderAllowlistRequired: false,
+      untrustedOutput: true,
+    }),
     descriptor({
       name: "search-duckduckgo",
       kind: "tool",
@@ -180,6 +211,36 @@ export const BUNDLED_CATALOG: readonly BundledComponentDescriptor[] = Object
       secretRefs: [],
       senderAllowlistRequired: false,
       untrustedOutput: false,
+    }),
+    descriptor({
+      name: "evaluator-dspy",
+      kind: "evaluator",
+      protocols: ["optimization.engine", "evaluation.runner"],
+      egress: egressClass("none"),
+      isolation: "container",
+      secretRefs: [],
+      senderAllowlistRequired: false,
+      untrustedOutput: true,
+    }),
+    descriptor({
+      name: "evaluator-darwinian",
+      kind: "evaluator",
+      protocols: ["optimization.engine"],
+      egress: egressClass("none"),
+      isolation: "container",
+      secretRefs: [],
+      senderAllowlistRequired: false,
+      untrustedOutput: true,
+    }),
+    descriptor({
+      name: "evaluator-agent-benchmarks",
+      kind: "evaluator",
+      protocols: ["benchmark.runner"],
+      egress: egressClass("none"),
+      isolation: "container",
+      secretRefs: [],
+      senderAllowlistRequired: false,
+      untrustedOutput: true,
     }),
     descriptor({
       name: "files",

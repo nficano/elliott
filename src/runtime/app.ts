@@ -1,12 +1,22 @@
-import { readFile } from "node:fs/promises";
+/* eslint-disable max-lines */
+import { mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { loadBundledPackages } from "../catalog/bundled";
 import type { BundledPackage } from "../catalog/types";
-import { AgentKernel } from "../kernel";
+import type { AgentKernel } from "../kernel";
+import type { EvolutionControlPlaneBinding } from "../learning/evolution/cli";
+import { SessionStore } from "../memory/session-store/index";
 import { RuntimeAgent } from "./agent";
 import { loadRuntimeSettings } from "./config";
+import { RuntimeConversationSnapshots } from "./conversation-snapshots";
+import { makeRuntimeEvolutionIntegration } from "./evolution";
+import { RuntimeEvolutionEvidence } from "./evolution-evidence";
+import { HTTP_NOT_FOUND, HTTP_OK, HTTP_SERVICE_UNAVAILABLE } from "./http";
+import { makeRuntimeKernel } from "./kernel";
+import { logRuntimeStarted } from "./logging";
 import { RuntimeModelClient } from "./model/client";
 import { RuntimeErrorReporter } from "./reporter";
+import { runtimeComponentSummary, startRuntimeServer } from "./server";
 import {
   collectGateways,
   collectRoutes,
@@ -17,21 +27,23 @@ import {
 import type {
   GatewayBinding,
   GatewayEvents,
+  GatewayFeedback,
   GatewayResponse,
   RouteBinding,
   ServiceBinding,
   SkillContext,
 } from "./skills/types";
+import { ensureRuntimeSnapshot } from "./snapshot";
 import type { InboundMessage, RuntimeHealth, RuntimeSettings } from "./types";
-
-const HTTP_OK = 200;
-const HTTP_NOT_FOUND = 404;
-const HTTP_SERVICE_UNAVAILABLE = 503;
 
 export class ElliottRuntime {
   readonly #root: string;
-  readonly #kernel = new AgentKernel({ posture: "standard" });
+  readonly #kernel: AgentKernel;
+  #evolutionControlPlane: EvolutionControlPlaneBinding | undefined;
+  #snapshotId: string | undefined;
   #settings: RuntimeSettings | undefined;
+  #evidenceStore: SessionStore | undefined;
+  #evolutionEvidence: RuntimeEvolutionEvidence | undefined;
   #packages: readonly BundledPackage[] = [];
   #gateways: readonly GatewayBinding[] = [];
   #routes: readonly RouteBinding[] = [];
@@ -43,14 +55,27 @@ export class ElliottRuntime {
   #toolCount = 0;
   readonly #seen = new Set<string>();
   readonly #inflight = new Set<string>();
+  readonly #conversationSnapshots = new RuntimeConversationSnapshots();
 
-  constructor(root: string) {
+  constructor(
+    root: string,
+    evolutionControlPlane?: EvolutionControlPlaneBinding,
+  ) {
     this.#root = root;
+    this.#kernel = makeRuntimeKernel(root);
+    this.#evolutionControlPlane = evolutionControlPlane;
   }
 
+  // Boot is deliberately ordered: kernel, static packages, immutable
+  // Snapshot, evolution bindings, then externally reachable routes.
+  // eslint-disable-next-line max-lines-per-function, max-statements, complexity
   async start(): Promise<void> {
     const settings = await loadRuntimeSettings(this.#root);
     this.#settings = settings;
+    await mkdir(settings.stateDirectory, { recursive: true });
+    this.#evidenceStore = new SessionStore(
+      path.join(settings.stateDirectory, "sessions.sqlite"),
+    );
     this.#reporter = new RuntimeErrorReporter(
       settings.glitchtipDsn,
       settings.environment,
@@ -62,21 +87,69 @@ export class ElliottRuntime {
       this.#packages,
       this.#skillContext(settings),
     );
-    const tools = collectTools(skills);
+    const baseTools = collectTools(skills);
     this.#gateways = collectGateways(skills);
     this.#routes = collectRoutes(skills);
     this.#services = collectServices(skills);
+    const snapshot = await ensureRuntimeSnapshot({
+      store: this.#kernel.snapshots,
+      settings,
+      packages: this.#packages,
+      root: this.#root,
+    });
+    this.#snapshotId = snapshot.id;
+    const evolution = this.#evolutionControlPlane === undefined
+      ? await makeRuntimeEvolutionIntegration(
+        this.#root,
+        settings,
+        this.#kernel,
+        () => this.#snapshotId,
+        (snapshotId) => {
+          this.#snapshotId = snapshotId;
+        },
+        baseTools,
+        (message) => this.#deliver(message),
+      )
+      : undefined;
+    if (evolution !== undefined) {
+      this.#evolutionControlPlane = evolution.controlPlane;
+      if (evolution.continuousService !== undefined) {
+        this.#services = [...this.#services, evolution.continuousService];
+      }
+    }
+    const tools = [
+      ...(evolution?.decorateTools(baseTools) ?? baseTools),
+      ...(evolution?.agentTools ?? []),
+    ];
+    this.#evolutionEvidence = new RuntimeEvolutionEvidence({
+      sink: this.#evidenceStore.evolution,
+      targetsForTool: evolution?.targetsForTool ?? (() => []),
+      turnTargets: evolution?.turnTargets ?? (() => []),
+      toolNames: tools.map((tool) => tool.name),
+      report: (error) => this.#capture(error, "evolution-evidence"),
+    });
     this.#toolCount = tools.length;
     const persona = await readFile(settings.persona, "utf8");
     this.#agent = new RuntimeAgent(
       new RuntimeModelClient(settings),
-      persona,
+      evolution?.decoratePersona(settings.persona, persona) ?? persona,
       tools,
     );
     await this.#startBindings();
-    this.#startServer(settings.port);
+    const events = this.#events();
+    this.#server = startRuntimeServer(
+      settings.port,
+      (request) => this.#handleRequest(request, events),
+    );
     this.#ready = true;
-    this.#logStarted(settings);
+    logRuntimeStarted({
+      environment: settings.environment,
+      release: settings.release,
+      skills: this.#packages.length,
+      tools: this.#toolCount,
+      gateways: this.#gateways.map((gateway) => gateway.name),
+      services: this.#services.map((service) => service.name),
+    });
   }
 
   async stop(): Promise<void> {
@@ -85,6 +158,11 @@ export class ElliottRuntime {
     for (const service of this.#services) await service.stop();
     await this.#server?.stop();
     await this.#kernel.stop();
+    this.#evidenceStore?.close();
+    this.#evidenceStore = undefined;
+    this.#evolutionEvidence = undefined;
+    this.#snapshotId = undefined;
+    this.#conversationSnapshots.clear();
   }
 
   health(): RuntimeHealth {
@@ -118,7 +196,7 @@ export class ElliottRuntime {
   #events(): GatewayEvents {
     return {
       onMessage: (message) => this.#handleInbound(message),
-      onFeedback: async (feedback) => console.info(JSON.stringify(feedback)),
+      onFeedback: (feedback) => this.#handleFeedback(feedback),
       onError: (error) => this.#capture(error, "gateway"),
     };
   }
@@ -163,6 +241,7 @@ export class ElliottRuntime {
     return origin?.send === undefined ? this.#primaryGateway() : origin;
   }
 
+  // eslint-disable-next-line max-lines-per-function, max-statements, complexity
   async #handleInbound(message: InboundMessage): Promise<void> {
     if (this.#seen.has(message.id)) return;
     this.#seen.add(message.id);
@@ -179,16 +258,34 @@ export class ElliottRuntime {
     }
     const agent = this.#agent;
     if (agent === undefined) throw new Error("Runtime agent is not ready");
+    const snapshotId = this.#snapshotId;
+    if (snapshotId === undefined) throw new Error("Runtime Snapshot is absent");
+    const retainConversation = message.historyMode !== "external";
+    const pinnedSnapshotId = this.#conversationSnapshots.resolve(
+      conversation,
+      snapshotId,
+      retainConversation,
+    );
     this.#inflight.add(conversation);
+    const evidence = this.#evolutionEvidence?.beginTurn({
+      conversation,
+      channelKey: `${message.gateway}:${message.channel}`,
+      snapshotId: pinnedSnapshotId,
+      retainConversation,
+      ...(response.observer !== undefined && { observer: response.observer }),
+    });
     try {
       const answer = await agent.turn(conversation, message.text, {
-        ...(response.observer !== undefined
-          && { observer: response.observer }),
+        ...(evidence?.observer !== undefined && {
+          observer: evidence.observer,
+        }),
         context: { message },
-        retainHistory: message.historyMode !== "external",
+        retainHistory: retainConversation,
       });
       await response.complete(answer);
+      evidence?.finish("success");
     } catch (error) {
+      evidence?.finish("failure");
       this.#capture(error, "turn");
       await response.fail(
         "Something went wrong handling that. I logged the failure.",
@@ -196,6 +293,10 @@ export class ElliottRuntime {
     } finally {
       this.#inflight.delete(conversation);
     }
+  }
+
+  async #handleFeedback(feedback: GatewayFeedback): Promise<void> {
+    this.#evolutionEvidence?.recordFeedback(feedback);
   }
 
   async #beginResponse(
@@ -215,15 +316,6 @@ export class ElliottRuntime {
     return { complete: deliver, fail: deliver };
   }
 
-  #startServer(port: number): void {
-    const events = this.#events();
-    this.#server = Bun.serve({
-      port,
-      hostname: "0.0.0.0",
-      fetch: (request) => this.#handleRequest(request, events),
-    });
-  }
-
   async #handleRequest(
     request: Request,
     events: GatewayEvents,
@@ -236,29 +328,17 @@ export class ElliottRuntime {
       });
     }
     if (url.pathname === "/v1/components") {
-      return Response.json(this.#packages.map((item) => ({
-        name: item.name,
-        kind: item.kind,
-        protocols: item.protocols,
-      })));
+      return Response.json(runtimeComponentSummary(this.#packages));
     }
+    if (
+      url.pathname === "/v1/control/evolution"
+      && this.#evolutionControlPlane !== undefined
+    ) return this.#evolutionControlPlane.handle(request);
     const route = this.#routes.find(
       (item) => item.method === request.method && item.path === url.pathname,
     );
     if (route !== undefined) return route.handle(request, events);
     return new Response("Not found", { status: HTTP_NOT_FOUND });
-  }
-
-  #logStarted(settings: RuntimeSettings): void {
-    console.info(JSON.stringify({
-      event: "elliott.runtime.started",
-      environment: settings.environment,
-      release: settings.release,
-      skills: this.#packages.length,
-      tools: this.#toolCount,
-      gateways: this.#gateways.map((gateway) => gateway.name),
-      services: this.#services.map((service) => service.name),
-    }));
   }
 
   #capture(error: unknown, mechanism: string): void {

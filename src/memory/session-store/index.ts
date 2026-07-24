@@ -1,6 +1,5 @@
 import { Database } from "bun:sqlite";
 import { componentRef, principalId } from "../../core/brands";
-import type { CapabilityRequest } from "../../core/types";
 import type {
   LeasedJob,
   ScheduledJob,
@@ -13,6 +12,13 @@ import type {
   SessionRecord,
   SessionUsage,
 } from "../types";
+import { SessionEvolutionStore } from "./evolution";
+import {
+  migrateScheduledJobs,
+  parseCapabilities,
+  parsePayload,
+  parseRecurrence,
+} from "./scheduler-codec";
 
 const DEFAULT_LEASE_MILLISECONDS = 60_000;
 
@@ -23,47 +29,15 @@ const SCHEMA = [
   "CREATE TABLE IF NOT EXISTS model_usage (session_id TEXT NOT NULL, input_tokens INTEGER NOT NULL, output_tokens INTEGER NOT NULL, cost_usd REAL NOT NULL)",
   "CREATE TABLE IF NOT EXISTS gateway_routing (route_key TEXT PRIMARY KEY, session_id TEXT NOT NULL)",
   "CREATE TABLE IF NOT EXISTS delegation_state (delegation_id TEXT PRIMARY KEY, session_id TEXT NOT NULL, state TEXT NOT NULL)",
-  "CREATE TABLE IF NOT EXISTS scheduled_jobs (id TEXT PRIMARY KEY, principal TEXT NOT NULL, agent TEXT NOT NULL, requested_capabilities TEXT NOT NULL, run_at TEXT NOT NULL, payload TEXT NOT NULL, lease_owner TEXT, lease_until TEXT)",
+  "CREATE TABLE IF NOT EXISTS scheduled_jobs (id TEXT PRIMARY KEY, principal TEXT NOT NULL, agent TEXT NOT NULL, requested_capabilities TEXT NOT NULL, run_at TEXT NOT NULL, payload TEXT NOT NULL, recurrence TEXT, retry_attempt INTEGER, lease_owner TEXT, lease_until TEXT)",
   "CREATE VIRTUAL TABLE IF NOT EXISTS messages_fts_trigram USING fts5(id UNINDEXED, session_id UNINDEXED, content, tokenize='trigram')",
   "CREATE VIRTUAL TABLE IF NOT EXISTS messages_fts_cjk USING fts5(id UNINDEXED, session_id UNINDEXED, content, tokenize='unicode61')",
 ];
 
-const isRecord = (value: unknown): value is Readonly<Record<string, unknown>> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
-
-const parseCapabilities = (input: string): readonly CapabilityRequest[] => {
-  const value: unknown = JSON.parse(input);
-  if (!Array.isArray(value)) throw new Error("Invalid scheduled capabilities");
-  return value.map((item): CapabilityRequest => {
-    if (!isRecord(item) || typeof item["capability"] !== "string") {
-      throw new Error("Invalid scheduled capability");
-    }
-    const resources = item["resources"];
-    if (
-      !Array.isArray(resources)
-      || resources.some((part) => typeof part !== "string")
-    ) {
-      throw new Error("Invalid scheduled capability resources");
-    }
-    const deferred = item["deferred"];
-    if (deferred !== undefined && typeof deferred !== "boolean") {
-      throw new Error("Invalid deferred capability flag");
-    }
-    return deferred === undefined
-      ? { capability: item["capability"], resources }
-      : { capability: item["capability"], resources, deferred };
-  });
-};
-
-const parsePayload = (input: string): Readonly<Record<string, unknown>> => {
-  const value: unknown = JSON.parse(input);
-  if (!isRecord(value)) throw new Error("Invalid scheduled payload");
-  return value;
-};
-
 export class SessionStore implements ScheduledJobStore {
   readonly #database: Database;
   readonly #leaseMilliseconds: number;
+  readonly evolution: SessionEvolutionStore;
 
   constructor(
     filename = ":memory:",
@@ -72,6 +46,8 @@ export class SessionStore implements ScheduledJobStore {
     this.#database = new Database(filename, { create: true, strict: true });
     this.#leaseMilliseconds = leaseMilliseconds;
     for (const statement of SCHEMA) this.#database.run(statement);
+    migrateScheduledJobs(this.#database);
+    this.evolution = new SessionEvolutionStore(this.#database);
   }
 
   createSession(session: SessionRecord): void {
@@ -167,7 +143,7 @@ export class SessionStore implements ScheduledJobStore {
 
   async schedule(job: ScheduledJob): Promise<void> {
     this.#database.run(
-      "INSERT INTO scheduled_jobs (id, principal, agent, requested_capabilities, run_at, payload) VALUES (?, ?, ?, ?, ?, ?)",
+      "INSERT INTO scheduled_jobs (id, principal, agent, requested_capabilities, run_at, payload, recurrence, retry_attempt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
       [
         job.id,
         job.principal,
@@ -175,8 +151,54 @@ export class SessionStore implements ScheduledJobStore {
         JSON.stringify(job.requestedCapabilities),
         job.runAt,
         JSON.stringify(job.payload),
+        job.recurrence === undefined
+          ? null
+          : JSON.stringify(job.recurrence),
+        job.retryAttempt ?? null,
       ],
     );
+  }
+
+  async scheduleIfAbsent(job: ScheduledJob): Promise<boolean> {
+    const exists = this.#database.query<{ readonly id: string; }, [string]>(
+      "SELECT id FROM scheduled_jobs WHERE id = ?",
+    ).get(job.id);
+    if (exists !== null) return false;
+    await this.schedule(job);
+    return true;
+  }
+
+  async replaceScheduledIfPayloadChanged(
+    job: ScheduledJob,
+  ): Promise<boolean> {
+    const current = this.#database.query<
+      { readonly payload: string; readonly leaseOwner: string | null; },
+      [string]
+    >(
+      "SELECT payload, lease_owner AS leaseOwner FROM scheduled_jobs WHERE id = ?",
+    ).get(job.id);
+    if (current === null) {
+      await this.schedule(job);
+      return true;
+    }
+    if (current.payload === JSON.stringify(job.payload)) return false;
+    if (current.leaseOwner !== null) return false;
+    this.#database.run(
+      "UPDATE scheduled_jobs SET principal = ?, agent = ?, requested_capabilities = ?, run_at = ?, payload = ?, recurrence = ?, retry_attempt = ?, lease_owner = NULL, lease_until = NULL WHERE id = ? AND lease_owner IS NULL",
+      [
+        job.principal,
+        job.agent,
+        JSON.stringify(job.requestedCapabilities),
+        job.runAt,
+        JSON.stringify(job.payload),
+        job.recurrence === undefined
+          ? null
+          : JSON.stringify(job.recurrence),
+        job.retryAttempt ?? null,
+        job.id,
+      ],
+    );
+    return true;
   }
 
   async leaseDue(
@@ -189,7 +211,7 @@ export class SessionStore implements ScheduledJobStore {
       ScheduledJobRow,
       [string, string, number]
     >(
-      "SELECT id, principal, agent, requested_capabilities AS requestedCapabilities, run_at AS runAt, payload FROM scheduled_jobs WHERE run_at <= ? AND (lease_until IS NULL OR lease_until <= ?) ORDER BY run_at LIMIT ?",
+      "SELECT id, principal, agent, requested_capabilities AS requestedCapabilities, run_at AS runAt, payload, recurrence, retry_attempt AS retryAttempt FROM scheduled_jobs WHERE run_at <= ? AND (lease_until IS NULL OR lease_until <= ?) ORDER BY run_at LIMIT ?",
     ).all(nowValue, nowValue, limit);
     const leases: LeasedJob[] = [];
     for (const row of rows) {
@@ -201,6 +223,7 @@ export class SessionStore implements ScheduledJobStore {
         [owner, leaseUntil, row.id, nowValue],
       ).changes;
       if (changed === 0) continue;
+      const recurrence = parseRecurrence(row.recurrence);
       leases.push(Object.freeze({
         owner,
         leaseUntil,
@@ -211,6 +234,10 @@ export class SessionStore implements ScheduledJobStore {
           requestedCapabilities: parseCapabilities(row.requestedCapabilities),
           runAt: row.runAt,
           payload: parsePayload(row.payload),
+          ...(recurrence !== undefined && { recurrence }),
+          ...(row.retryAttempt !== null && {
+            retryAttempt: row.retryAttempt,
+          }),
         }),
       }));
     }

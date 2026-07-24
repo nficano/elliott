@@ -1,6 +1,9 @@
-import { readFile } from "node:fs/promises";
+/* eslint-disable max-lines, max-lines-per-function */
+import * as Effect from "effect/Effect";
+import { access, readFile } from "node:fs/promises";
 import path from "node:path";
 import { parse } from "yaml";
+import { decodeEvolutionConfig } from "../learning/evolution/config";
 import { isJsonRecord } from "../providers/http";
 import {
   mcpSettings,
@@ -21,7 +24,11 @@ import {
   optionalSsh,
   optionalTerminal,
 } from "./settings-tools";
-import type { RuntimeSettings, SecretResolver } from "./types";
+import type {
+  RuntimeEvolutionSettings,
+  RuntimeSettings,
+  SecretResolver,
+} from "./types";
 
 const DEFAULT_PORT = 8080;
 const DEFAULT_MAX_TOKENS = 4096;
@@ -49,12 +56,93 @@ export const loadRuntimeSettings = async (
   const config = await loadYaml(path.join(root, "config/elliott.yaml"));
   const secrets = await loadSecrets(root, resolver);
   const agent = await loadYaml(path.join(root, "agents/elliott.yaml"));
+  const evolution = await loadEvolutionConfig(root);
   const resolved = await resolveTree(config, resolver);
   return {
     ...coreSettings(root, resolved, agent),
     ...optionalSettings(root, resolved, secrets),
     mcp: mcpSettings(agent, secrets),
+    ...(evolution !== undefined && { evolution }),
+    ...runtimeEvolutionSettings(),
   };
+};
+
+const commaSeparated = (value: string | undefined): readonly string[] =>
+  value === undefined
+    ? []
+    : value.split(",").map((item) => item.trim()).filter(Boolean);
+
+const runtimeEvolutionSettings = (): {
+  readonly evolutionRuntime?: RuntimeEvolutionSettings;
+} => {
+  const controlToken = environment["ELLIOTT_EVOLUTION_CONTROL_TOKEN"];
+  const operatorPrincipalId =
+    environment["ELLIOTT_EVOLUTION_OPERATOR_PRINCIPAL"];
+  const capabilities = commaSeparated(
+    environment["ELLIOTT_EVOLUTION_OPERATOR_CAPABILITIES"],
+  );
+  if (
+    controlToken === undefined || operatorPrincipalId === undefined
+    || capabilities.length === 0
+  ) return {};
+  return {
+    evolutionRuntime: {
+      controlToken,
+      operatorPrincipalId,
+      operatorCapabilities: capabilities,
+      agentCapabilities: commaSeparated(
+        environment["ELLIOTT_EVOLUTION_AGENT_CAPABILITIES"],
+      ),
+      schedulerCapabilities: commaSeparated(
+        environment["ELLIOTT_EVOLUTION_SCHEDULER_CAPABILITIES"],
+      ),
+      ...optionalValue(
+        "dspyEndpoint",
+        environment["ELLIOTT_EVOLUTION_DSPY_URL"],
+      ),
+      ...optionalValue(
+        "darwinianEndpoint",
+        environment["ELLIOTT_EVOLUTION_DARWINIAN_URL"],
+      ),
+      ...optionalValue(
+        "evaluatorEndpoint",
+        environment["ELLIOTT_EVOLUTION_EVALUATOR_URL"],
+      ),
+      ...optionalValue(
+        "candidateCheckEndpoint",
+        environment["ELLIOTT_EVOLUTION_CANDIDATE_CHECK_URL"],
+      ),
+      ...optionalValue(
+        "canaryEndpoint",
+        environment["ELLIOTT_EVOLUTION_CANARY_URL"],
+      ),
+      ...optionalValue(
+        "authoringRouteDigest",
+        environment["ELLIOTT_EVOLUTION_AUTHORING_ROUTE_DIGEST"],
+      ),
+      ...optionalValue(
+        "evaluationRouteDigest",
+        environment["ELLIOTT_EVOLUTION_EVALUATION_ROUTE_DIGEST"],
+      ),
+      ...optionalValue(
+        "schedulerPrincipalId",
+        environment["ELLIOTT_EVOLUTION_SCHEDULER_PRINCIPAL"],
+      ),
+    },
+  };
+};
+
+const loadEvolutionConfig = async (
+  root: string,
+): Promise<RuntimeSettings["evolution"]> => {
+  const filePath = path.join(root, ".elliott/evolution.yaml");
+  try {
+    await access(filePath);
+  } catch {
+    return undefined;
+  }
+  const input = await loadYaml(filePath);
+  return Effect.runPromise(decodeEvolutionConfig(input));
 };
 
 const coreSettings = (

@@ -4,6 +4,9 @@ coverage/
 .DS_Store
 *.log
 .env
+.venv/
+__pycache__/
 .elliott-runtime/
+.artifacts/
 .repos/effect
 crates/hot-core/target/

@@ -13,6 +13,16 @@ export interface ScheduledJob {
   readonly requestedCapabilities: readonly CapabilityRequest[];
   readonly runAt: string;
   readonly payload: Readonly<Record<string, unknown>>;
+  readonly recurrence?: ScheduledRecurrence;
+  readonly retryAttempt?: number;
+}
+
+export interface ScheduledRecurrence {
+  readonly cron: string;
+  readonly timeZone?: string;
+  readonly failureBackoffMilliseconds: number;
+  readonly maximumBackoffMilliseconds: number;
+  readonly maximumRetryAttempts: number;
 }
 
 export interface LeasedJob {
@@ -59,4 +69,11 @@ export interface ScheduledRunResult {
   readonly jobId: string;
   readonly type: "completed" | "blocked-no-authority" | "failed";
   readonly frame?: FrameId;
+}
+
+export interface ScheduledRescheduleInput {
+  readonly job: ScheduledJob;
+  readonly owner: string;
+  readonly now: Date;
+  readonly succeeded: boolean;
 }

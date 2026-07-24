@@ -7,6 +7,14 @@ describe("runtime model streaming", () => {
   it("assembles text deltas and fragmented tool calls", async () => {
     const source = [
       event({
+        usage: {
+          prompt_tokens: 12,
+          completion_tokens: 4,
+          cost: 0.01,
+        },
+        choices: [],
+      }),
+      event({
         choices: [{
           delta: {
             content: "Let me ",
@@ -45,6 +53,11 @@ describe("runtime model streaming", () => {
         name: "slack_search",
         arguments: "{\"query\":\"launch\"}",
       }],
+      usage: {
+        inputTokens: 12,
+        outputTokens: 4,
+        costUsd: 0.01,
+      },
     });
     expect(deltas).toEqual(["Let me ", "check."]);
   });

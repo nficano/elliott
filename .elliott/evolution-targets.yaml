@@ -1,0 +1,104 @@
+targets:
+  - componentRef: core/skill/code-review
+    targetClass: skill
+    riskClass: C1
+    baselinePath: skills/code-review/SKILL.md
+    allowedMutationPaths: [skills/code-review/SKILL.md]
+    frozenPaths:
+      - skills/code-review/component.yaml
+  - componentRef: core/skill/research
+    targetClass: skill
+    riskClass: C1
+    baselinePath: skills/research/SKILL.md
+    allowedMutationPaths: [skills/research/SKILL.md]
+    frozenPaths:
+      - skills/research/component.yaml
+  - componentRef: core/skill/debugging
+    targetClass: skill
+    riskClass: C1
+    baselinePath: skills/debugging/SKILL.md
+    allowedMutationPaths: [skills/debugging/SKILL.md]
+    frozenPaths:
+      - skills/debugging/component.yaml
+  - componentRef: core/prompt/elliott-interaction-profile
+    targetClass: prompt-segment
+    riskClass: C2
+    baselinePath: assets/prompts/elliott.md
+    allowedMutationPaths: [assets/prompts/elliott.md]
+    frozenPaths:
+      - agents/elliott.yaml
+      - src/prompt/index.ts
+      - src/prompt/types.ts
+      - src/runtime/agent.ts
+  - componentRef: core/code/duckduckgo-parser
+    targetClass: code
+    riskClass: C1
+    baselinePath: skills/search-duckduckgo/src/parser.ts
+    runtimeToolName: duckduckgo_search
+    defaultSources:
+      - target-specific:skills/search-duckduckgo/evals/evolution.yaml
+      - synthetic:3
+    allowedMutationPaths: [skills/search-duckduckgo/src/parser.ts]
+    frozenPaths:
+      - skills/search-duckduckgo/component.yaml
+      - skills/search-duckduckgo/src/index.ts
+      - skills/search-duckduckgo/src/types.ts
+      - skills/search-duckduckgo/evals/evolution.yaml
+      - skills/search-duckduckgo/evals/parser.test.ts
+      - test/unit/duckduckgo-search.test.ts
+    codeSandbox:
+      checkoutPaths:
+        - skills/search-duckduckgo/src/parser.ts
+        - skills/search-duckduckgo/src/types.ts
+        - skills/search-duckduckgo/evals/parser.test.ts
+      targetFiles: [skills/search-duckduckgo/src/parser.ts]
+      testCommands:
+        - [bun, test, skills/search-duckduckgo/evals/parser.test.ts]
+      cpuQuota: 1
+      memoryMb: 512
+      pids: 64
+      timeoutMilliseconds: 30000
+  - componentRef: core/code/duckduckgo-tool
+    targetClass: code
+    riskClass: C2
+    baselinePath: skills/search-duckduckgo/src/index.ts
+    runtimeToolName: duckduckgo_search
+    defaultSources:
+      - target-specific:skills/search-duckduckgo/evals/tool-evolution.yaml
+      - synthetic:3
+    allowedMutationPaths: [skills/search-duckduckgo/src/index.ts]
+    frozenPaths:
+      - skills/search-duckduckgo/component.yaml
+      - skills/search-duckduckgo/src/parser.ts
+      - skills/search-duckduckgo/src/types.ts
+      - skills/search-duckduckgo/evals/tool-evolution.yaml
+      - skills/search-duckduckgo/evals/tool.test.ts
+      - src/runtime/skills/http.ts
+      - src/providers/http.ts
+    codeSandbox:
+      checkoutPaths:
+        - skills/search-duckduckgo/src/index.ts
+        - skills/search-duckduckgo/src/parser.ts
+        - skills/search-duckduckgo/src/types.ts
+        - skills/search-duckduckgo/evals/tool.test.ts
+        - src/runtime/skills/http.ts
+        - src/providers/http.ts
+      targetFiles: [skills/search-duckduckgo/src/index.ts]
+      testCommands:
+        - [bun, test, skills/search-duckduckgo/evals/tool.test.ts]
+      cpuQuota: 1
+      memoryMb: 512
+      pids: 64
+      timeoutMilliseconds: 30000
+  - componentRef: core/tool/description-catalog
+    targetClass: tool-description
+    riskClass: C2
+    baselinePath: catalog/tool-descriptions/catalog.json
+    mutationPath: catalog/tool-descriptions/catalog.json
+    runtimeToolNames: ["*"]
+    defaultSources: [synthetic]
+    allowedMutationPaths: [catalog/tool-descriptions/catalog.json]
+    frozenPaths:
+      - src/runtime/skills
+      - src/catalog
+      - skills
