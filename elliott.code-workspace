@@ -9,6 +9,15 @@
     "yaml.schemas": {
       "./schemas/elliott-component.json": "**/skills/*/component.yaml",
       "./schemas/elliott-agent.json": "**/agents/*.yaml"
+    },
+    "files.exclude": {
+      "**/.artifacts": true,
+      "**/.elliott": true,
+      "**/.elliott-runtime": true,
+      "**/.repos": true,
+      "**/.dockerignore": true,
+      "**/bun.lock": true,
+      "**/dprint.json": true
     }
   }
 }
