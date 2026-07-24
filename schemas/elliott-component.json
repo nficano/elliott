@@ -148,7 +148,13 @@
         },
         "egress": { "$ref": "#/definitions/egress" },
         "isolation": {
-          "enum": ["declarative", "in-process", "process", "container", "remote"],
+          "enum": [
+            "declarative",
+            "in-process",
+            "process",
+            "container",
+            "remote"
+          ],
           "description": "Requested isolation level. See src/core/types.ts IsolationLevel."
         },
         "outputTrust": {
