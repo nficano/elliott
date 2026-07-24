@@ -32,9 +32,17 @@ and activation decisions, not missing code:
   `gateways.cloudflared.ready_url` points at a local cloudflared `/ready`
   metrics endpoint. The control/health API remains bound to Spruce loopback
   while Slack uses Socket Mode.
+- `gateway-slack`: the complete Agent messaging experience is implemented and
+  its importable manifest lives at
+  `skills/gateway-slack/slack-app-manifest.yaml`. The Slack app must be updated
+  from that manifest and reinstalled before the new events/scopes become live.
+  An optional user OAuth token is still a provisioning choice; without it,
+  real-time search remains action-token-authorized and public-channel-only.
 
 `files` is enabled by default, contained to `.elliott-runtime/workspace` with
-symlink-escape checks on every read and write.
+symlink-escape checks on every read and write. The production Compose stack
+mounts `.elliott-runtime` on the persistent `elliott-runtime` volume so files
+and reminder state survive container replacement.
 
 A secret listed in `config/secrets.yaml` whose Vault field is missing is
 omitted at boot rather than fatal: the skills that need it stay unregistered

@@ -104,7 +104,8 @@ export const BUNDLED_CATALOG: readonly BundledComponentDescriptor[] = Object
       isolation: "container",
       secretRefs: [
         "secret://gateways/slack/bot-token",
-        "secret://gateways/slack/signing-secret",
+        "secret://gateways/slack/app-token",
+        "secret://gateways/slack/user-token",
       ],
       senderAllowlistRequired: true,
       untrustedOutput: true,

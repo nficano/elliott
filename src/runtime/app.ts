@@ -17,6 +17,7 @@ import {
 import type {
   GatewayBinding,
   GatewayEvents,
+  GatewayResponse,
   RouteBinding,
   ServiceBinding,
   SkillContext,
@@ -117,6 +118,7 @@ export class ElliottRuntime {
   #events(): GatewayEvents {
     return {
       onMessage: (message) => this.#handleInbound(message),
+      onFeedback: async (feedback) => console.info(JSON.stringify(feedback)),
       onError: (error) => this.#capture(error, "gateway"),
     };
   }
@@ -165,27 +167,52 @@ export class ElliottRuntime {
     if (this.#seen.has(message.id)) return;
     this.#seen.add(message.id);
     const gateway = this.#replyGateway(message);
-    const reply = async (text: string): Promise<void> => {
-      await gateway?.send?.(message.channel, text, message.thread);
-    };
+    const response = await this.#beginResponse(gateway, message);
     const conversation = `${message.gateway}:${message.channel}:${
       message.thread ?? "root"
     }`;
     if (this.#inflight.has(conversation)) {
-      await reply("One moment—I’m still working on your previous message.");
+      await response.complete(
+        "One moment—I’m still working on your previous message.",
+      );
       return;
     }
     const agent = this.#agent;
     if (agent === undefined) throw new Error("Runtime agent is not ready");
     this.#inflight.add(conversation);
     try {
-      await reply(await agent.turn(conversation, message.text));
+      const answer = await agent.turn(conversation, message.text, {
+        ...(response.observer !== undefined
+          && { observer: response.observer }),
+        context: { message },
+        retainHistory: message.historyMode !== "external",
+      });
+      await response.complete(answer);
     } catch (error) {
       this.#capture(error, "turn");
-      await reply("Something went wrong handling that. I logged the failure.");
+      await response.fail(
+        "Something went wrong handling that. I logged the failure.",
+      );
     } finally {
       this.#inflight.delete(conversation);
     }
+  }
+
+  async #beginResponse(
+    gateway: GatewayBinding | undefined,
+    message: InboundMessage,
+  ): Promise<GatewayResponse> {
+    if (gateway?.beginResponse !== undefined) {
+      try {
+        return await gateway.beginResponse(message);
+      } catch (error) {
+        this.#capture(error, `gateway:${gateway.name}:response`);
+      }
+    }
+    const deliver = async (text: string): Promise<void> => {
+      await gateway?.send?.(message.channel, text, message.thread);
+    };
+    return { complete: deliver, fail: deliver };
   }
 
   #startServer(port: number): void {

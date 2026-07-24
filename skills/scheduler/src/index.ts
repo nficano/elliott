@@ -92,7 +92,7 @@ const tickService = (
       (item) => Date.parse(item.firesAt) <= Date.now(),
     );
     for (const reminder of due) {
-      await context.deliver(`⏰ Reminder: ${reminder.text}`);
+      await context.deliver(`:circle-warn: Reminder: ${reminder.text}`);
       await store.markDelivered(reminder.id);
     }
   };

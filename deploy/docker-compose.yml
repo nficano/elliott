@@ -28,8 +28,11 @@ services:
     read_only: true
     tmpfs:
       - /tmp:size=512m,mode=1777
-      - /app/.elliott-runtime:size=64m,mode=0700,uid=1000,gid=1000
       - /app/data:size=64m,mode=0700,uid=1000,gid=1000
+    volumes:
+      # Reminder state and the files-tool workspace promise to survive runtime
+      # restarts and container replacement.
+      - elliott-runtime:/app/.elliott-runtime
     cap_drop: [ALL]
     security_opt:
       - no-new-privileges:true
@@ -77,3 +80,4 @@ networks:
 
 volumes:
   elliott-postgres:
+  elliott-runtime:

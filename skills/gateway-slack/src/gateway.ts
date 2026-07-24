@@ -1,28 +1,60 @@
 import { isJsonRecord } from "../../../src/providers/http";
-import type { GatewayEvents } from "../../../src/runtime/skills/types";
-import type { InboundMessage, SlackSettings } from "../../../src/runtime/types";
-import { markdownBlock, postMessage, slackRequest } from "./client";
-import type { SlackSocket, SlackSocketHandlers } from "./types";
+import type {
+  GatewayEvents,
+  GatewayResponse,
+} from "../../../src/runtime/skills/types";
+import type {
+  InboundContextEntity,
+  InboundMessage,
+  SlackSettings,
+} from "../../../src/runtime/types";
+import { agentMessageBlocks } from "./blocks";
+import { postMessage } from "./client";
+import { GATEWAY_NAME } from "./constants";
+import {
+  decodeContext,
+  decodeInteraction,
+  decodeMessage,
+  decodeReactionFeedback,
+} from "./events";
+import { loadLiveThreadHistory, withoutRetainedHistory } from "./history";
+import { handleAppHomeOpened } from "./onboarding";
+import { SlackAgentResponse } from "./response";
+import {
+  chunkSlackText,
+  openSlackSocket,
+  parseSlackFrame,
+  waitBeforeSlackReconnect,
+} from "./socket";
+import type {
+  SlackGatewayDependencies,
+  SlackJson,
+  SlackSocket,
+  SlackSocketFactory,
+} from "./types";
 
-export const GATEWAY_NAME = "gateway-slack";
-
-const RETRY_DELAY_MILLISECONDS = 3000;
-// A markdown block accepts up to 12,000 characters; chunk below that so a long
-// reply stays inside one block per message.
-const MESSAGE_CHUNK_CHARACTERS = 11_500;
+export { GATEWAY_NAME } from "./constants";
 
 export class SlackGateway {
   readonly name = GATEWAY_NAME;
   readonly defaultChannel: string;
   readonly #settings: SlackSettings;
+  readonly #dependencies: SlackGatewayDependencies;
+  readonly #openSocket: SlackSocketFactory;
   #events: GatewayEvents | undefined;
   #socket: SlackSocket | undefined;
   #active = false;
   #connected = false;
   #selfId: string | undefined;
+  #latestContext: readonly InboundContextEntity[] = [];
 
-  constructor(settings: SlackSettings) {
+  constructor(
+    settings: SlackSettings,
+    dependencies: SlackGatewayDependencies,
+  ) {
     this.#settings = settings;
+    this.#dependencies = dependencies;
+    this.#openSocket = dependencies.openSocket ?? openSlackSocket;
     this.defaultChannel = settings.defaultChannel;
   }
 
@@ -39,16 +71,38 @@ export class SlackGateway {
 
   async send(channel: string, text: string, thread?: string): Promise<void> {
     const target = channel || this.#settings.defaultChannel;
-    for (const chunk of chunkText(text)) {
-      // Render the reply through a markdown block so standard markdown from the
-      // model formats correctly; keep the raw text as the notification fallback.
-      await postMessage(this.#settings.botToken, {
+    let replyThread = thread;
+    for (const chunk of chunkSlackText(text)) {
+      const timestamp = await postMessage(this.#dependencies.clients.bot, {
         channel: target,
         text: chunk,
-        blocks: [markdownBlock(chunk)],
-        ...(thread !== undefined && { thread_ts: thread }),
+        blocks: agentMessageBlocks(chunk),
+        ...(replyThread !== undefined && { thread_ts: replyThread }),
+        unfurl_links: false,
+        unfurl_media: false,
       });
+      if (replyThread === undefined && target.startsWith("D")) {
+        replyThread = timestamp;
+        await this.#dependencies.clients.bot.request(
+          "assistant.threads.setTitle",
+          {
+            channel_id: target,
+            thread_ts: timestamp,
+            title: "Elliott notification",
+          },
+        );
+      }
     }
+  }
+
+  async beginResponse(message: InboundMessage): Promise<GatewayResponse> {
+    const response = new SlackAgentResponse({
+      client: this.#dependencies.clients.bot,
+      message,
+      report: this.#dependencies.report,
+    });
+    await response.start();
+    return response;
   }
 
   stop(): void {
@@ -65,22 +119,20 @@ export class SlackGateway {
         this.#events?.onError(error);
       }
       this.#connected = false;
-      if (this.#active) await delay(RETRY_DELAY_MILLISECONDS);
+      if (this.#active) await waitBeforeSlackReconnect();
     }
   }
 
   async #connectOnce(): Promise<void> {
-    const opened = await slackRequest(
+    const opened = await this.#dependencies.clients.app.request(
       "apps.connections.open",
-      this.#settings.appToken,
-      {},
     );
     const url = opened["url"];
-    if (opened["ok"] !== true || typeof url !== "string") {
-      throw new Error(`Slack socket open failed: ${String(opened["error"])}`);
+    if (typeof url !== "string") {
+      throw new TypeError("Slack socket open response had no URL");
     }
     await new Promise<void>((resolve, reject) => {
-      openSocket(url, {
+      this.#openSocket(url, {
         onMessage: (raw) => this.#handleFrame(raw),
         onClose: resolve,
       }).then((socket) => {
@@ -91,33 +143,112 @@ export class SlackGateway {
   }
 
   #handleFrame(raw: string): void {
-    const frame = parseFrame(raw);
+    const frame = parseSlackFrame(raw);
     if (frame === undefined) return;
-    const envelopeId = frame["envelope_id"];
-    if (typeof envelopeId === "string") {
-      this.#socket?.send(JSON.stringify({ envelope_id: envelopeId }));
+    const envelope = frame["envelope_id"];
+    if (typeof envelope === "string") {
+      this.#socket?.send(JSON.stringify({ envelope_id: envelope }));
     }
     if (frame["type"] === "disconnect") {
       this.#socket?.close();
       return;
     }
-    if (frame["type"] !== "events_api") return;
+    void this.#routeFrame(frame).catch((error: unknown) =>
+      this.#events?.onError(error)
+    );
+  }
+
+  async #routeFrame(frame: SlackJson): Promise<void> {
     const payload = frame["payload"];
     if (!isJsonRecord(payload)) return;
+    if (frame["type"] === "interactive") {
+      await this.#handleInteraction(payload);
+      return;
+    }
+    if (frame["type"] !== "events_api") return;
+    await this.#handleEvent(payload);
+  }
+
+  async #handleEvent(payload: SlackJson): Promise<void> {
     const event = payload["event"];
-    if (!isJsonRecord(event) || !this.#allowedMessage(event)) return;
-    this.#dispatch(event);
+    if (!isJsonRecord(event)) return;
+    if (event["type"] === "app_context_changed") {
+      this.#latestContext = decodeContext(event["context"]);
+      return;
+    }
+    if (event["type"] === "app_home_opened") {
+      await this.#handleAppHome(event);
+      return;
+    }
+    if (event["type"] === "reaction_added") {
+      const feedback = decodeReactionFeedback(
+        event,
+        this.#settings.ownerId,
+        this.#selfId,
+      );
+      if (feedback !== undefined) await this.#events?.onFeedback(feedback);
+      return;
+    }
+    await this.#handleMessage(payload, event);
   }
 
-  #dispatch(event: Readonly<Record<string, unknown>>): void {
-    const message = decodeMessage(event);
+  async #handleMessage(payload: SlackJson, event: SlackJson): Promise<void> {
+    if (!this.#allowedMessage(event)) return;
+    const team = payload["team_id"];
+    const message = decodeMessage(
+      event,
+      this.#latestContext,
+      typeof team === "string" ? team : undefined,
+    );
     if (message === undefined) return;
-    const events = this.#events;
-    if (events === undefined) return;
-    void events.onMessage(message).catch(events.onError);
+    let contextual = withoutRetainedHistory(message);
+    try {
+      contextual = await loadLiveThreadHistory(
+        this.#dependencies.clients.bot,
+        message,
+      );
+    } catch (error) {
+      this.#dependencies.report(error, "slack:conversations.replies");
+    }
+    await this.#events?.onMessage(contextual);
   }
 
-  #allowedMessage(event: Readonly<Record<string, unknown>>): boolean {
+  async #handleAppHome(event: SlackJson): Promise<void> {
+    if (
+      event["user"] !== this.#settings.ownerId
+      || event["tab"] !== "messages"
+      || typeof event["channel"] !== "string"
+    ) return;
+    const context = decodeContext(event["context"]);
+    if (context.length > 0) this.#latestContext = context;
+    await handleAppHomeOpened({
+      client: this.#dependencies.clients.bot,
+      channel: event["channel"],
+      context,
+    });
+  }
+
+  async #handleInteraction(payload: SlackJson): Promise<void> {
+    const action = decodeInteraction(payload, this.#settings.ownerId);
+    if (action === undefined) return;
+    if (action.type === "delete") {
+      await this.#dependencies.clients.bot.request("chat.delete", {
+        channel: action.channel,
+        ts: action.message,
+      });
+      return;
+    }
+    await this.#events?.onFeedback({
+      gateway: GATEWAY_NAME,
+      channel: action.channel,
+      message: action.message,
+      sender: action.sender,
+      sentiment: action.sentiment,
+      source: "button",
+    });
+  }
+
+  #allowedMessage(event: SlackJson): boolean {
     return event["type"] === "message"
       && event["subtype"] === undefined
       && event["bot_id"] === undefined
@@ -126,76 +257,9 @@ export class SlackGateway {
   }
 
   async #resolveSelfId(): Promise<string | undefined> {
-    const response = await slackRequest("auth.test", this.#settings.botToken);
-    return response["ok"] === true && typeof response["user_id"] === "string"
+    const response = await this.#dependencies.clients.bot.request("auth.test");
+    return typeof response["user_id"] === "string"
       ? response["user_id"]
       : undefined;
   }
 }
-
-const parseFrame = (
-  raw: string,
-): Readonly<Record<string, unknown>> | undefined => {
-  try {
-    const frame: unknown = JSON.parse(raw);
-    return isJsonRecord(frame) ? frame : undefined;
-  } catch {
-    return undefined;
-  }
-};
-
-const decodeMessage = (
-  event: Readonly<Record<string, unknown>>,
-): InboundMessage | undefined => {
-  const channel = event["channel"];
-  const sender = event["user"];
-  const text = event["text"];
-  const timestamp = event["ts"];
-  if (
-    typeof channel !== "string" || typeof sender !== "string"
-    || typeof text !== "string" || typeof timestamp !== "string"
-  ) return undefined;
-  const thread = event["thread_ts"];
-  return {
-    id: `${channel}:${timestamp}`,
-    gateway: GATEWAY_NAME,
-    channel,
-    ...(typeof thread === "string" && { thread }),
-    sender,
-    text,
-  };
-};
-
-const openSocket = (
-  url: string,
-  handlers: SlackSocketHandlers,
-): Promise<SlackSocket> =>
-  new Promise((resolve, reject) => {
-    const socket = new WebSocket(url);
-    socket.addEventListener("open", () =>
-      resolve({
-        send: (value) => socket.send(value),
-        close: () => socket.close(),
-      }));
-    socket.addEventListener("message", (event) =>
-      handlers.onMessage(String(event.data)));
-    socket.addEventListener("close", handlers.onClose);
-    socket.addEventListener("error", () =>
-      reject(new Error("Slack socket failed")));
-  });
-
-const chunkText = (text: string): readonly string[] => {
-  if (text.length <= MESSAGE_CHUNK_CHARACTERS) return [text];
-  const chunks: string[] = [];
-  for (
-    let offset = 0;
-    offset < text.length;
-    offset += MESSAGE_CHUNK_CHARACTERS
-  ) {
-    chunks.push(text.slice(offset, offset + MESSAGE_CHUNK_CHARACTERS));
-  }
-  return chunks;
-};
-
-const delay = (milliseconds: number): Promise<void> =>
-  new Promise((resolve) => setTimeout(resolve, milliseconds));

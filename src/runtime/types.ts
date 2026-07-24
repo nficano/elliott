@@ -13,6 +13,7 @@ export interface McpEndpointSettings {
 export interface SlackSettings {
   readonly appToken: string;
   readonly botToken: string;
+  readonly userToken?: string;
   readonly ownerId: string;
   readonly defaultChannel: string;
 }
@@ -104,7 +105,8 @@ export interface ToolDefinition {
   readonly name: string;
   readonly description: string;
   readonly inputSchema: Readonly<Record<string, unknown>>;
-  execute(input: unknown): Promise<string>;
+  readonly resultRetention?: "conversation" | "turn";
+  execute(input: unknown, context?: ToolExecutionContext): Promise<string>;
 }
 
 export interface ToolCall {
@@ -118,6 +120,7 @@ export interface ModelMessage {
   readonly content: string;
   readonly toolCallId?: string;
   readonly toolCalls?: readonly ToolCall[];
+  readonly ephemeral?: boolean;
 }
 
 export interface ModelTurnResult {
@@ -137,13 +140,59 @@ export interface GlitchTipTarget {
   readonly publicKey: string;
 }
 
+export interface InboundContextEntity {
+  readonly type: string;
+  readonly value: string | Readonly<Record<string, string>>;
+  readonly teamId?: string;
+}
+
+export interface InboundAttachment {
+  readonly id: string;
+  readonly name: string;
+  readonly mediaType: string;
+}
+
+export interface InboundThreadMessage {
+  readonly sender: string;
+  readonly text: string;
+}
+
 export interface InboundMessage {
   readonly id: string;
   readonly gateway: string;
   readonly channel: string;
   readonly thread?: string;
+  readonly threadRoot?: boolean;
+  readonly platformId?: string;
   readonly sender: string;
   readonly text: string;
+  readonly team?: string;
+  readonly actionToken?: string;
+  readonly context?: readonly InboundContextEntity[];
+  readonly attachments?: readonly InboundAttachment[];
+  readonly history?: readonly InboundThreadMessage[];
+  readonly historyMode?: "runtime" | "external";
+}
+
+export interface ToolExecutionContext {
+  readonly message?: InboundMessage;
+}
+
+export interface TurnToolProgress {
+  readonly id: string;
+  readonly name: string;
+  readonly status: "in_progress" | "complete" | "error";
+}
+
+export interface TurnObserver {
+  readonly onTextDelta?: (delta: string) => Promise<void>;
+  readonly onToolProgress?: (progress: TurnToolProgress) => Promise<void>;
+}
+
+export interface TurnOptions {
+  readonly observer?: TurnObserver;
+  readonly context?: ToolExecutionContext;
+  readonly retainHistory?: boolean;
 }
 
 export interface RuntimeHealth {

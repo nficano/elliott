@@ -90,7 +90,7 @@ announce_release() {
   skills="$(printf '%s' "$health" | jq -r '.skills // "?"')"
   tools="$(printf '%s' "$health" | jq -r '.tools // "?"')"
   subject="$(git log -1 --pretty=%s 2>/dev/null || echo "")"
-  text=":rocket: *Elliott deployed* — \`$RELEASE\`"$'\n'"$subject"$'\n'"$skills skills · $tools tools · healthy on spruce"
+  text=":circle-upload: *Elliott deployed* — \`$RELEASE\`"$'\n'"$subject"$'\n'"$skills skills · $tools tools · healthy on spruce"
   curl -sS -X POST https://slack.com/api/chat.postMessage \
     -H "Authorization: Bearer $token" \
     -H "Content-type: application/json; charset=utf-8" \

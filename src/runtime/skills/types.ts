@@ -1,8 +1,29 @@
-import type { InboundMessage, RuntimeSettings, ToolDefinition } from "../types";
+import type {
+  InboundMessage,
+  RuntimeSettings,
+  ToolDefinition,
+  TurnObserver,
+} from "../types";
+
+export interface GatewayFeedback {
+  readonly gateway: string;
+  readonly channel: string;
+  readonly message: string;
+  readonly sender: string;
+  readonly sentiment: "positive" | "negative";
+  readonly source: "button" | "reaction";
+}
 
 export interface GatewayEvents {
   readonly onMessage: (message: InboundMessage) => Promise<void>;
+  readonly onFeedback: (feedback: GatewayFeedback) => Promise<void>;
   readonly onError: (error: unknown) => void;
+}
+
+export interface GatewayResponse {
+  readonly observer?: TurnObserver;
+  complete(text: string): Promise<void>;
+  fail(message: string): Promise<void>;
 }
 
 export interface GatewayBinding {
@@ -11,6 +32,7 @@ export interface GatewayBinding {
   status(): string;
   start(events: GatewayEvents): Promise<void>;
   send?(channel: string, text: string, thread?: string): Promise<void>;
+  beginResponse?(message: InboundMessage): Promise<GatewayResponse>;
   stop(): void | Promise<void>;
 }
 

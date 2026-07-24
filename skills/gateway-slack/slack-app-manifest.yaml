@@ -1,0 +1,67 @@
+_metadata:
+  major_version: 2
+  minor_version: 1
+
+display_information:
+  name: Elliott
+  description: A secure personal agent that researches, plans, and acts with you.
+  background_color: "#172B4D"
+
+features:
+  app_home:
+    home_tab_enabled: false
+    messages_tab_enabled: true
+    messages_tab_read_only_enabled: false
+  agent_view:
+    agent_description: >-
+      Elliott is a secure personal agent that can search Slack in real time,
+      work from the context you are viewing, use connected tools, show its
+      progress, and return cited, actionable answers.
+    actions:
+      - name: Search Slack
+        description: Find relevant messages, files, and channels in real time.
+      - name: Work from context
+        description: Summarize or act on the Slack item you are currently viewing.
+      - name: Plan and execute
+        description: Break a goal into visible steps and use connected tools.
+    suggested_prompts:
+      - title: Find something in Slack
+        message: Search Slack for the latest relevant information about a topic I will provide.
+      - title: Plan a task
+        message: Help me turn a goal into a concrete plan, then carry out the steps I approve.
+      - title: What can you do?
+        message: Give me a concise overview of your connected tools and capabilities.
+  bot_user:
+    display_name: Elliott
+    always_online: true
+
+oauth_config:
+  scopes:
+    bot:
+      - assistant:write
+      - chat:write
+      - im:history
+      - reactions:read
+      - search:read.files
+      - search:read.public
+      - search:read.users
+    user:
+      - search:read.files
+      - search:read.im
+      - search:read.mpim
+      - search:read.private
+      - search:read.public
+      - search:read.users
+
+settings:
+  event_subscriptions:
+    bot_events:
+      - app_context_changed
+      - app_home_opened
+      - message.im
+      - reaction_added
+  interactivity:
+    is_enabled: true
+  org_deploy_enabled: false
+  socket_mode_enabled: true
+  token_rotation_enabled: false

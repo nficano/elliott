@@ -57,6 +57,11 @@ export const optionalSlack = (
     slack: {
       appToken: stringAt(value, ["channels", "slack", "app_token"]),
       botToken: stringAt(value, ["channels", "slack", "bot_token"]),
+      ...optionalStringProperty("userToken", value, [
+        "channels",
+        "slack",
+        "user_token",
+      ]),
       ownerId: stringAt(value, ["channels", "slack", "owner_id"]),
       defaultChannel: stringAt(value, [
         "channels",

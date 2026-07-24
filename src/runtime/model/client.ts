@@ -7,6 +7,7 @@ import type {
   ToolCall,
   ToolDefinition,
 } from "../types";
+import { decodeCompletionStream } from "./stream";
 
 const RESPONSE_DETAIL_MAX_CHARACTERS = 500;
 
@@ -17,7 +18,11 @@ export class RuntimeModelClient {
     this.#settings = settings;
   }
 
-  async complete(request: ModelTurnRequest): Promise<ModelTurnResult> {
+  async complete(
+    request: ModelTurnRequest,
+    onTextDelta?: (delta: string) => Promise<void>,
+  ): Promise<ModelTurnResult> {
+    const streaming = onTextDelta !== undefined;
     const response = await fetch(
       `${this.#settings.llmBaseUrl.replace(/\/$/, "")}/chat/completions`,
       {
@@ -36,7 +41,7 @@ export class RuntimeModelClient {
           tool_choice: request.allowTools ? "auto" : "none",
           max_tokens: this.#settings.maxTokens,
           temperature: this.#settings.temperature,
-          stream: false,
+          stream: streaming,
         }),
       },
     );
@@ -46,6 +51,9 @@ export class RuntimeModelClient {
         RESPONSE_DETAIL_MAX_CHARACTERS,
       );
       throw new Error(`LiteLLM ${response.status}: ${detail}`);
+    }
+    if (onTextDelta !== undefined) {
+      return decodeCompletionStream(response, onTextDelta);
     }
     const payload: unknown = await response.json();
     return decodeCompletion(payload);
