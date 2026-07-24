@@ -38,3 +38,34 @@ jobs:
       - run: bun run hot-core:check
       - run: cargo fmt --manifest-path crates/hot-core/Cargo.toml --all -- --check
       - run: cargo clippy --manifest-path crates/hot-core/Cargo.toml --workspace --all-targets -- -D warnings
+
+  deploy:
+    name: Deploy to spruce
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # Runs on a self-hosted runner inside the LAN — cloud runners cannot
+    # reach Vault (172.16.x) or the spruce SSH host. Register a runner with
+    # the `spruce-deploy` label (see scripts/deploy-spruce.sh header).
+    runs-on: [self-hosted, spruce-deploy]
+    concurrency:
+      # Serialize deploys; never interrupt an in-flight rsync/compose-up.
+      group: deploy-spruce
+      cancel-in-progress: false
+    env:
+      SPRUCE_HOST: ${{ vars.SPRUCE_HOST || 'spruce' }}
+      ELLIOTT_REMOTE_DIR: ${{ vars.ELLIOTT_REMOTE_DIR || '/Users/nficano/code/elliott' }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Authenticate to Vault (AppRole)
+        env:
+          VAULT_ADDR: ${{ secrets.VAULT_ADDR }}
+          VAULT_ROLE_ID: ${{ secrets.VAULT_ROLE_ID }}
+          VAULT_SECRET_ID: ${{ secrets.VAULT_SECRET_ID }}
+        run: |
+          echo "VAULT_ADDR=$VAULT_ADDR" >> "$GITHUB_ENV"
+          token="$(vault write -field=token auth/approle/login \
+            role_id="$VAULT_ROLE_ID" secret_id="$VAULT_SECRET_ID")"
+          echo "::add-mask::$token"
+          echo "VAULT_TOKEN=$token" >> "$GITHUB_ENV"
+      - name: Deploy and verify
+        run: scripts/deploy-spruce.sh

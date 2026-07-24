@@ -1,4 +1,19 @@
 #!/usr/bin/env bash
+# Deploy Elliott to the spruce host: render secret/services/oslo from Vault
+# into deploy/.env, build the image locally, rsync it over, compose up, and
+# poll /healthz. Runs manually, or from the ci.yml `deploy` job on a
+# self-hosted runner.
+#
+# Requirements (local machine OR self-hosted CI runner):
+#   - CLIs: vault, jq, rsync, docker, ssh, git
+#   - Vault auth: an ambient VAULT_TOKEN (manual: `vault login`; CI: the
+#     workflow logs in via AppRole from VAULT_ROLE_ID/VAULT_SECRET_ID secrets)
+#   - SSH: the `spruce` host alias (override with SPRUCE_HOST) reachable with
+#     key-based, BatchMode auth, plus a known_hosts entry for it
+#   - The runner must be on the LAN — Vault (172.16.x) and spruce are private.
+#
+# For the self-hosted CI runner, register it with the `spruce-deploy` label:
+#   ./config.sh --url https://github.com/nficano/elliott --labels spruce-deploy
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
