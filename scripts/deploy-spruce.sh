@@ -76,3 +76,27 @@ ssh -o BatchMode=yes "$SPRUCE_HOST" "bash -lc '
   docker compose logs --tail=150 elliott
   exit 1
 '"
+
+# Announce the release in Slack #feed. Reaching this line means the ssh block
+# above exited 0, i.e. the new runtime is healthy. Best-effort: a Slack hiccup
+# must never fail an already-successful deploy, so everything here is guarded.
+announce_release() {
+  local token channel health skills tools subject text
+  token="$(sed -n 's/^slack_bot_token=//p' "$TEMP_DIR/.env")"
+  [ -n "$token" ] || { echo "no slack_bot_token; skipping announce"; return 0; }
+  channel="${FEED_CHANNEL:-C0BJU9LNNPK}"
+  health="$(ssh -o BatchMode=yes "$SPRUCE_HOST" \
+    'curl -fsS http://127.0.0.1:18082/healthz' 2>/dev/null || echo '{}')"
+  skills="$(printf '%s' "$health" | jq -r '.skills // "?"')"
+  tools="$(printf '%s' "$health" | jq -r '.tools // "?"')"
+  subject="$(git log -1 --pretty=%s 2>/dev/null || echo "")"
+  text=":rocket: *Elliott deployed* — \`$RELEASE\`"$'\n'"$subject"$'\n'"$skills skills · $tools tools · healthy on spruce"
+  curl -sS -X POST https://slack.com/api/chat.postMessage \
+    -H "Authorization: Bearer $token" \
+    -H "Content-type: application/json; charset=utf-8" \
+    --data "$(jq -n --arg c "$channel" --arg t "$text" \
+      '{channel: $c, text: $t, unfurl_links: false}')" \
+    | jq -r 'if .ok then "announced release in #feed"
+             else "slack announce failed: \(.error)" end'
+}
+announce_release || true
