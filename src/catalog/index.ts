@@ -282,6 +282,16 @@ export const BUNDLED_CATALOG: readonly BundledComponentDescriptor[] = Object
       senderAllowlistRequired: false,
       untrustedOutput: true,
     }),
+    descriptor({
+      name: "telemetry-map",
+      kind: "extension",
+      protocols: ["health.checker"],
+      egress: egressClass("none"),
+      isolation: "container",
+      secretRefs: [],
+      senderAllowlistRequired: false,
+      untrustedOutput: false,
+    }),
   ]);
 
 export type * from "./types";

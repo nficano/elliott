@@ -24,6 +24,7 @@ const IMPLEMENTED = [
   "search-brave",
   "search-duckduckgo",
   "ssh",
+  "telemetry-map",
   "terminal",
   "web-firecrawl",
   "web-parallel",
