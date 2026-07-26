@@ -6,12 +6,12 @@
 <title>Elliott Stack Explorer — Runtime Topology</title>
 <link rel="icon" href="data:,">
 <style>
-  /* Hallmark · macrostructure: Map / Diagram · genre: modern-minimal · tone: technical, precise, utilitarian
-   * theme: studied-DNA (source: Flow Stack Explorer) · enrichment: interactive topology canvas
-   * audience: Elliott operators and maintainers · use: inspect verified runtime wiring · anchor hue: link teal
-   * pre-emit critique: P5 H5 E5 S5 R5 V5 · contrast: pass (40–41) · nav: N/A · footer: N/A
+  /* Hallmark · macrostructure: Map / Diagram · genre: atmospheric · tone: technical, nocturnal, precise
+   * theme: custom circuit-board · enrichment: interactive topology canvas
+   * audience: Elliott operators and maintainers · use: inspect verified runtime wiring · anchor hue: neon cyan
+   * pre-emit critique: P5 H5 E5 S5 R5 V4 · contrast: pass (40–41) · nav: N/A · footer: N/A
    * slop: pass (42–45) · honest: pass (46) · chrome: pass (47) · tokens: pass (48) · responsive: pass (49)
-   * icons: pass (30) · mobile: pass (34, 49, 50–57)
+   * icons: pass (30) · mobile: pass (34, 49, 50–57) · slop-test: brief exception (1: Inter explicitly requested)
    */
   @font-face{
     font-family:"Generation 1970";
@@ -24,56 +24,63 @@
     font-weight:400 900; font-style:normal; font-display:swap;
   }
   :root{
-    /* Flow palette — frontend/web/waves/src/theme/colors.ts */
-    --ink:#2b2b2b;            /* midnight700 */
-    --ink-soft:#66645e;       /* moonlight900 */
-    --indigo:#3f7b7e;         /* accessibility-adjusted link700 accent */
-    --panel:rgba(254,252,251,.82);
-    --panel-solid:#fefcfb;
-    --line:rgba(173,168,158,.45);   /* moonlight700 */
-    --shadow:inset 0 1px 0 rgba(255,255,255,.74),
-      1px 2px 5px rgba(74,73,68,.08),
-      8px 12px 28px rgba(74,73,68,.11);
-    --font-display:"Generation 1970",serif;
+    /* Swappable circuit-board theme contract. */
+    --bg:oklch(13.5% .009 245);
+    --bg-lift:oklch(17% .011 245);
+    --tile:oklch(22% .012 245);
+    --tile-raised:oklch(27% .014 245);
+    --glow-green:oklch(87% .22 151);
+    --glow-cyan:oklch(83% .16 220);
+    --glow-amber:oklch(82% .17 76);
+    --text-primary:oklch(92% .009 245);
+    --text-dim:oklch(72% .014 245);
+
+    --ink:var(--text-primary);
+    --ink-soft:var(--text-dim);
+    --indigo:var(--glow-cyan);
+    --panel:oklch(18% .011 245 / .94);
+    --panel-solid:oklch(18% .011 245);
+    --line:oklch(47% .025 235 / .42);
+    --shadow:inset 0 1px 0 oklch(96% .01 225 / .07),
+      0 12px 28px oklch(3% .006 245 / .48);
+    --font-display:"Inter",ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
     --font-body:"Inter",ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
     --font-code:"SF Mono",ui-monospace,SFMono-Regular,Monaco,monospace;
-    --paper-bright:#fff;
-    --paper-warm:#fdf5e6;
-    --paper-muted:#f7f3ea;
-    --paper-depth:#ede8da;
-    --panel-quiet:rgba(254,252,251,.76);
-    --panel-strong:rgba(254,252,251,.9);
-    --surface-quiet:rgba(102,100,94,.10);
-    --surface-hover:rgba(102,100,94,.09);
-    --surface-edge-hover:rgba(102,100,94,.08);
-    --surface-pressed:rgba(102,100,94,.2);
-    --surface-progress:rgba(102,100,94,.14);
-    --line-design:rgba(63,123,126,.38);
-    --line-soft:rgba(173,168,158,.3);
-    --accent-wash:rgba(63,123,126,.08);
-    --accent-line:rgba(63,123,126,.18);
-    --accent-spark:rgba(63,123,126,.06);
-    --meter-track:rgba(91,95,214,.12);
-    --warning-wash:rgba(232,151,0,.15);
-    --warning-ink:#805300;
-    --danger-wash:rgba(240,106,96,.15);
-    --danger-ink:#aa4b44;
-    --success-wash:rgba(75,201,151,.18);
-    --success-ink:#296f53;
-    --code-bg:#222222;
-    --code-ink:#f3eddf;
-    --code-key:#76bae5;
-    --code-string:#4bc997;
-    --code-number:#edac33;
-    --code-boolean:#f06a60;
-    --shadow-active:inset 0 1px 0 rgba(255,255,255,.82),
-      1px 2px 7px rgba(74,73,68,.16);
-    --shadow-tooltip:inset 0 1px 0 rgba(255,255,255,.82),
-      3px 6px 14px rgba(74,73,68,.12),
-      12px 18px 36px rgba(74,73,68,.14);
-    --shadow-drawer:inset 0 1px 0 rgba(255,255,255,.78),
-      4px 8px 18px rgba(74,73,68,.12),
-      16px 24px 50px rgba(74,73,68,.14);
+    --paper-bright:var(--tile-raised);
+    --paper-warm:var(--bg-lift);
+    --paper-muted:var(--bg);
+    --paper-depth:oklch(10.5% .008 245);
+    --panel-quiet:oklch(17% .011 245 / .96);
+    --panel-strong:oklch(19% .012 245 / .98);
+    --surface-quiet:oklch(64% .02 235 / .09);
+    --surface-hover:oklch(83% .16 220 / .11);
+    --surface-edge-hover:oklch(83% .16 220 / .08);
+    --surface-pressed:oklch(83% .16 220 / .16);
+    --surface-progress:oklch(64% .02 235 / .14);
+    --line-design:oklch(83% .16 220 / .34);
+    --line-soft:oklch(47% .025 235 / .3);
+    --accent-wash:oklch(83% .16 220 / .08);
+    --accent-line:oklch(83% .16 220 / .22);
+    --accent-spark:oklch(83% .16 220 / .07);
+    --meter-track:oklch(83% .16 220 / .12);
+    --warning-wash:oklch(82% .17 76 / .13);
+    --warning-ink:var(--glow-amber);
+    --danger-wash:oklch(66% .2 28 / .14);
+    --danger-ink:oklch(76% .18 28);
+    --success-wash:oklch(87% .22 151 / .12);
+    --success-ink:var(--glow-green);
+    --code-bg:oklch(10.5% .008 245);
+    --code-ink:var(--text-primary);
+    --code-key:var(--glow-cyan);
+    --code-string:var(--glow-green);
+    --code-number:var(--glow-amber);
+    --code-boolean:oklch(76% .18 28);
+    --shadow-active:inset 0 1px 0 oklch(96% .01 225 / .1),
+      0 0 0 1px oklch(83% .16 220 / .24);
+    --shadow-tooltip:inset 0 1px 0 oklch(96% .01 225 / .08),
+      0 16px 38px oklch(3% .006 245 / .62);
+    --shadow-drawer:inset 0 1px 0 oklch(96% .01 225 / .08),
+      18px 0 48px oklch(3% .006 245 / .66);
     --space-3xs:4px;
     --space-2xs:8px;
     --space-xs:12px;
@@ -93,15 +100,14 @@
   *{margin:0;padding:0;box-sizing:border-box}
   button{font-family:inherit;white-space:nowrap}
   button:active{transform:translateY(1px)}
-  button:disabled,input:disabled,select:disabled{
+  button:disabled,input:disabled,textarea:disabled,select:disabled{
     opacity:.55;cursor:not-allowed
   }
   html,body{height:100%;overflow:clip}
   body{
     font-family:var(--font-body);
     color:var(--ink);
-    background:radial-gradient(1200px 800px at 70% -10%, var(--paper-warm) 0%, transparent 60%),
-               linear-gradient(160deg,var(--panel-solid) 0%,var(--paper-muted) 55%,var(--paper-depth) 100%);
+    background:radial-gradient(circle at 48% 36%,var(--bg-lift) 0%,var(--bg) 58%,var(--paper-depth) 100%);
     -webkit-font-smoothing:antialiased;
   }
   #scene{position:fixed;inset:0;display:block;cursor:grab;touch-action:none}
@@ -113,7 +119,7 @@
 
   /* ---------- title + stats ---------- */
   #title{top:18px;left:22px;max-width:calc(100% - 318px)}
-  #title h1{font-family:var(--font-display);font-size:21px;font-weight:300;letter-spacing:.01em;
+  #title h1{font-family:var(--font-display);font-size:21px;font-weight:700;letter-spacing:-.02em;
     min-width:0;overflow-wrap:anywhere}
   #title h1 span{color:var(--indigo)}
   #title p{font-size:11.5px;color:var(--ink-soft);margin-top:var(--space-3xs)}
@@ -202,7 +208,7 @@
     top:18px;right:18px;width:252px;max-height:calc(100vh - 120px);
     display:flex;flex-direction:column;gap:var(--space-2xs);overflow:hidden auto;
     scrollbar-width:thin;padding-bottom:var(--space-3xs);
-    opacity:.2;transition:opacity .3s cubic-bezier(.16,1,.3,1);
+    opacity:.82;transition:opacity .3s cubic-bezier(.16,1,.3,1);
   }
   #dock:hover,#dock:focus-within{opacity:1}
   .card{
@@ -222,12 +228,62 @@
   .seg button.on{background:var(--paper-bright);color:var(--ink);box-shadow:var(--shadow-active)}
   .seg button:active{transform:translateY(1px)}
 
+  /* ---------- presets ---------- */
+  #edgeBrightnessControl{display:grid;gap:var(--space-3xs)}
+  .presetLabel{
+    display:flex;align-items:center;justify-content:space-between;gap:var(--space-2xs);
+    font-size:11px;font-weight:650;color:var(--ink)
+  }
+  #edgeBrightnessValue{
+    color:var(--indigo);font-size:10px;font-weight:750;
+    letter-spacing:.06em;text-transform:uppercase
+  }
+  #edgeBrightness{
+    --edge-fill:50%;
+    appearance:none;width:100%;height:44px;margin:0;
+    background:transparent;cursor:pointer;outline:2px solid transparent;outline-offset:1px
+  }
+  #edgeBrightness::-webkit-slider-runnable-track{
+    height:6px;border-radius:99px;
+    background:linear-gradient(to right,var(--indigo) 0 var(--edge-fill),var(--surface-progress) var(--edge-fill) 100%)
+  }
+  #edgeBrightness::-moz-range-track{
+    height:6px;border-radius:99px;background:var(--surface-progress)
+  }
+  #edgeBrightness::-moz-range-progress{
+    height:6px;border-radius:99px;background:var(--indigo)
+  }
+  #edgeBrightness::-webkit-slider-thumb{
+    appearance:none;width:18px;height:18px;margin-top:-6px;border-radius:50%;
+    border:2px solid var(--indigo);background:var(--tile-raised);box-shadow:var(--shadow-active)
+  }
+  #edgeBrightness::-moz-range-thumb{
+    width:18px;height:18px;border-radius:50%;
+    border:2px solid var(--indigo);background:var(--tile-raised);box-shadow:var(--shadow-active)
+  }
+  @media (hover:hover) and (pointer:fine){
+    #edgeBrightness:not(:disabled):hover::-webkit-slider-thumb{background:var(--paper-bright)}
+    #edgeBrightness:not(:disabled):hover::-moz-range-thumb{background:var(--paper-bright)}
+  }
+  #edgeBrightness:focus-visible{outline:2px solid var(--indigo);outline-offset:2px;border-radius:9px}
+  #edgeBrightness:active::-webkit-slider-thumb{transform:translateY(1px)}
+  #edgeBrightness:active::-moz-range-thumb{transform:translateY(1px)}
+  #edgeBrightness:disabled{cursor:not-allowed}
+  #edgeBrightnessControl[data-value="0"] #edgeBrightness{--edge-fill:0%}
+  #edgeBrightnessControl[data-value="1"] #edgeBrightness{--edge-fill:50%}
+  #edgeBrightnessControl[data-value="2"] #edgeBrightness{--edge-fill:100%}
+  .presetStops{
+    display:flex;justify-content:space-between;margin-top:calc(var(--space-3xs) * -1);
+    color:var(--ink-soft);font-size:9.5px;font-weight:650
+  }
+  #edgeBrightnessHint{min-height:1lh;color:var(--ink-soft);font-size:10px;line-height:1.35}
+
   @keyframes design-control-spin{to{transform:rotate(360deg)}}
 
   #search{width:100%;border:1px solid var(--line);border-radius:9px;
     padding:var(--space-2xs) var(--space-xs);font-size:12px;background:var(--paper-bright);color:var(--ink);outline:none}
   #search:hover,#search:focus,select:hover,select:active{border-color:var(--indigo)}
-  button:focus-visible,input:focus-visible,select:focus-visible{
+  button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{
     outline:2px solid var(--indigo);outline-offset:2px
   }
   #searchResults{margin-top:var(--space-2xs);display:none;max-height:170px;overflow:auto}
@@ -296,7 +352,7 @@
   #drawerHead .d-kicker{display:flex;align-items:center;gap:var(--space-2xs);margin-bottom:var(--space-3xs)}
   #drawerHead .d-kicker i{width:10px;height:10px;border:1px solid var(--ink-soft);border-radius:3px;font-style:normal}
   #drawerHead .d-kicker span{font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.09em;color:var(--ink-soft)}
-  #drawerHead h3{font-family:var(--font-display);font-size:19px;font-weight:300;letter-spacing:.01em;line-height:1.2}
+  #drawerHead h3{font-family:var(--font-display);font-size:19px;font-weight:700;letter-spacing:-.02em;line-height:1.2}
   #drawerHead .d-id{font-family:var(--font-code);font-size:10px;color:var(--ink-soft);margin-top:var(--space-3xs)}
   #drawerClose{position:absolute;top:26px;right:26px;width:26px;height:26px;border:0;
     border-radius:8px;background:var(--surface-quiet);color:var(--ink);cursor:pointer;font-size:13px}
@@ -355,6 +411,47 @@
   .callout{padding:var(--space-2xs) var(--space-xs);border-radius:9px;background:var(--accent-wash);
     border:1px solid var(--accent-line);font-size:11px;line-height:1.45}
 
+  /* ---------- send panel ---------- */
+  #sendForm{display:grid;gap:var(--space-3xs)}
+  #sendInput{
+    width:100%;border:1px solid var(--line);border-radius:9px;
+    min-height:64px;padding:var(--space-2xs) var(--space-xs);font-size:12px;
+    background:var(--paper-bright);color:var(--ink);
+    outline:2px solid transparent;outline-offset:1px;
+    resize:vertical;font-family:inherit;line-height:1.4;
+    transition:background-color .15s var(--ease-out),border-color .15s var(--ease-out);
+  }
+  #sendInput::placeholder{color:var(--ink-soft)}
+  @media (hover:hover) and (pointer:fine){
+    #sendInput:hover{background:var(--panel-solid)}
+    #sendBtn:not(:disabled):hover{background:var(--accent-line)}
+  }
+  #sendInput:focus-visible{border-color:var(--indigo)}
+  #sendInput[aria-invalid="true"]{border-color:var(--danger-ink)}
+  #sendBtn{
+    width:100%;min-height:44px;border:1px solid var(--indigo);border-radius:7px;
+    background:var(--accent-wash);color:var(--indigo);
+    font-size:11px;font-weight:700;
+    padding:var(--space-2xs) var(--space-xs);cursor:pointer;
+    transition:background-color .15s var(--ease-out),transform .1s var(--ease-out);
+  }
+  #sendBtn:disabled{opacity:.55;cursor:not-allowed}
+  #sendHint{min-height:1lh;font-size:10px;line-height:1.35;color:var(--ink-soft)}
+  #sendCard[data-state="error"] #sendHint{color:var(--danger-ink)}
+  #sendCard[data-state="success"] #sendHint{color:var(--success-ink)}
+  #sendResponse{
+    margin-top:var(--space-2xs);font-size:11px;line-height:1.5;
+    color:var(--ink-soft);display:none;
+    border-top:1px solid var(--line-soft);padding-top:var(--space-2xs);
+    max-height:140px;overflow:auto;scrollbar-width:thin;
+  }
+  #sendResponse.show{display:block}
+
+  /* Matte controls: depth comes from surface lightness, never glass blur. */
+  #designPicker,.stat,.card,#nav button,#hint,#tooltip,#drawerCard{
+    backdrop-filter:none;
+  }
+
   /* ---------- flow player ---------- */
   #flowPlayer{
     bottom:64px;left:50%;transform:translate(-50%,20px);opacity:0;
@@ -385,6 +482,8 @@
     }
     #dock .card{min-width:0;padding:var(--space-2xs)}
     #dock .card:first-child{grid-column:1/-1}
+    #sendCard{grid-column:1/-1}
+    #presetCard{grid-column:1/-1}
     #dock .card h2{margin-bottom:var(--space-3xs)}
     #drawer{width:min(340px,92vw)}
     #hint{display:none}
@@ -400,7 +499,7 @@
     .designSeg button{padding:var(--space-2xs) var(--space-3xs);font-size:9px}
     #nav button{min-width:44px;height:44px}
     #nav button svg{width:18px;height:18px}
-    #flowPlayer{bottom:258px;width:calc(100% - 32px)}
+    #flowPlayer{bottom:72px;width:calc(100% - 32px)}
   }
   @media (pointer:coarse){
     .designSeg button,#packBrief,#nav button,#fpCtl button{
@@ -418,7 +517,7 @@
 </style>
 </head>
 <body>
-<canvas id="scene" role="img" aria-label="Interactive Elliott runtime topology. Use the search, runtime filters, and data-flow controls to inspect components without pointer input."></canvas>
+<canvas id="scene" role="img" aria-label="Interactive Elliott runtime topology. Switch views, send a message to trace its runtime path, or select a node or connection for details."></canvas>
 
 <div class="hud" id="title">
   <h1>Elliott <span>Stack Explorer</span></h1>
@@ -436,14 +535,48 @@
     </div>
   </div>
 
+  <div class="card" id="sendCard">
+    <h2 id="sendTitle">Ask Elliott</h2>
+    <form id="sendForm">
+      <textarea id="sendInput" rows="2" placeholder="What should Elliott do?" aria-labelledby="sendTitle" aria-describedby="sendHint"></textarea>
+      <button type="submit" id="sendBtn">Send + trace</button>
+      <div id="sendHint">⌘ Enter also sends. The runtime path appears below.</div>
+    </form>
+    <div id="sendResponse" role="status" aria-live="polite"></div>
+  </div>
+
+  <div class="card" id="presetCard">
+    <h2>Presets</h2>
+    <div id="edgeBrightnessControl" data-value="1">
+      <div class="presetLabel">
+        <label for="edgeBrightness">Edge brightness</label>
+        <output id="edgeBrightnessValue" for="edgeBrightness">Dim</output>
+      </div>
+      <input
+        id="edgeBrightness"
+        type="range"
+        min="0"
+        max="2"
+        step="1"
+        value="1"
+        aria-describedby="edgeBrightnessHint"
+        aria-valuetext="Dim"
+      >
+      <div class="presetStops" aria-hidden="true">
+        <span>Off</span><span>Dim</span><span>Bright</span>
+      </div>
+      <p id="edgeBrightnessHint">Dim keeps the map quiet until a trace starts.</p>
+    </div>
+  </div>
+
 </div>
 
 <div class="hud" id="nav">
   <div class="row">
-    <button type="button" id="rotL" title="Rotate left (Q)" aria-label="Rotate left">
+    <button type="button" id="rotL" title="Rotate left" aria-label="Rotate left">
       <svg viewBox="0 0 640 640" aria-hidden="true" focusable="false"><path d="M112 64L112 166.1L139.1 139C239.1 39 401.2 39 501.1 139C551.1 189 576.1 254.5 576.1 320C576.1 461.4 461.5 576 320.1 576C217.7 576 129.4 515.9 88.5 429.2L131.9 408.7C165.2 479.3 237 528 320.1 528C435 528 528.1 434.9 528.1 320C528.1 266.7 507.8 213.5 467.2 172.9C386 91.7 254.3 91.7 173 172.9L145.9 200L248.1 200L248.1 248L64 248L64 64L112 64z"/></svg>
     </button>
-    <button type="button" id="rotR" title="Rotate right (E)" aria-label="Rotate right">
+    <button type="button" id="rotR" title="Rotate right" aria-label="Rotate right">
       <svg viewBox="0 0 640 640" aria-hidden="true" focusable="false"><path d="M528.2 64L528.2 166.1L501.1 139C401.1 39 239 39 139.1 139C89.1 189 64.1 254.5 64.1 320C64.1 461.4 178.7 576 320.1 576C422.5 576 510.8 515.9 551.7 429.2L508.3 408.7C475 479.3 403.2 528 320.1 528C205.2 528 112.1 434.9 112.1 320C112.1 266.7 132.4 213.5 173 172.9C254.2 91.7 385.9 91.7 467.2 172.9L494.3 200L392.1 200L392.1 248L576.2 248L576.2 64L528.2 64z"/></svg>
     </button>
   </div>
@@ -473,6 +606,25 @@
       <button id="drawerClose" aria-label="Close architecture details">✕</button>
     </div>
     <div id="drawerBody"></div>
+  </div>
+</div>
+
+<div id="flowPlayer" aria-hidden="true" inert>
+  <div class="card">
+    <div id="fpTop">
+      <div id="fpTitle"></div>
+      <div id="fpStep"></div>
+      <div id="fpCtl">
+        <button id="fpPrev" type="button" title="Previous step" aria-label="Previous path step">‹</button>
+        <button id="fpPlay" type="button" title="Play or pause" aria-label="Pause path">⏸</button>
+        <button id="fpNext" type="button" title="Next step" aria-label="Next path step">›</button>
+        <button id="fpExit" type="button" title="Close path" aria-label="Close path">✕</button>
+      </div>
+    </div>
+    <div id="fpAction"></div>
+    <div id="fpMeta"></div>
+    <div id="fpResult"></div>
+    <div id="fpBar" aria-hidden="true"><i></i></div>
   </div>
 </div>
 
@@ -518,13 +670,13 @@ function buildExplorerPack(raw){
   };
   const layers=[
     {id:"layer:entry",name:"Ingress",purpose:"External input, secrets, and request dispatch.",z:7},
-    {id:"layer:core",name:"Agent core",purpose:"Conversation control, prompt assembly, and tool dispatch.",z:6},
-    {id:"layer:model",name:"Model inference",purpose:"Route attestation and model completion.",z:5},
+    {id:"layer:core",name:"Core",purpose:"Conversation control, prompt assembly, and tool dispatch.",z:6},
+    {id:"layer:model",name:"Model",purpose:"Route attestation and model completion.",z:5},
     {id:"layer:capability",name:"Capabilities",purpose:"Local tools, network integrations, and MCP federation.",z:4},
-    {id:"layer:state",name:"Memory · state",purpose:"Evidence, snapshots, session storage, and SQLite.",z:3},
+    {id:"layer:state",name:"Memory",purpose:"Evidence, snapshots, session storage, and SQLite.",z:3},
     {id:"layer:evolution",name:"Evolution",purpose:"Signals, triage, evaluation, proposals, and control.",z:2},
-    {id:"layer:governance",name:"Observability · governance",purpose:"Telemetry, audit, reporting, and operator surfaces.",z:1},
-    {id:"layer:substrate",name:"Deployment",purpose:"The Elliott, Postgres, and browser containers.",z:0},
+    {id:"layer:governance",name:"Governance",purpose:"Telemetry, audit, reporting, and operator surfaces.",z:1},
+    {id:"layer:substrate",name:"Substrate",purpose:"The Elliott, Postgres, and browser containers.",z:0},
   ];
   const hosts=[
     {id:"external-untrusted",name:"External · untrusted",hint:"Inbound callers and content outside the trust boundary.",color:"#cf8f8f"},
@@ -539,10 +691,63 @@ function buildExplorerPack(raw){
     .split(/\s*(?:\/|;|,)\s*/)
     .map(item=>item.trim())
     .filter(Boolean);
-  const compactName=value=>{
-    const source=String(value||"Unnamed component");
-    const first=source.split(/\s+—\s+/)[0].replace(/\s+\((?:single|canonical|only|live|POST|GET|File|bun:|in-process).*$/i,"");
-    return first.length>48?`${first.slice(0,47).trimEnd()}…`:first;
+  const nodeLabels={
+    "secret.vault":"Vault",
+    "gateway.slack":"Slack",
+    "gateway.webhook":"Webhook",
+    "runtime.http":"HTTP",
+    "runtime.inbound":"Inbound",
+    "runtime.agentLoop":"Agent loop",
+    "runtime.prompt":"Prompt",
+    "runtime.router":"Router",
+    "runtime.modelClient":"Model client",
+    "runtime.toolExec":"Tool runner",
+    "runtime.kernel":"Kernel",
+    "provider.litellm":"LiteLLM",
+    "provider.ollama":"Ollama",
+    "tool.files":"Files",
+    "tool.terminal":"Terminal",
+    "tool.ssh":"SSH",
+    "tool.fetch":"Fetch",
+    "tool.search":"Search",
+    "tool.browser":"Browser",
+    "tool.gmail":"Gmail",
+    "tool.email":"Email",
+    "tool.imessage":"iMessage",
+    "tool.homeassistant":"Home Assistant",
+    "service.scheduler":"Scheduler",
+    "mcp.client":"MCP client",
+    "mcp.h12o":"h12o MCP",
+    "mcp.homeassistant":"HA MCP",
+    "memory.sessionStore":"Sessions",
+    "memory.evidence":"Evidence",
+    "memory.curated":"Curated memory",
+    "memory.snapshots":"Snapshots",
+    "database.sessions":"SQLite",
+    "learning.signals":"Signals",
+    "learning.triage":"Triage",
+    "learning.proposals":"Proposals",
+    "learning.control":"Evolution control",
+    "evaluator.gauntlet":"Evaluator",
+    "evaluator.companions":"Companions",
+    "obs.telemetry":"Telemetry",
+    "obs.footprint":"Footprint",
+    "obs.audit":"Audit",
+    "obs.reporter":"GlitchTip",
+    "obs.map":"Telemetry map",
+    "container.elliott":"Elliott",
+    "container.postgres":"Postgres",
+    "container.browser":"Browserless",
+  };
+  const compactName=(value,id)=>{
+    if(nodeLabels[id]) return nodeLabels[id];
+    let s=String(value||"Unnamed component");
+    s=s.split(/\s+[—–]\s+/)[0];             // drop em-dash qualifiers
+    s=s.replace(/\s*\([^)]*\)/g,"");         // drop all parenthetical suffixes
+    s=s.replace(/\bcontainer\b\s*/gi,"").trimEnd(); // drop "container"
+    s=s.trim();
+    if(s) s=s[0].toUpperCase()+s.slice(1);  // capitalize
+    return s.length>20?`${s.slice(0,19).trimEnd()}…`:s||"Unnamed";
   };
   const runtimeTone=state=>state==="live"?"active":state==="config-gated"?"migration":"inactive";
   const nodes=(raw.nodes||[]).map((node,index)=>{
@@ -557,7 +762,7 @@ function buildExplorerPack(raw){
     const domain=domainsById.get(node.domain);
     return {
       id:node.id,
-      name:compactName(node.name),
+      name:compactName(node.name,node.id),
       fullName:node.name,
       kind:node.kind,
       domain:node.domain||"runtime",
@@ -603,7 +808,7 @@ function buildExplorerPack(raw){
       sourceRefs,
       characteristics:node.characteristics||[],
       visual:{
-        size,
+        size:"m",
         layer:layerByDomain[node.domain]||"layer:core",
         cluster:node.kind||"component",
         order:index,
@@ -690,6 +895,24 @@ function buildExplorerPack(raw){
       failurePoints:edgeIds.map(edgeId=>edgesById.get(edgeId)?.failureHandling).filter(Boolean),
     };
   }).filter(flow=>flow.steps.length);
+  flows.unshift({
+    id:"flow:map-message",
+    name:"Map message → Elliott",
+    steps:[
+      {from:"obs.map",to:"runtime.inbound",action:"POST /send injects the message through GatewayEvents.onMessage",data:["request","verified code path"],transport:"in-process",result:"Telemetry-map gateway captures the reply channel."},
+      {from:"runtime.inbound",to:"runtime.agentLoop",action:"Open the turn and call RuntimeAgent.turn",data:["control","live"],transport:"in-process",result:"The turn enters the bounded round loop."},
+      {from:"runtime.agentLoop",to:"runtime.prompt",action:"Assemble system context, conversation, and tools",data:["prompt","context"],transport:"in-process",result:"A ModelTurnRequest is prepared."},
+      {from:"runtime.prompt",to:"runtime.modelClient",action:"Submit the prepared model request",data:["model request"],transport:"in-process",result:"The model client attests its route before completion."},
+      {from:"runtime.modelClient",to:"runtime.router",action:"Attest the fixed model route",data:["route digest"],transport:"in-process",result:"A verified selection returns to the turn."},
+      {from:"runtime.router",to:"runtime.agentLoop",action:"Return the attested model selection",data:["selection"],transport:"in-process",result:"The turn proceeds with the selected route."},
+      {from:"runtime.agentLoop",to:"runtime.modelClient",action:"Request model completion",data:["messages","tools"],transport:"in-process",result:"The model client sends the completion request."},
+      {from:"runtime.modelClient",to:"provider.litellm",action:"POST /v1/chat/completions",data:["completion"],transport:"HTTPS",result:"LiteLLM returns the model response."},
+      {from:"provider.litellm",to:"runtime.agentLoop",action:"Return completion content and any tool calls",data:["response"],transport:"HTTPS",result:"The turn resolves or begins another tool round."},
+      {from:"runtime.agentLoop",to:"obs.map",action:"Capture the gateway response for the waiting /send request",data:["answer"],transport:"in-process",result:"The answer appears in the Ask Elliott panel."},
+    ],
+    consistencyNotes:["The request and response seam follows telemetry-map index.ts and gateway.ts."],
+    failurePoints:["The request times out after 180 seconds and leaves the trace visible for inspection."],
+  });
   return {
     meta:{
       id:"elliott-runtime",
@@ -742,74 +965,81 @@ let D=buildExplorerPack(rawTopology);
 window.ELLIOTT_EXPLORER_DATA=D;
 
 const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
-const _noop={innerHTML:"",textContent:"",value:"",style:{},classList:{add:()=>{},remove:()=>{},toggle:()=>{},has:()=>false},querySelectorAll:()=>[],setAttribute:()=>{},getAttribute:()=>null,appendChild:()=>{},focus:()=>{},blur:()=>{},inert:false,onchange:null,onclick:null,placeholder:""};
+const _noop={innerHTML:"",textContent:"",value:"",style:{},classList:{add:()=>{},remove:()=>{},toggle:()=>{},has:()=>false},querySelectorAll:()=>[],setAttribute:()=>{},getAttribute:()=>null,appendChild:()=>{},addEventListener:()=>{},contains:()=>false,focus:()=>{},blur:()=>{},inert:false,onchange:null,onclick:null,placeholder:""};
+_noop.querySelector=()=>_noop;
+_noop.firstElementChild=_noop;
 const $ = id => document.getElementById(id) || _noop;
 
 /* ================================ palette ================================ */
-/* Domain colors from the official Flow palette (waves/src/theme/colors.ts):
-   success/link/sunlight/roots/error/gray/oceanSwell/info/olive families,
-   plus a few muted variants where the palette has no hue (ai, communications). */
+/* Three circuit-trace accents carry all category identity. */
 const DOMAIN_COLOR = {
-  financial:"#358f6b",      payments:"#418083",     collection:"#296f53",
-  payables:"#57a583",       property:"#d38900",     physical:"#a56b00",
-  leasing:"#9a5716",        integration:"#8a6a4a",  digital:"#805300",
-  resident:"#da6057",       screening:"#843a35",    operations:"#aa4b44",
-  identity:"#595c5c",       staff:"#455f67",        platform:"#727576",
-  reference:"#979a9b",      archive:"#66645e",      workflow:"#597b85",
-  search:"#4eb1b5",         graph:"#5484a3",        analytics:"#41667e",
-  ai:"#7b6390",             communications:"#a06e93", access:"#6b6915",
-  utilities:"#918f45",      security:"#652d28",     service:"#729daa",
-  core:"#418083"
+  secrets:"#ffbd3f",
+  ingress:"#35d6ff",
+  "agent-core":"#39ff88",
+  "model-inference":"#35d6ff",
+  "tool-execution":"#39ff88",
+  "external-integrations":"#35d6ff",
+  "mcp-federation":"#39ff88",
+  "memory-persistence":"#35d6ff",
+  "self-evolution":"#ffbd3f",
+  observability:"#35d6ff",
+  "kernel-governance":"#39ff88",
+  "deployment-substrate":"#ffbd3f",
 };
-/* Edge kinds re-toned onto the Flow palette; dash/width kept from the dataset */
+/* Existing edge semantics are preserved and mapped onto the same three hues. */
 const EDGE_COLOR = {
-  http:"#6ba9d0", graphql:"#c9628f", mcp:"#8a6fae", "nats-rpc":"#4eb1b5",
-  publish:"#e89700", subscribe:"#ff9913", read:"#979a9b", write:"#f06a60",
-  materialize:"#4bc997", archive:"#7d8182", export:"#5484a3",
-  "vendor-api":"#8d6a9f", webhook:"#d97b93", authenticate:"#aa4b44",
-  authorize:"#da6057", contains:"#c3c5c6", relates:"#729daa",
-  "build-dependency":"#d38900", shadow:"#a793b8"
+  data:"#35d6ff",
+  control:"#39ff88",
+  persist:"#39ff88",
+  learn:"#ffbd3f",
+  health:"#35d6ff",
+  secret:"#ffbd3f",
 };
 const EDGE_STYLE = {};
-/* deploy-view boards re-toned */
-const HOST_COLOR = { clients:"#729daa", edge:"#418083", k8s:"#597b85", nats:"#358f6b",
-  "gcp-data":"#d38900", aws:"#9a5716", snowflake:"#5484a3", vendor:"#8d6a9f" };
+const HOST_COLOR = { clients:"#35d6ff", edge:"#39ff88", k8s:"#35d6ff", nats:"#39ff88",
+  "gcp-data":"#ffbd3f", aws:"#ffbd3f", snowflake:"#35d6ff", vendor:"#ffbd3f" };
 const CANVAS_COLOR = Object.freeze({
-  accent:"#3f7b7e",
-  ink:"#2b2b2b",
-  paper:"#fefcfb",
-  paperBright:"#fff",
-  domainFallback:"#61758A",
-  boardFallback:"#5b5fd6",
-  boardNeutral:"#7A7F8C",
-  layer:"#597b85",
-  edgeFallback:"#64748B",
-  itemFallback:"#888",
-  pedestal:"#d6d0c0",
-  migration:"#f2b134",
-  deprecated:"#e14b4b",
-  proposed:"#8f93f2",
-  spark:"#4eb1b5",
-  labelDark:"rgba(34,34,34,.92)",
-  labelClear:"rgba(255,255,255,0)",
-  labelPaper:"rgba(254,252,251,.95)",
-  labelLine:"rgba(173,168,158,.55)",
-  labelZone:"rgba(89,92,92,.85)",
-  whiteStroke:"rgba(255,255,255,.9)",
-  shadow:"rgba(84,82,76,.7)",
-  shadowSoft:"rgba(70,66,58,.66)",
-  contactShadowCore:"rgba(70,66,58,.3)",
-  contactShadowMid:"rgba(70,66,58,.18)",
-  contactShadowClear:"rgba(70,66,58,0)",
-  keyLight:"rgba(255,252,244,.2)",
-  keyLightStrong:"rgba(255,252,244,.22)",
-  keyLightClear:"rgba(255,252,244,0)",
-  lightFalloff:"rgba(70,66,58,.044)",
-  lightFalloffStrong:"rgba(70,66,58,.045)",
-  grid:"rgba(134,130,123,.14)",
-  selection:"rgba(63,123,126,.9)",
-  sparkWash:"rgba(78,177,181,.25)",
-  sparkClear:"rgba(78,177,181,0)"
+  accent:"#35d6ff",
+  accentGreen:"#39ff88",
+  accentAmber:"#ffbd3f",
+  ink:"#cbd2dc",
+  paper:"#e9edf2",
+  paperBright:"#f4f7fa",
+  tile:"#22262d",
+  tileRaised:"#2a3038",
+  tileSide:"#15181d",
+  group:"#171a20",
+  domainFallback:"#35d6ff",
+  boardFallback:"#35d6ff",
+  boardNeutral:"#73808f",
+  layer:"#35d6ff",
+  edgeFallback:"#35d6ff",
+  itemFallback:"#8d98a6",
+  pedestal:"#171a20",
+  migration:"#ffbd3f",
+  deprecated:"#ff6b65",
+  proposed:"#35d6ff",
+  spark:"#35d6ff",
+  labelDark:"rgba(13,15,18,.96)",
+  labelClear:"rgba(13,15,18,0)",
+  labelPaper:"rgba(31,35,42,.96)",
+  labelLine:"rgba(53,214,255,.38)",
+  labelZone:"rgba(203,210,220,.74)",
+  whiteStroke:"rgba(244,247,250,.76)",
+  shadow:"rgba(3,5,7,.86)",
+  shadowSoft:"rgba(3,5,7,.78)",
+  contactShadowCore:"rgba(0,0,0,.58)",
+  contactShadowMid:"rgba(0,0,0,.32)",
+  contactShadowClear:"rgba(0,0,0,0)",
+  keyLight:"rgba(255,255,255,.08)",
+  keyLightStrong:"rgba(255,255,255,.1)",
+  keyLightClear:"rgba(255,255,255,0)",
+  lightFalloff:"rgba(0,0,0,.08)",
+  lightFalloffStrong:"rgba(0,0,0,.12)",
+  grid:"rgba(255,255,255,.026)",
+  selection:"rgba(57,255,136,.96)",
+  sparkWash:"rgba(53,214,255,.18)",
+  sparkClear:"rgba(53,214,255,0)"
 });
 
 function hexRgb(h){ h=h.replace("#",""); return [parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)]; }
@@ -818,16 +1048,6 @@ function shade(hex,f,a=1){ const [r,g,b]=hexRgb(hex);
   if(f>=0){ return rgbCss(r+(255-r)*f, g+(255-g)*f, b+(255-b)*f, a); }
   return rgbCss(r*(1+f), g*(1+f), b*(1+f), a); }
 function domainColor(n){ return DOMAIN_COLOR[n.domain] || CANVAS_COLOR.domainFallback; }
-/* pastel body color per domain — icraft-style restraint */
-const pastelCache = new Map();
-function pastel(hex){
-  if(!pastelCache.has(hex)){
-    const [r,g,b]=hexRgb(hex), f=.2;
-    pastelCache.set(hex, "#"+[r,g,b].map(v=>Math.round(v+(255-v)*f).toString(16).padStart(2,"0")).join(""));
-  }
-  return pastelCache.get(hex);
-}
-
 /* ================================ indices ================================ */
 const nodesById = {};
 const edgesByNode = {};
@@ -837,7 +1057,6 @@ function hydratePack(){
   for(const key of Object.keys(nodesById)) delete nodesById[key];
   for(const key of Object.keys(edgesByNode)) delete edgesByNode[key];
   for(const key of Object.keys(EDGE_STYLE)) delete EDGE_STYLE[key];
-  Object.assign(DOMAIN_COLOR, D.rendering.domainPalette||{});
   for(const [kind,style] of Object.entries(D.rendering.edgeKindStyles||{}))
     EDGE_STYLE[kind] = Object.assign({}, style, EDGE_COLOR[kind]? {color:EDGE_COLOR[kind]} : {});
   D.hosts.forEach(host=>{ if(HOST_COLOR[host.id]) host.color=HOST_COLOR[host.id]; });
@@ -894,35 +1113,32 @@ const P = ()=>({x:0,y:0,d:0});
 const tp1=P(),tp2=P(),tp3=P(),tp4=P(),tp5=P(),tp6=P(),tp7=P(),tp8=P();
 
 /* ============================== node geometry ============================ */
-const SIZE_FOOT = { xs:1.15, s:1.45, m:1.75, l:2.05, xl:2.4 };
-const LARGE_NODE_SCALE = 1.35;
+const UNIFORM_NODE_FOOT = 1.62;
 const SYSTEM_FOOTPRINT_WIDTH = 1.12;
 const DATABASE_KINDS = new Set([
   "kv", "database", "graph-store", "search-index", "object-store", "warehouse"
 ]);
-function nodeFoot(n){ let f = SIZE_FOOT[n.visual.size||"m"]||1.75;
-  if(n.kind==="platform"||n.kind==="gateway") f*=LARGE_NODE_SCALE; return f; }
+const DATABASE_NODE_IDS = new Set(["container.postgres"]);
+function nodeFoot(){ return UNIFORM_NODE_FOOT; }
 function isDatabaseNode(n){
-  return n.visual&&n.visual.shapeClass==="database"||DATABASE_KINDS.has(n.kind);
+  return n.visual&&n.visual.shapeClass==="database"||
+    DATABASE_KINDS.has(n.kind)||
+    DATABASE_NODE_IDS.has(n.id);
 }
 function displayKind(n){
   return isDatabaseNode(n)&&n.kind!=="database"?`database · ${n.kind}`:n.kind;
 }
-function uniformNodeHeight(n, foot){
-  const sizeLift = Math.max(0, foot-1.15)*.12;
-  return isDatabaseNode(n) ? .82+sizeLift : .56+sizeLift;
-}
+function uniformNodeHeight(){ return .66; }
 function nodeH(n){
   return uniformNodeHeight(n,nodeFoot(n));
 }
 
 /* ============================ layout machinery =========================== */
-const MIN_NODE_CLEARANCE = .7;
+const MIN_NODE_CLEARANCE = 1.15;
 const GROUND_GRID_STEP = 6.6;
-const PAD = 2.2;
+const PAD = 2.8;
 function nodeLayoutSpan(n){
   const foot=nodeFoot(n);
-  if(isDatabaseNode(n)) return {w:foot*.86, d:foot*.86};
   return {w:foot*SYSTEM_FOOTPRINT_WIDTH, d:foot*.72};
 }
 function gridPositions(nodes, aspect=1.35){
@@ -977,7 +1193,7 @@ function buildBoard(id, name, hint, color, nodes, clusterKeyFn, clusterAspect){
   }
   clusters.sort((a,b)=> (Math.min(...a.nodes.map(n=>n.visual.order||99)) -
                          Math.min(...b.nodes.map(n=>n.visual.order||99))) || b.nodes.length-a.nodes.length);
-  const inner = shelfPack(clusters, 1.7, clusterAspect||2.3);
+  const inner = shelfPack(clusters, 1.55, clusterAspect||2.3);
   clusters.forEach(cl=>{
     cl.nodes.forEach((n,i)=>{
       const col = i%cl.cols, row = (i/cl.cols)|0;
@@ -1007,19 +1223,21 @@ function layoutLayers(){
     const nodes = sourceNodes.filter(n=>n.visual.layer===L.id);
     if(!nodes.length) continue;
     const b = buildBoard(L.id, L.name, L.purpose, CANVAS_COLOR.layer, nodes,
-      n=>n.visual.cluster, L.id==="layer:services"?4.6:2.6);
+      ()=>"all", 2.1);
     b.layerZ = L.z;
     bs.push(b);
   }
-  // steps: top layer (applications) up-left, each layer below cascades down-right
-  const GAP = D.nodes.length<100?6.5:10.5;
-  const STEP = D.nodes.length<100?6:9;
+  // A shared footprint and axis makes the stack read as one aligned system.
   const ordered=[...bs].sort((a,b)=>b.layerZ-a.layerZ);   // top first
   const N=ordered.length;
+  const maxW=Math.max(...ordered.map(b=>b.w));
+  const maxD=Math.max(...ordered.map(b=>b.d));
   ordered.forEach((b,j)=>{
-    b.y = (N-1-j)*GAP;
-    b.x = (j-(N-1)/2)*STEP;
-    b.z = (j-(N-1)/2)*2.4;
+    b.w=maxW;
+    b.d=maxD;
+    b.y = (N-1-j)*7.6;
+    b.x = 0;
+    b.z = 0;
   });
   return bs;
 }
@@ -1031,6 +1249,7 @@ function layoutBoardsGround(groups){
   bs.forEach(b=>{ b.y=0; });
   return bs;
 }
+
 function layoutDomains(){
   const counts = {};
   const sourceNodes=visibleSourceNodes();
@@ -1043,11 +1262,11 @@ function layoutDomains(){
     hint:counts[d]+" components",
     color: DOMAIN_COLOR[d]||CANVAS_COLOR.domainFallback,
     nodes: sourceNodes.filter(n=>n.domain===d),
-    clusterKeyFn: n=>n.kind
+    clusterKeyFn: ()=>"all"
   }));
   const rest = sourceNodes.filter(n=>counts[n.domain]<3);
   if(rest.length) groups.push({id:"dom:shared", name:"Shared / other",
-    hint: rest.length+" components", color:CANVAS_COLOR.boardNeutral, nodes:rest, clusterKeyFn:n=>n.domain});
+    hint: rest.length+" components", color:CANVAS_COLOR.boardNeutral, nodes:rest, clusterKeyFn:()=>"all"});
   return layoutBoardsGround(groups);
 }
 function layoutDeploy(){
@@ -1055,7 +1274,7 @@ function layoutDeploy(){
   const groups = D.hosts.map(h=>({
     id:"host:"+h.id, name:h.name, hint:h.hint, color:h.color,
     nodes: sourceNodes.filter(n=>n.host===h.id),
-    clusterKeyFn: h.id==="k8s" ? (n=>n.domain) : (n=>n.kind)
+    clusterKeyFn: ()=>"all"
   }));
   return layoutBoardsGround(groups);
 }
@@ -1079,6 +1298,7 @@ function applyView(mode, first){
 /* ============================= visibility ================================ */
 const state = {
   labels:true, zones:true, particles:false, focusDim:true,
+  edgeBrightness:"dim",
   runtimeFilter:"all", criticalityFilter:"all",
   boardOff: new Set(),
   edgeKindOff: new Set(),
@@ -1190,11 +1410,11 @@ function paintEllipseLight(x,y,rx,ry,alpha){
 }
 function drawNodeShadow(n,x,y,z,alpha){
   if(alpha<=.01) return;
-  const base=P(), foot=nodeFoot(n), height=nodeH(n);
+  const base=P(), foot=visualNodeFoot(n), height=nodeH(n);
   proj(x,y+.01,z,base);
   const k=Math.max(.58,Math.min(1.5,cam.zoom));
   const lift=(3.2+height*2.6)*k;
-  const width=foot*SCALE*cam.zoom*(isDatabaseNode(n)?.94:1.08);
+  const width=foot*SCALE*cam.zoom*1.08;
   const shadowAlpha=SCENE_LIGHT.contactOpacity*alpha;
   ctx.save();
   ctx.globalAlpha=shadowAlpha;
@@ -1255,6 +1475,23 @@ function prism(cx, cz, corners, y0, h, color, alpha, topLight=.32){
 }
 function rectCorners(w,d){ const hw=w/2,hd=d/2;
   return [[-hw,-hd],[hw,-hd],[hw,hd],[-hw,hd]]; }
+function roundedRectCorners(w,d,r,steps=4){
+  const hw=w/2,hd=d/2,rr=Math.min(r,hw,hd);
+  const out=[];
+  const arcs=[
+    [hw-rr,-hd+rr,-Math.PI/2,0],
+    [hw-rr,hd-rr,0,Math.PI/2],
+    [-hw+rr,hd-rr,Math.PI/2,Math.PI],
+    [-hw+rr,-hd+rr,Math.PI,Math.PI*1.5],
+  ];
+  for(const [cx,cz,a0,a1] of arcs){
+    for(let i=0;i<=steps;i++){
+      const a=a0+(a1-a0)*(i/steps);
+      out.push([cx+Math.cos(a)*rr,cz+Math.sin(a)*rr]);
+    }
+  }
+  return out;
+}
 
 function cylinder(cx,cz,r,y0,h,color,alpha,rings){
   const rx=1.2247*r*SCALE*cam.zoom, ry=1.4142*r*depthK(cam.tilt)*SCALE*cam.zoom;
@@ -1283,16 +1520,131 @@ function cylinder(cx,cz,r,y0,h,color,alpha,rings){
 }
 
 function drawUniformDatabase(x,y,z,foot,height,color,alpha){
-  cylinder(x,z,foot*.43,y,height,color,alpha,2);
+  return drawUniformSystem(x,y,z,foot,height,color,alpha);
 }
 function drawUniformSystem(x,y,z,foot,height,color,alpha){
-  prism(x,z,rectCorners(foot*SYSTEM_FOOTPRINT_WIDTH,foot*.72),y,height,color,alpha,.5);
+  const w=foot*SYSTEM_FOOTPRINT_WIDTH,d=foot*.72;
+  return prism(x,z,roundedRectCorners(w,d,Math.min(w,d)*.22),y,height,color,alpha,.07);
+}
+
+/* ===== node top-face glyphs — a brand logo painted flat on the node's lid ===== */
+/* Rasterized once to an offscreen canvas so the isometric setTransform stays crisp. */
+const NODE_TOP_GLYPHS = {};        // node id -> HTMLCanvasElement (present once loaded)
+const NODE_GLYPH_MARGIN = .22;     // fraction of the top face kept as margin on every edge
+function registerNodeGlyph(id, svg, px = 256){
+  const img = new Image();
+  img.onload = () => {
+    const c = document.createElement("canvas");
+    c.width = c.height = px;
+    c.getContext("2d").drawImage(img, 0, 0, px, px);
+    NODE_TOP_GLYPHS[id] = c;
+  };
+  img.src = "data:image/svg+xml;utf8," + encodeURIComponent(svg);
+}
+async function registerNodeGlyphAsset(ids, file, recolor = false){
+  try{
+    const response = await fetch(`${BASE}/icon/${file}`);
+    if(!response.ok) return;
+    let svg = await response.text();
+    if(recolor){
+      svg = svg
+        .replaceAll("currentColor", CANVAS_COLOR.paper)
+        .replace(/#000(?:000)?/gi, CANVAS_COLOR.paper);
+    }
+    for(const id of ids) registerNodeGlyph(id, svg);
+  }catch(_){}
+}
+/* Slack — the inbound gateway (Socket Mode). */
+registerNodeGlyph("gateway.slack", `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024"><g xml:space="preserve" transform="translate(0,0) scale(2)"><path d="M107.9 323.6c0 29.7-24 53.8-53.8 53.8S.3 353.4.3 323.6c0-29.7 24-53.8 53.8-53.8h53.8zm26.9 0c0-29.7 24-53.8 53.8-53.8s53.8 24 53.8 53.8V458c0 29.7-24 53.8-53.8 53.8s-53.8-24-53.8-53.8z" style="fill:#e01e5a" /><path d="M188.6 107.7c-29.7 0-53.8-24-53.8-53.8S158.8.1 188.6.1s53.8 24 53.8 53.8v53.8zm0 27.3c29.7 0 53.8 24 53.8 53.8s-24 53.8-53.8 53.8H53.8C24 242.6 0 218.5 0 188.8S24 135 53.8 135z" style="fill:#36c5f0" /><path d="M404.1 188.8c0-29.7 24-53.8 53.8-53.8s53.8 24 53.8 53.8-24 53.8-53.8 53.8h-53.8zm-26.9 0c0 29.7-24 53.8-53.8 53.8-29.7 0-53.8-24-53.8-53.8V54c0-29.7 24-53.8 53.8-53.8s53.8 24 53.8 53.8z" style="fill:#2eb67d" /><path d="M323.4 404.3c29.7 0 53.8 24 53.8 53.8 0 29.7-24 53.8-53.8 53.8-29.7 0-53.8-24-53.8-53.8v-53.8zm0-26.9c-29.7 0-53.8-24-53.8-53.8s24-53.8 53.8-53.8h134.8c29.7 0 53.8 24 53.8 53.8 0 29.7-24 53.8-53.8 53.8z" style="fill:#ecb22e" /></g></svg>`);
+/* User-supplied "-" prefixed marks; all share Slack's top-face transform/filter. */
+registerNodeGlyphAsset(["tool.browser", "container.browser"], "browser");
+registerNodeGlyphAsset(["tool.gmail"], "gmail");
+registerNodeGlyphAsset(
+  ["tool.homeassistant", "mcp.homeassistant"],
+  "home-assistant"
+);
+registerNodeGlyphAsset(["tool.imessage"], "imessage");
+registerNodeGlyphAsset(["provider.litellm"], "litellm");
+registerNodeGlyphAsset(["provider.ollama"], "ollama", true);
+registerNodeGlyphAsset(["container.postgres"], "postgresql");
+registerNodeGlyphAsset(["secret.vault"], "vault", true);
+function drawNodeTopGlyph(n, x, y, z, alpha){
+  const g = NODE_TOP_GLYPHS[n.id];
+  if(!g || alpha <= .01) return;
+  const foot = visualNodeFoot(n), top = y + nodeH(n);
+  const s = 1 - 2*NODE_GLYPH_MARGIN;                 // inset scale of the top face
+  const hw = foot*SYSTEM_FOOTPRINT_WIDTH/2*s, hd = foot*.72/2*s;
+  const o  = proj(x-hw, top, z-hd, P());             // back-left corner of the inset lid
+  const ex = proj(x+hw, top, z-hd, P());             // → +x edge (image columns)
+  const ez = proj(x-hw, top, z+hd, P());             // → +z edge (image rows)
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.imageSmoothingQuality = "high";
+  ctx.filter = "grayscale(1) brightness(2.35)";
+  ctx.setTransform(
+    DPR*(ex.x-o.x)/g.width,  DPR*(ex.y-o.y)/g.width,
+    DPR*(ez.x-o.x)/g.height, DPR*(ez.y-o.y)/g.height,
+    DPR*o.x, DPR*o.y);
+  ctx.drawImage(g, 0, 0);
+  ctx.restore();
+}
+const HERO_NODE_IDS=new Set(["runtime.agentLoop"]);
+function isHeroNode(n){ return HERO_NODE_IDS.has(n.id); }
+function visualNodeFoot(n){ return nodeFoot(n)*(isHeroNode(n)?1.13:1); }
+function drawNodeAccent(n,x,y,z,foot,height,alpha,hot){
+  const top=y+height+.018;
+  const accent=domainColor(n);
+  const p1=P(),p2=P();
+  proj(x-foot*.22,top,z+foot*.18,p1);
+  proj(x+foot*.22,top,z+foot*.18,p2);
+  ctx.save();
+  ctx.globalAlpha=alpha*(hot||isHeroNode(n) ? .95 : .66);
+  ctx.strokeStyle=accent;
+  ctx.lineWidth=(hot||isHeroNode(n)?2.2:1.25)*Math.max(.72,cam.zoom);
+  ctx.lineCap="round";
+  if(hot||isHeroNode(n)){
+    ctx.shadowColor=accent;
+    ctx.shadowBlur=isHeroNode(n)?15:9;
+  }
+  ctx.beginPath();ctx.moveTo(p1.x,p1.y);ctx.lineTo(p2.x,p2.y);ctx.stroke();
+  ctx.restore();
+  if(isHeroNode(n)){
+    isoText("AI",x,top,z-.02,.31,CANVAS_COLOR.paper,"center",`700 .31px ${DECK_FONT}`,".04em");
+  }
+}
+function drawNodeTileLabel(n,x,y,z,foot,height,alpha,hot){
+  if(cam.zoom<.68 && !hot && !isHeroNode(n)) return;
+  const maxW=foot*SYSTEM_FOOTPRINT_WIDTH*.76;
+  const measured=measureWorld(n.name);
+  const size=Math.max(.12,Math.min(isHeroNode(n)?.22:.18,maxW/(measured||1)));
+  const color=hot||isHeroNode(n)?CANVAS_COLOR.paperBright:CANVAS_COLOR.paper;
+  ctx.save();
+  ctx.globalAlpha=alpha*(hot||isHeroNode(n)?.98:.76);
+  if(hot||isHeroNode(n)){
+    ctx.shadowColor=domainColor(n);
+    ctx.shadowBlur=isHeroNode(n)?8:5;
+  }
+  isoText(n.name,x,y+height+.026,z+foot*.23,size,color,"center",
+    `650 ${size}px ${DECK_FONT}`,".015em");
+  ctx.restore();
 }
 function drawNodeShape(n, x, y, z, alpha, hot){
-  const foot=nodeFoot(n), height=uniformNodeHeight(n,foot);
-  const color=hot?domainColor(n):pastel(domainColor(n));
-  if(isDatabaseNode(n)) drawUniformDatabase(x,y,z,foot,height,color,alpha);
-  else drawUniformSystem(x,y,z,foot,height,color,alpha);
+  const foot=visualNodeFoot(n), height=uniformNodeHeight(n,foot);
+  const top=isDatabaseNode(n)
+    ? drawUniformDatabase(x,y,z,foot,height,CANVAS_COLOR.tile,alpha)
+    : drawUniformSystem(x,y,z,foot,height,CANVAS_COLOR.tile,alpha);
+  if(top){
+    ctx.save();
+    ctx.globalAlpha=alpha*(hot||isHeroNode(n) ? .92 : .28);
+    ctx.strokeStyle=hot||isHeroNode(n)?domainColor(n):CANVAS_COLOR.whiteStroke;
+    ctx.lineWidth=(hot||isHeroNode(n)?1.6:1)*Math.max(.7,cam.zoom);
+    if(hot||isHeroNode(n)){
+      ctx.shadowColor=domainColor(n);
+      ctx.shadowBlur=isHeroNode(n)?18:10;
+    }
+    facePath(top);ctx.stroke();
+    ctx.restore();
+  }
 
   const lifecycle=n.runtime&&n.runtime.lifecycle;
   if(lifecycle&&lifecycle!=="active"&&cam.zoom>.6){
@@ -1302,98 +1654,82 @@ function drawNodeShape(n, x, y, z, alpha, hot){
     ctx.beginPath(); ctx.arc(marker.x+foot*SCALE*cam.zoom*.5,marker.y,3.2*cam.zoom,0,7); ctx.fill();
     ctx.strokeStyle=CANVAS_COLOR.whiteStroke; ctx.lineWidth=1; ctx.stroke();
   }
+  drawNodeTopGlyph(n, x, y, z, alpha);
+  drawNodeAccent(n,x,y,z,foot,height,alpha,hot);
+  drawNodeTileLabel(n,x,y,z,foot,height,alpha,hot);
 }
 
 /* ============================ platform painter =========================== */
 const mctx = document.createElement("canvas").getContext("2d");
-const DECK_FONT = '"Generation 1970", "Inter", ui-sans-serif, sans-serif';
+const DECK_FONT = '"Inter", ui-sans-serif, system-ui, sans-serif';
 function measureWorld(text){
-  mctx.font = `300 100px ${DECK_FONT}`;
+  mctx.font = `650 100px ${DECK_FONT}`;
   return mctx.measureText(text).width/100;
 }
 /* deck title: fitted INSIDE the board along its front edge; shrinks, then wraps */
 function drawDeckTitle(b){
-  const title=(b.name||"").toUpperCase(), count="  ·  "+b.count;
-  const maxW=Math.max(3,b.w-1.8);
-  const col=shade(b.color||CANVAS_COLOR.boardFallback, -.3, .85);
-  let size=1.25, lines=[title+count];
-  const fullW=measureWorld(lines[0]);
-  if(fullW*size>maxW){
-    size=maxW/fullW;
-    if(size<.85){
-      const words=title.split(" ");
-      if(words.length>1){
-        let best=1,bw=1e9;
-        for(let i=1;i<words.length;i++){
-          const w=Math.max(measureWorld(words.slice(0,i).join(" ")),
-                           measureWorld(words.slice(i).join(" ")+count));
-          if(w<bw){bw=w;best=i;}
-        }
-        lines=[words.slice(0,best).join(" "), words.slice(best).join(" ")+count];
-        size=Math.min(1.1, Math.max(.7, maxW/bw));
-      } else {
-        size=Math.max(.7,size);
-      }
-    }
-  }
-  const lineH=size*1.45;
+  const title=(b.name||"").toUpperCase();
+  const maxW=Math.max(3,b.w-3.2);
+  const col=shade(b.color||CANVAS_COLOR.boardFallback,.12,.78);
+  let size=.48;
+  const fullW=measureWorld(title);
+  if(fullW*size>maxW) size=Math.max(.34,maxW/fullW);
   const x0=b.x-b.w/2+.9;
-  const z0=b.z+b.d/2-.75-(lines.length-1)*lineH;
-  lines.forEach((ln,i)=>isoText(ln, x0, b.y+.02, z0+i*lineH, size, col, "left", `300 ${size}px ${DECK_FONT}`));
+  const z0=b.z+b.d/2-.74;
+  isoText(title,x0,b.y+.02,z0,size,col,"left",`650 ${size}px ${DECK_FONT}`,".1em");
+  const titleW=fullW*size;
+  isoPill(String(b.count),x0+titleW+.72,b.y+.025,z0,.88,.54,col);
 }
 /* draw text lying flat on the ground plane (icraft signature look) */
-function isoText(text, wx, wy, wz, sizeWorld, color, align, font){
+function isoText(text, wx, wy, wz, sizeWorld, color, align, font,tracking){
   const o=P(); proj(wx,wy,wz,o);
   const px=P(); proj(wx+1,wy,wz,px);
   const pz=P(); proj(wx,wy,wz+1,pz);
   ctx.save();
   ctx.setTransform(DPR*(px.x-o.x), DPR*(px.y-o.y), DPR*(pz.x-o.x), DPR*(pz.y-o.y), DPR*o.x, DPR*o.y);
   ctx.font = font || `600 ${sizeWorld}px "Inter", ui-sans-serif, system-ui, sans-serif`;
+  ctx.letterSpacing=tracking||"0px";
   ctx.fillStyle = color;
   ctx.textAlign = align||"left";
   ctx.textBaseline = "middle";
   ctx.fillText(text, 0, 0);
   ctx.restore();
 }
+function isoPill(text,wx,wy,wz,w,h,color){
+  const o=P();proj(wx,wy,wz,o);
+  const px=P();proj(wx+1,wy,wz,px);
+  const pz=P();proj(wx,wy,wz+1,pz);
+  ctx.save();
+  ctx.setTransform(DPR*(px.x-o.x),DPR*(px.y-o.y),DPR*(pz.x-o.x),DPR*(pz.y-o.y),DPR*o.x,DPR*o.y);
+  ctx.beginPath();ctx.roundRect(-w/2,-h/2,w,h,h/2);
+  ctx.fillStyle=CANVAS_COLOR.tile;ctx.fill();
+  ctx.strokeStyle=shade(color,-.12,.52);ctx.lineWidth=.045;ctx.stroke();
+  ctx.font=`650 .3px ${DECK_FONT}`;
+  ctx.fillStyle=CANVAS_COLOR.ink;ctx.textAlign="center";ctx.textBaseline="middle";
+  ctx.fillText(text,0,.015);
+  ctx.restore();
+}
 function drawBoard(b){
   const a = b.alpha;
   if(a<=0.01) return;
   const y = b.y - .28;
-  const shadowCorners=rectCorners(b.w,b.d).map(([dx,dz])=>{
+  const boardCorners=roundedRectCorners(b.w,b.d,.62,5);
+  const shadowCorners=boardCorners.map(([dx,dz])=>{
     const p=P(); proj(b.x+dx,y-.34,b.z+dz,p); return p; });
   drawBoardShadow(b,shadowCorners,a);
-  // glassy slab: translucent sides + frosted top so lower layers ghost through
-  prism(b.x, b.z, rectCorners(b.w, b.d), y-.34, .34, CANVAS_COLOR.pedestal, a*.45, .82);
-  const cor = rectCorners(b.w, b.d).map(([dx,dz])=>{const p=P();proj(b.x+dx,y+0.005,b.z+dz,p);return p;});
-  ctx.fillStyle = shade(b.color||CANVAS_COLOR.boardFallback, .9, a*.58);
-  facePath(cor); ctx.fill();
-  // specular sheen sweeping across the pane
-  const gr = ctx.createLinearGradient(cor[0].x, cor[0].y, cor[2].x, cor[2].y);
-  gr.addColorStop(0,  rgbCss(255,255,255,.3*a));
-  gr.addColorStop(.45,rgbCss(255,255,255,.05*a));
-  gr.addColorStop(1,  rgbCss(255,255,255,.16*a));
-  ctx.fillStyle = gr;
-  facePath(cor); ctx.fill();
-  // crisp glass rim + dashed border
-  ctx.strokeStyle = rgbCss(255,255,255,.55*a);
-  ctx.lineWidth = 1;
-  facePath(cor); ctx.stroke();
-  ctx.setLineDash([7,5]);
-  ctx.strokeStyle = shade(b.color||CANVAS_COLOR.boardFallback, -.05, a*.45);
-  ctx.lineWidth = 1.3;
-  facePath(cor); ctx.stroke();
-  ctx.setLineDash([]);
-  // cluster zones as dashed outlines on the deck
+  const cor=prism(b.x,b.z,boardCorners,y-.22,.22,CANVAS_COLOR.group,a*.98,.035);
+  ctx.strokeStyle=shade(b.color||CANVAS_COLOR.boardFallback,-.08,a*.3);
+  ctx.lineWidth=1;
+  facePath(cor);ctx.stroke();
+  // Cluster subdivisions sit one quiet level below the keycaps.
   if(state.zones && b.clusters.length>1 && cam.zoom>0.45){
-    ctx.setLineDash([4,4]);
-    ctx.strokeStyle = shade(b.color||CANVAS_COLOR.boardFallback, .25, a*.45);
+    ctx.strokeStyle = shade(b.color||CANVAS_COLOR.boardFallback,-.1,a*.18);
     ctx.lineWidth = 1;
     for(const cl of b.clusters){
-      const cc = rectCorners(cl.w+.7, cl.d+.7).map(([dx,dz])=>{
+      const cc = roundedRectCorners(cl.w+.7,cl.d+.7,.35,4).map(([dx,dz])=>{
         const p=P(); proj(b.x+cl.x+dx, y+.01, b.z+cl.z+dz, p); return p; });
       facePath(cc); ctx.stroke();
     }
-    ctx.setLineDash([]);
   }
   // flat-on-deck board title, kept inside the slab
   ctx.globalAlpha = a;
@@ -1406,7 +1742,7 @@ function drawBoardLabels(b){
     ctx.globalAlpha = b.alpha*.8;
     for(const cl of b.clusters){
       if(cl.key==="all"||cl.key==="other") continue;
-      isoText(cl.key, b.x+cl.x-cl.w/2+.2, b.y+.02, b.z+cl.z+cl.d/2+.85, .8,
+      isoText(cl.key, b.x+cl.x-cl.w/2+.2, b.y+.02, b.z+cl.z+cl.d/2+.45, .4,
         CANVAS_COLOR.shadow);
     }
     ctx.globalAlpha = 1;
@@ -1423,12 +1759,23 @@ function edgeEnds(e){
   const ya = a.rs.y + nodeH(a) + .15, yb = b.rs.y + nodeH(b) + .15;
   return [a.rs.x, ya, a.rs.z, b.rs.x, yb, b.rs.z];
 }
-function edgePath(e, out){
+function clipTraceAnchor(center,toward,node){
+  const dx=toward.x-center.x,dy=toward.y-center.y;
+  const rx=visualNodeFoot(node)*SCALE*cam.zoom*.58;
+  const ry=Math.max(5,visualNodeFoot(node)*SCALE*cam.zoom*.25);
+  const denom=Math.sqrt((dx*dx)/(rx*rx)+(dy*dy)/(ry*ry))||1;
+  return {x:center.x+dx/denom,y:center.y+dy/denom};
+}
+function edgeCurve(e,out){
+  const aNode=nodesById[e.from],bNode=nodesById[e.to];
   const [x1,y1,z1,x2,y2,z2]=edgeEnds(e);
-  const mx=(x1+x2)/2, mz=(z1+z2)/2;
-  const dist=Math.hypot(x2-x1,z2-z1,(y2-y1));
-  const my=Math.max(y1,y2)+1.1+dist*.10;
-  proj(x1,y1,z1,out.a); proj(mx,my,mz,out.c); proj(x2,y2,z2,out.b);
+  const mx=(x1+x2)/2,mz=(z1+z2)/2;
+  const dist=Math.hypot(x2-x1,z2-z1,y2-y1);
+  const my=Math.max(y1,y2)+1.1+dist*.1;
+  const start=P(),end=P();
+  proj(x1,y1,z1,start);proj(mx,my,mz,out.c);proj(x2,y2,z2,end);
+  out.a=clipTraceAnchor(start,out.c,aNode);
+  out.b=clipTraceAnchor(end,out.c,bNode);
   return out;
 }
 const EP={a:P(),b:P(),c:P()};
@@ -1443,31 +1790,51 @@ function drawEdge(e, focus){
   const inFocus = focus? (focus.has(e.from)&&focus.has(e.to)) : true;
   const hot = state.selectedEdge===e || (state.hovered && (e.from===state.hovered.id||e.to===state.hovered.id))
               || (state.selected && (e.from===state.selected.id||e.to===state.selected.id));
-  let alpha = inFocus? (hot? .95 : .26) : .04;
-  if(state.flow) alpha = inFocus? .7 : .03;
-  edgePath(e,EP);
-  ctx.strokeStyle = st.color;
-  ctx.globalAlpha = alpha;
-  ctx.lineWidth = (st.width||2)*(hot?1.8:1)*Math.max(.7,cam.zoom*.8);
-  if(st.dash) ctx.setLineDash([6*cam.zoom,5*cam.zoom]);
-  ctx.beginPath();
-  ctx.moveTo(EP.a.x,EP.a.y);
-  ctx.quadraticCurveTo(EP.c.x,EP.c.y,EP.b.x,EP.b.y);
-  ctx.stroke();
-  ctx.setLineDash([]);
+  const brightness=state.flow?"bright":state.edgeBrightness;
+  if(brightness==="off") return {hot,alpha:0};
+  let alpha=inFocus?(hot ? .98 : st.dash ? .3 : .52):.035;
+  if(state.flow) alpha=inFocus ? .76 : .025;
+  else if(brightness==="dim") alpha*=hot?.68:.34;
+  edgeCurve(e,EP);
+  const width=(hot?2.7:1.8)*Math.max(.72,cam.zoom*.84);
+  const dash=st.dash?[7*cam.zoom,6*cam.zoom]:[];
+  ctx.save();
+  ctx.lineCap="round";ctx.lineJoin="round";
+  ctx.setLineDash(dash);
+  ctx.strokeStyle=st.color;
+  ctx.globalAlpha=alpha*(st.dash ? .34 : .44);
+  ctx.lineWidth=width+(hot?3.6:2.2);
+  ctx.shadowColor=st.color;
+  ctx.shadowBlur=brightness==="dim"?(hot?8:4):(hot?12:8);
+  ctx.beginPath();ctx.moveTo(EP.a.x,EP.a.y);
+  ctx.quadraticCurveTo(EP.c.x,EP.c.y,EP.b.x,EP.b.y);ctx.stroke();
+  ctx.shadowBlur=0;
+  ctx.globalAlpha=alpha;
+  ctx.lineWidth=width;
+  ctx.beginPath();ctx.moveTo(EP.a.x,EP.a.y);
+  ctx.quadraticCurveTo(EP.c.x,EP.c.y,EP.b.x,EP.b.y);ctx.stroke();
+  ctx.restore();
   // direction arrowhead near the destination
   if(hot || cam.zoom>1.1){
     qPoint(EP.a,EP.c,EP.b,.88,PPT);
-    const dx=EP.b.x-PPT.x, dy=EP.b.y-PPT.y, L=Math.hypot(dx,dy)||1;
+    const dx=EP.b.x-PPT.x,dy=EP.b.y-PPT.y,L=Math.hypot(dx,dy)||1;
     const ux=dx/L, uy=dy/L, s=(hot?7:5)*Math.max(.7,cam.zoom*.8);
+    ctx.save();ctx.globalAlpha=alpha;ctx.shadowColor=st.color;ctx.shadowBlur=hot?9:0;
     ctx.fillStyle=st.color;
     ctx.beginPath();
     ctx.moveTo(EP.b.x,EP.b.y);
     ctx.lineTo(EP.b.x-ux*s-uy*s*.5, EP.b.y-uy*s+ux*s*.5);
     ctx.lineTo(EP.b.x-ux*s+uy*s*.5, EP.b.y-uy*s-ux*s*.5);
     ctx.closePath(); ctx.fill();
+    ctx.restore();
   }
-  ctx.globalAlpha = 1;
+  if(e.from==="runtime.agentLoop"||e.to==="runtime.agentLoop"){
+    const junction=e.from==="runtime.agentLoop"?EP.a:EP.b;
+    ctx.save();ctx.globalAlpha=(hot ? .98 : .72)*(brightness==="dim"?.48:1);ctx.fillStyle=CANVAS_COLOR.accentGreen;
+    ctx.shadowColor=CANVAS_COLOR.accentGreen;ctx.shadowBlur=brightness==="dim"?(hot?8:4):(hot?13:8);
+    ctx.beginPath();ctx.arc(junction.x,junction.y,(hot?3.8:2.6)*Math.max(.75,cam.zoom),0,Math.PI*2);ctx.fill();
+    ctx.restore();
+  }
   // kind label pill at the apex when highlighted
   if(hot && state.labels){
     qPoint(EP.a,EP.c,EP.b,.5,PPT);
@@ -1492,21 +1859,23 @@ function hash01(s){ let h=2166136261;
 const PPT=P();
 function drawParticles(e, dt, focus){
   if(cam.zoom<.42) return;
+  const brightness=state.flow?"bright":state.edgeBrightness;
+  if(brightness==="off") return;
   const st=EDGE_STYLE[e.kind]||{color:CANVAS_COLOR.edgeFallback};
   const inFocus = focus? (focus.has(e.from)&&focus.has(e.to)) : true;
   if(!inFocus && (state.selected||state.selectedEdge||state.flow)) return;
   const hot = state.selected && (e.from===state.selected.id||e.to===state.selected.id);
   const speed = e.motion?.speed||.065;
   const size = (e.motion?.size||2.2)*Math.max(.7,cam.zoom);
-  edgePath(e,EP);
+  edgeCurve(e,EP);
   const ps = partsFor(e);
   for(const p of ps){
     p.t = (p.t + dt*speed)%1;
     qPoint(EP.a,EP.c,EP.b,p.t,PPT);
-    ctx.globalAlpha = hot? .95 : .55;
+    ctx.globalAlpha = (hot? .95 : .55)*(brightness==="dim"?.45:1);
     ctx.fillStyle = st.color;
     ctx.beginPath(); ctx.arc(PPT.x,PPT.y,size,0,7); ctx.fill();
-    ctx.globalAlpha = hot? .25 : .1;
+    ctx.globalAlpha = (hot? .25 : .1)*(brightness==="dim"?.45:1);
     ctx.beginPath(); ctx.arc(PPT.x,PPT.y,size*2.1,0,7); ctx.fill();
     ctx.globalAlpha = 1;
   }
@@ -1522,6 +1891,7 @@ function startFlow(flow){
   $("flowPlayer").setAttribute("aria-hidden","false");
   $("flowPlayer").classList.add("show");
   $("fpTitle").textContent = flow.name;
+  syncEdgeBrightnessControl();
   renderFlowStep();
 }
 function exitFlow(){
@@ -1530,6 +1900,7 @@ function exitFlow(){
   $("flowPlayer").setAttribute("aria-hidden","true");
   $("flowPlayer").inert=true;
   $("flowSelect").value="";
+  syncEdgeBrightnessControl();
 }
 function renderFlowStep(){
   const f=state.flow; if(!f) return;
@@ -1554,37 +1925,45 @@ function flowAdvance(dir){
   state.flowStep = (state.flowStep + dir + f.steps.length)%f.steps.length;
   state.flowT = 0; renderFlowStep();
 }
-const FP1=P(),FP2=P(),FP3=P();
+const FP_CURVE={a:P(),b:P(),c:P()};
 function drawFlow(dt){
   const f=state.flow; if(!f) return;
   const s=f.steps[state.flowStep];
   const a=nodesById[s.from], b=nodesById[s.to];
   if(state.flowPlaying) state.flowT += dt*.55;
-  if(state.flowT>=1.25){ flowAdvance(1); return; }
+  if(state.flowT>=1.25){
+    if(state.flowStep===f.steps.length-1){
+      state.flowT=1;
+      state.flowPlaying=false;
+      $("fpBar").firstElementChild.style.transform="scaleX(1)";
+      renderFlowStep();
+      return;
+    }
+    flowAdvance(1);
+    return;
+  }
   const t=Math.min(1,state.flowT);
   $("fpBar").firstElementChild.style.transform=`scaleX(${(state.flowStep+t)/f.steps.length})`;
   if(!a||!b) return;
-  const y1=a.rs.y+nodeH(a)+.2, y2=b.rs.y+nodeH(b)+.2;
-  const mx=(a.rs.x+b.rs.x)/2, mz=(a.rs.z+b.rs.z)/2;
-  const dist=Math.hypot(b.rs.x-a.rs.x, b.rs.z-a.rs.z, y2-y1);
-  const my=Math.max(y1,y2)+1.4+dist*.12;
-  proj(a.rs.x,y1,a.rs.z,FP1); proj(mx,my,mz,FP2); proj(b.rs.x,y2,b.rs.z,FP3);
+  edgeCurve({from:a.id,to:b.id},FP_CURVE);
   // path
-  ctx.strokeStyle=CANVAS_COLOR.accent; ctx.globalAlpha=.8; ctx.lineWidth=2.4;
-  ctx.setLineDash([2,7]); ctx.lineCap="round";
-  ctx.beginPath(); ctx.moveTo(FP1.x,FP1.y);
-  ctx.quadraticCurveTo(FP2.x,FP2.y,FP3.x,FP3.y); ctx.stroke();
-  ctx.setLineDash([]);
+  ctx.save();
+  ctx.strokeStyle=CANVAS_COLOR.accent; ctx.globalAlpha=.82; ctx.lineWidth=2.4;
+  ctx.setLineDash([3,7]); ctx.lineCap="round";ctx.lineJoin="round";
+  ctx.shadowColor=CANVAS_COLOR.accent;ctx.shadowBlur=10;
+  ctx.beginPath();ctx.moveTo(FP_CURVE.a.x,FP_CURVE.a.y);
+  ctx.quadraticCurveTo(FP_CURVE.c.x,FP_CURVE.c.y,FP_CURVE.b.x,FP_CURVE.b.y);ctx.stroke();
+  ctx.restore();
   // comet + trail
   const e=(tt)=>tt<0?0:tt>1?1:tt*tt*(3-2*tt);
   for(let i=0;i<7;i++){
     const tt=e(t)-i*.035; if(tt<0) continue;
-    qPoint(FP1,FP2,FP3,tt,PPT);
+    qPoint(FP_CURVE.a,FP_CURVE.c,FP_CURVE.b,tt,PPT);
     ctx.globalAlpha=.85*(1-i/7);
     ctx.fillStyle= i===0? CANVAS_COLOR.paperBright:CANVAS_COLOR.accent;
     ctx.beginPath(); ctx.arc(PPT.x,PPT.y,(i===0?5.5:4-i*.4),0,7); ctx.fill();
   }
-  qPoint(FP1,FP2,FP3,e(t),PPT);
+  qPoint(FP_CURVE.a,FP_CURVE.c,FP_CURVE.b,e(t),PPT);
   ctx.globalAlpha=.25; ctx.fillStyle=CANVAS_COLOR.accent;
   ctx.beginPath(); ctx.arc(PPT.x,PPT.y,13,0,7); ctx.fill();
   ctx.globalAlpha=1;
@@ -1682,7 +2061,7 @@ function frame(now){
     if(!n.rs.visible) continue;
     const p=P(); proj(n.rs.x,n.rs.y,n.rs.z,p);
     n.rs.sx=p.x; n.rs.sy=p.y; n.rs.depth=p.d;
-    n.rs.r = nodeFoot(n)*SCALE*cam.zoom*.75;
+    n.rs.r = visualNodeFoot(n)*SCALE*cam.zoom*.75;
     drawList.push(n);
   }
 
@@ -1712,10 +2091,16 @@ function frame(now){
       const hot = n===state.hovered||n===state.selected;
       drawNodeShape(n,n.rs.x,n.rs.y,n.rs.z,n.rs.paintAlpha,hot);
       if(hot){
-        ctx.strokeStyle=CANVAS_COLOR.selection; ctx.lineWidth=2;
-        const cc=rectCorners(nodeFoot(n)*1.35,nodeFoot(n)*1.35).map(([dx,dz])=>{
+        const foot=visualNodeFoot(n);
+        const cc=roundedRectCorners(
+          foot*SYSTEM_FOOTPRINT_WIDTH*1.2,foot*.72*1.28,foot*.14,4
+        ).map(([dx,dz])=>{
           const p=P(); proj(n.rs.x+dx,n.rs.y+.02,n.rs.z+dz,p); return p;});
-        ctx.setLineDash([5,4]); facePath(cc); ctx.stroke(); ctx.setLineDash([]);
+        ctx.save();
+        ctx.strokeStyle=domainColor(n);ctx.lineWidth=2;
+        ctx.shadowColor=domainColor(n);ctx.shadowBlur=12;
+        facePath(cc);ctx.stroke();
+        ctx.restore();
       }
     }
   }
@@ -1770,10 +2155,11 @@ function pick(mx,my){
   return best;
 }
 function pickEdge(mx,my){
+  if(state.edgeBrightness==="off"&&!state.flow) return null;
   let best=null,bestDist=8;
   for(const e of D.edges){
     if(!edgeVisible(e)) continue;
-    edgePath(e,EP);
+    edgeCurve(e,EP);
     for(let i=0;i<=14;i++){
       qPoint(EP.a,EP.c,EP.b,i/14,PPT);
       const d=Math.hypot(mx-PPT.x,my-PPT.y);
@@ -2027,13 +2413,11 @@ function resetView(){
 }
 
 addEventListener("keydown", e=>{
-  if(e.target.tagName==="INPUT"||e.target.tagName==="SELECT") {
+  if(e.target.matches?.("input, textarea, select, [contenteditable='true']")) {
     if(e.key==="Escape") e.target.blur();
     return;
   }
   switch(e.key){
-    case "q": case "Q": rotateAround(-Math.PI/6, W/2, H/2, false); break;
-    case "e": case "E": rotateAround(Math.PI/6, W/2, H/2, false); break;
     case "+": case "=": applyZoom(1.25); break;
     case "-": applyZoom(1/1.25); break;
     case "Escape":
@@ -2304,7 +2688,7 @@ function openNodeDrawer(n){
   b.querySelectorAll(".edgeitem").forEach(el=>{
     el.onclick=()=>{ const e=D.edges.find(x=>x.id===el.dataset.edge); if(e) selectEdge(e); };
   });
-  const sc=$("sparkCanvas");
+  const sc=document.getElementById("sparkCanvas");
   if(sc) runSpark(sc, n.id);
   showDrawer("component");
 }
@@ -2379,6 +2763,32 @@ $("viewSeg").querySelectorAll("button").forEach(btn=>{
     resetView();
   };
 });
+/* edge brightness preset */
+const EDGE_BRIGHTNESS_PRESETS=["off","dim","bright"];
+const EDGE_BRIGHTNESS_LABELS=["Off","Dim","Bright"];
+const EDGE_BRIGHTNESS_HINTS=[
+  "Edges stay hidden until a trace starts.",
+  "Dim keeps the map quiet until a trace starts.",
+  "Edges use full brightness outside traces.",
+];
+function syncEdgeBrightnessControl(){
+  const range=$("edgeBrightness"),control=$("edgeBrightnessControl");
+  const output=$("edgeBrightnessValue"),hint=$("edgeBrightnessHint");
+  const value=Math.max(0,EDGE_BRIGHTNESS_PRESETS.indexOf(state.edgeBrightness));
+  range.value=String(value);
+  range.disabled=!!state.flow;
+  range.setAttribute("aria-valuetext",state.flow?"Bright during trace":EDGE_BRIGHTNESS_LABELS[value]);
+  control.dataset.value=String(value);
+  output.textContent=state.flow?"Trace · Bright":EDGE_BRIGHTNESS_LABELS[value];
+  hint.textContent=state.flow
+    ?"Trace mode temporarily uses Bright. Your preset resumes afterward."
+    :EDGE_BRIGHTNESS_HINTS[value];
+}
+$("edgeBrightness").addEventListener("input",event=>{
+  state.edgeBrightness=EDGE_BRIGHTNESS_PRESETS[Number(event.currentTarget.value)]||"dim";
+  syncEdgeBrightnessControl();
+});
+syncEdgeBrightnessControl();
 /* flows */
 function refreshFlows(){
   const sel=$("flowSelect");
@@ -2409,7 +2819,14 @@ function refreshFlows(){
   };
   sel.value="";
 }
-$("fpPlay").onclick=()=>{ state.flowPlaying=!state.flowPlaying; renderFlowStep(); };
+$("fpPlay").onclick=()=>{
+  if(!state.flowPlaying&&state.flow&&state.flowStep===state.flow.steps.length-1&&state.flowT>=1){
+    state.flowStep=0;
+    state.flowT=0;
+  }
+  state.flowPlaying=!state.flowPlaying;
+  renderFlowStep();
+};
 $("fpNext").onclick=()=>flowAdvance(1);
 $("fpPrev").onclick=()=>flowAdvance(-1);
 $("fpExit").onclick=exitFlow;
@@ -2479,6 +2896,65 @@ function refreshPackUI(){
   refreshStats();
   refreshFlows();
 }
+
+/* ================================ send panel ============================= */
+(function(){
+  const form=$("sendForm"), card=$("sendCard"), inp=$("sendInput");
+  const btn=$("sendBtn"), hint=$("sendHint"), resp=$("sendResponse");
+  const defaultHint="⌘ Enter also sends. The runtime path appears below.";
+  function setSendState(state,message){
+    card.dataset.state=state;
+    hint.textContent=message||defaultHint;
+  }
+  async function sendMessage(){
+    const msg=inp.value.trim();
+    if(!msg){
+      inp.setAttribute("aria-invalid","true");
+      setSendState("error","Write a message before sending.");
+      inp.focus({preventScroll:true});
+      return;
+    }
+    inp.setAttribute("aria-invalid","false");
+    const domainsButton=document.querySelector('#viewSeg [data-view="domains"]');
+    if(domainsButton&&!domainsButton.classList.contains("on")) domainsButton.click();
+    const trace=D.flows.find(flow=>flow.id==="flow:map-message");
+    if(trace) startFlow(trace);
+    btn.disabled=true;
+    btn.textContent="Sending…";
+    btn.setAttribute("aria-busy","true");
+    setSendState("loading","Tracing the request through Elliott…");
+    resp.classList.add("show");
+    resp.textContent="Waiting for Elliott’s response…";
+    try{
+      const r=await fetch(`${BASE}/send`,{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({text:msg})
+      });
+      if(!r.ok) throw new Error(`the server returned HTTP ${r.status}`);
+      const json=await r.json().catch(()=>null);
+      resp.textContent=json?.text??json?.response??json?.answer??"Elliott returned no response text.";
+      inp.value="";
+      setSendState("success","Trace complete. The highlighted path stays available below.");
+    }catch(err){
+      resp.textContent=`The message was not delivered because ${err.message}. Try again.`;
+      setSendState("error","Message delivery failed; the attempted path remains visible.");
+    }
+    btn.disabled=false;
+    btn.textContent="Send + trace";
+    btn.removeAttribute("aria-busy");
+  }
+  form.addEventListener("submit",e=>{ e.preventDefault(); sendMessage(); });
+  inp.addEventListener("keydown",e=>{
+    if((e.metaKey||e.ctrlKey)&&e.key==="Enter"){ e.preventDefault(); sendMessage(); }
+  });
+  inp.addEventListener("input",()=>{
+    if(inp.getAttribute("aria-invalid")==="true"){
+      inp.setAttribute("aria-invalid","false");
+      setSendState("",defaultHint);
+    }
+  });
+})();
 
 /* ================================ boot =================================== */
 refreshPackUI();

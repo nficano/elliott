@@ -1,0 +1,26 @@
+# Telemetry-map override — optional.
+#
+# The telemetry-map extension already runs inside the `elliott` app container and
+# is served by the shared Bun.serve, so it needs NO extra container or port: after
+# a normal deploy it is reachable at
+#
+#     http://127.0.0.1:18082/v1/observability/map
+#
+# (18082 is the host port the base compose already publishes for container :8080).
+#
+# This override only exposes the one operator knob the map respects: whether the
+# live feed includes the raw assembled prompt (ELLIOTT_TELEMETRY_PROMPTS). Digests
+# are always emitted; set it to "0" in shared environments to withhold prompt text.
+#
+# Usage:
+#   docker compose -f deploy/docker-compose.yml \
+#                  -f deploy/compose.telemetry-map.override.yml up -d
+
+name: elliott
+
+services:
+  elliott:
+    environment:
+      # "1" (default): live feed includes the assembled system prompt + messages.
+      # "0": prompt text withheld; only digests + tool/router metadata stream.
+      ELLIOTT_TELEMETRY_PROMPTS: "1"

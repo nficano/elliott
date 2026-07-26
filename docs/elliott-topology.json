@@ -1,0 +1,899 @@
+{
+  "version": "1.1.0",
+  "title": "Elliott Runtime — Connection Graph (verified)",
+  "generatedFrom": "elliott production runtime (src/runtime/*) and bundled skills; visual/UI fields stripped; verified against source by three independent agents.",
+  "note": "Pure architectural connection graph: nodes (system components) and edges (how they connect). No visualization, layout, color, or feature metadata. Each node carries its source (file[:line]) and a factual `runtime` liveness flag. Each edge carries kind, protocol, a label, and the evidence (call site) that proves the connection. Awaiting enrichment (domains, classifications, contracts, routing).",
+  "runtimeLegend": {
+    "live": "active in the running production runtime",
+    "config-gated": "wired, but only registers/activates when its secret or enabled flag resolves",
+    "dormant": "exists in code (often the canonical framework layer) but is never instantiated or fed at runtime",
+    "declared": "declared in deploy/compose config but not consumed by any runtime code path"
+  },
+  "nodeKinds": [
+    "secret-source",
+    "gateway",
+    "runtime",
+    "agent-loop",
+    "provider",
+    "tool",
+    "service",
+    "mcp-endpoint",
+    "memory",
+    "database",
+    "learning",
+    "evaluator",
+    "observability",
+    "container"
+  ],
+  "edgeKinds": ["data", "control", "persist", "learn", "health", "secret"],
+  "nodes": [
+    {
+      "id": "secret.vault",
+      "name": "Vault secret source (secret/services/oslo)",
+      "kind": "secret-source",
+      "runtime": "live",
+      "source": "scripts/deploy-spruce.sh:31; src/runtime/config.ts (VAULT: expressions)"
+    },
+
+    {
+      "id": "gateway.slack",
+      "name": "Slack gateway (Socket Mode) — the only real inbound GatewayBinding; also exposes 2 Slack tools",
+      "kind": "gateway",
+      "runtime": "live",
+      "source": "skills/gateway-slack/src/index.ts:10 (register); skills/gateway-slack/src/gateway.ts:38 (binding), :213 (onMessage)"
+    },
+    {
+      "id": "gateway.webhook",
+      "name": "Webhook inbound (POST /v1/gateways/webhook, HMAC) — a RouteBinding dispatched by the HTTP server",
+      "kind": "gateway",
+      "runtime": "config-gated",
+      "source": "skills/gateway-webhook/src/index.ts:25 (route), :54 (events.onMessage), :82 (verifySignature)"
+    },
+
+    {
+      "id": "runtime.http",
+      "name": "Bun.serve → #handleRequest (single HTTP server, port 8080)",
+      "kind": "runtime",
+      "runtime": "live",
+      "source": "src/runtime/server.ts:7 (Bun.serve); src/runtime/app.ts:336 (#handleRequest)"
+    },
+    {
+      "id": "runtime.inbound",
+      "name": "#handleInbound (dedup + snapshot pin + turn open) + #handleFeedback",
+      "kind": "runtime",
+      "runtime": "live",
+      "source": "src/runtime/app.ts:246 (#handleInbound); :315 (#handleFeedback)"
+    },
+    {
+      "id": "runtime.agentLoop",
+      "name": "RuntimeAgent.turn — round loop (<= MAX_ROUNDS=8)",
+      "kind": "agent-loop",
+      "runtime": "live",
+      "source": "src/runtime/agent.ts:43 (turn); :18 (MAX_ROUNDS); :63 (loop)"
+    },
+    {
+      "id": "runtime.prompt",
+      "name": "Prompt assembly (#systemPrompt persona + security rules; contextualInput)",
+      "kind": "runtime",
+      "runtime": "live",
+      "source": "src/runtime/agent.ts:91 (#systemPrompt); :260 (contextualInput)"
+    },
+    {
+      "id": "runtime.router",
+      "name": "Route attestation — #attest hashes a FIXED {baseUrl, model} into routeDigest (no dynamic model selection at runtime; canonical ModelDispatcher.select is dormant)",
+      "kind": "runtime",
+      "runtime": "live",
+      "source": "src/runtime/model/client.ts:64 (#attest)"
+    },
+    {
+      "id": "runtime.modelClient",
+      "name": "RuntimeModelClient.complete → POST /v1/chat/completions",
+      "kind": "runtime",
+      "runtime": "live",
+      "source": "src/runtime/model/client.ts:23 (complete); :28 (fetch)"
+    },
+    {
+      "id": "runtime.toolExec",
+      "name": "#execute (single-tool dispatch; parallel fan-out is Promise.all in turn)",
+      "kind": "runtime",
+      "runtime": "live",
+      "source": "src/runtime/agent.ts:105 (#execute); :82 (Promise.all fan-out); :132 (tool.execute)"
+    },
+    {
+      "id": "runtime.kernel",
+      "name": "AgentKernel — used at boot + snapshots + evolution; registry/broker/dispatcher/placement/footprints are dormant in the turn path",
+      "kind": "runtime",
+      "runtime": "live",
+      "source": "src/runtime/kernel.ts:4 (makeRuntimeKernel); src/kernel.ts:36; consumed src/runtime/app.ts:85,96"
+    },
+
+    {
+      "id": "provider.litellm",
+      "name": "LiteLLM gateway (api.litellm.h12o.io/v1) — reached directly by RuntimeModelClient; canonical LiteLlmProvider class is never instantiated",
+      "kind": "provider",
+      "runtime": "live",
+      "source": "config/elliott.yaml:16 (base_url); src/runtime/config.ts:178 (llmBaseUrl); src/runtime/model/client.ts:28",
+      "models": [
+        "anthropic/claude-haiku-4-5 (fast — the configured default)",
+        "anthropic/claude-sonnet-5 (standard)",
+        "anthropic/claude-opus-4-8 (deep)",
+        "tier-local (utility)"
+      ]
+    },
+    {
+      "id": "provider.ollama",
+      "name": "Ollama provider (canonical-only; never instantiated at runtime)",
+      "kind": "provider",
+      "runtime": "dormant",
+      "source": "src/providers/ollama/index.ts:13"
+    },
+
+    {
+      "id": "tool.files",
+      "name": "files — file_read / file_write / file_list (workspace-contained)",
+      "kind": "tool",
+      "runtime": "live",
+      "source": "skills/files/src/index.ts:17 (register); :28,:47,:70 (tools)"
+    },
+    {
+      "id": "tool.terminal",
+      "name": "terminal — terminal_run (Bun.spawn, argv-only, command allowlist)",
+      "kind": "tool",
+      "runtime": "config-gated",
+      "source": "skills/terminal/src/index.ts:20 (register); :29 (terminal_run)"
+    },
+    {
+      "id": "tool.ssh",
+      "name": "ssh — ssh_exec (host allowlist, materialized scoped key)",
+      "kind": "tool",
+      "runtime": "config-gated",
+      "source": "skills/ssh/src/index.ts:19 (register); :43 (ssh_exec)"
+    },
+    {
+      "id": "tool.fetch",
+      "name": "fetch — fetch_url (public HTTP/HTTPS GET, HTML stripped; ungated)",
+      "kind": "tool",
+      "runtime": "live",
+      "source": "skills/fetch/src/index.ts:12 (register); :16 (fetch_url)"
+    },
+    {
+      "id": "tool.search",
+      "name": "search/web — brave_search, duckduckgo_search (ungated), firecrawl_search/scrape, parallel_search",
+      "kind": "tool",
+      "runtime": "live",
+      "source": "skills/search-brave/src/index.ts:22; skills/search-duckduckgo/src/index.ts:18; skills/web-firecrawl/src/index.ts:24,:43; skills/web-parallel/src/index.ts:23"
+    },
+    {
+      "id": "tool.browser",
+      "name": "browser — browser_render / browser_scrape (HTTP to browserless companion daemon; ungated)",
+      "kind": "tool",
+      "runtime": "live",
+      "source": "skills/browser/src/index.ts:19 (register); :26,:45 (tools); :108 (daemonRequest)"
+    },
+    {
+      "id": "tool.gmail",
+      "name": "Gmail tools — email_search / email_thread / email_archive / email_draft_reply / email_unsubscribe (Gmail API; NOT a gateway, no inbound)",
+      "kind": "tool",
+      "runtime": "config-gated",
+      "source": "skills/gateway-gmail/src/index.ts:19 (register); :24-31 (tools)"
+    },
+    {
+      "id": "tool.email",
+      "name": "Email send tool — email_send (SMTP, send-only; NOT IMAP, NOT a gateway)",
+      "kind": "tool",
+      "runtime": "config-gated",
+      "source": "skills/gateway-email/src/index.ts:9 (register); :14 (email_send)"
+    },
+    {
+      "id": "tool.imessage",
+      "name": "iMessage send tool — imessage_send (BlueBubbles HTTP, send-only; NOT a gateway)",
+      "kind": "tool",
+      "runtime": "config-gated",
+      "source": "skills/gateway-bluebubbles/src/index.ts:16 (register); :28 (imessage_send)"
+    },
+    {
+      "id": "tool.homeassistant",
+      "name": "Home Assistant REST tools — ha_state / ha_entities / ha_call_service (NOT a gateway; distinct from mcp.homeassistant)",
+      "kind": "tool",
+      "runtime": "config-gated",
+      "source": "skills/gateway-home-assistant/src/index.ts:17 (register); :21 (tools)"
+    },
+
+    {
+      "id": "service.scheduler",
+      "name": "Scheduler — service (polls every 30s) + reminder tools (reminder_set/list/cancel); delivers due reminders OUTBOUND (never opens a turn)",
+      "kind": "service",
+      "runtime": "live",
+      "source": "skills/scheduler/src/index.ts:17 (register); :27-83 (tools); :85 (tickService); :95 (context.deliver)"
+    },
+
+    {
+      "id": "mcp.client",
+      "name": "mcp-client — connects each settings.mcp endpoint, exposes remote tools as mcp_<id>_<tool>, one ServiceBinding per endpoint",
+      "kind": "mcp-endpoint",
+      "runtime": "live",
+      "source": "skills/mcp-client/src/index.ts:9 (register); src/client.ts:12 (connectMcp); :78 (execute → tools/call)"
+    },
+    {
+      "id": "mcp.h12o",
+      "name": "h12o MCP server (mcp.h12o.io/mcp)",
+      "kind": "mcp-endpoint",
+      "runtime": "live",
+      "source": "agents/elliott.yaml mcp[0] (id h12o, transport streamable-http)"
+    },
+    {
+      "id": "mcp.homeassistant",
+      "name": "home-assistant MCP server (SSE)",
+      "kind": "mcp-endpoint",
+      "runtime": "live",
+      "source": "agents/elliott.yaml mcp[1] (id home-assistant, transport sse)"
+    },
+
+    {
+      "id": "memory.sessionStore",
+      "name": "SessionStore (bun:sqlite, WAL) — only its .evolution sub-store is consumed at runtime; base write methods (createSession/appendMessage/recordUsage) have zero callers",
+      "kind": "memory",
+      "runtime": "live",
+      "source": "src/memory/session-store/index.ts:37 (class), :26 (WAL); constructed src/runtime/app.ts:77"
+    },
+    {
+      "id": "memory.evidence",
+      "name": "RuntimeEvolutionEvidence sink — wraps the TurnObserver, records runs/tool_calls/model_selections/component_uses/feedback",
+      "kind": "memory",
+      "runtime": "live",
+      "source": "src/runtime/evolution-evidence.ts:26 (class); constructed src/runtime/app.ts:125 (sink = evidenceStore.evolution :126)"
+    },
+    {
+      "id": "memory.curated",
+      "name": "Curated memory (MEMORY.md / USER.md) — library-only; no runtime consumer",
+      "kind": "memory",
+      "runtime": "dormant",
+      "source": "src/memory/curated/index.ts:41"
+    },
+    {
+      "id": "memory.snapshots",
+      "name": "Snapshots (FileSnapshotStore, atomic temp-write+rename) — created once at boot; per-conversation an in-memory snapshot-ID is pinned",
+      "kind": "memory",
+      "runtime": "live",
+      "source": "src/core/snapshot/snapshot.ts:125 (FileSnapshotStore), :134 (atomic write); src/runtime/conversation-snapshots.ts:4 (in-memory pin)"
+    },
+
+    {
+      "id": "database.sessions",
+      "name": "sessions.sqlite — at runtime only 5 evolution tables are written (runs, tool_calls, component_uses, feedback, model_selections); the 6 base tables and evaluation_labels stay empty",
+      "kind": "database",
+      "runtime": "live",
+      "source": ".elliott-runtime/sessions.sqlite (path src/runtime/app.ts:77); DDL src/memory/session-store/index.ts:25 + evolution.ts:12",
+      "tables": [
+        "sessions",
+        "messages(+fts_trigram,+fts_cjk)",
+        "model_usage",
+        "gateway_routing",
+        "delegation_state",
+        "scheduled_jobs",
+        "runs",
+        "component_uses",
+        "tool_calls",
+        "feedback",
+        "evaluation_labels",
+        "model_selections"
+      ],
+      "tablesWrittenAtRuntime": [
+        "runs",
+        "tool_calls",
+        "component_uses",
+        "feedback",
+        "model_selections"
+      ]
+    },
+
+    {
+      "id": "learning.signals",
+      "name": "Evolution signal detection — live path is selectRuntimeEvolutionSignal (src/runtime/evolution-signals.ts) via the evolution scheduler; canonical SignalDetector is dormant",
+      "kind": "learning",
+      "runtime": "live",
+      "source": "src/runtime/evolution-signals.ts:113 (selectRuntimeEvolutionSignal), called src/runtime/evolution-scheduler.ts:210; delegates to src/learning/evolution/continuous/triage.ts:22; derivation helper src/learning/evolution/continuous/signals.ts:37 (evolutionSignalFromToolFailure)"
+    },
+    {
+      "id": "learning.triage",
+      "name": "Evolution signal triage (score + gate; selects top-scored signal) — live path is continuous/triage.ts; canonical curator is dormant",
+      "kind": "learning",
+      "runtime": "live",
+      "source": "src/learning/evolution/continuous/triage.ts:22 (triageEvolutionSignals)"
+    },
+    {
+      "id": "learning.proposals",
+      "name": "Proposals (FileProposalStore) → canary → promote / rollback",
+      "kind": "learning",
+      "runtime": "live",
+      "source": "src/learning/proposals/index.ts:18 (FileProposalStore); opened src/runtime/evolution.ts:342; release binding :357"
+    },
+    {
+      "id": "learning.control",
+      "name": "Evolution control plane (token-gated operator endpoint /v1/control/evolution; bearer + snapshot auth)",
+      "kind": "learning",
+      "runtime": "config-gated",
+      "source": "src/runtime/evolution.ts:500 (makeEvolutionControlPlane), :98 (auth); routed src/runtime/app.ts:350"
+    },
+
+    {
+      "id": "evaluator.gauntlet",
+      "name": "Evolution evaluation — live path is orchestrator.evaluate → harness → independent HTTP evaluator; canonical 12-stage ProposalEvaluator is dormant",
+      "kind": "evaluator",
+      "runtime": "live",
+      "source": "src/learning/evolution/orchestrator/operations.ts:128 (evaluateEvolutionRun); src/learning/evolution/evaluation/harness.ts; evaluation/http.ts"
+    },
+    {
+      "id": "evaluator.companions",
+      "name": "Companions: dspy · darwinian · benchmarks (sealed OCI, reached over HTTP)",
+      "kind": "evaluator",
+      "runtime": "config-gated",
+      "source": "companions/dspy/dspy_worker.py, companions/darwinian/darwinian_worker.py, companions/benchmarks/evaluation_worker.py; .artifacts/evolution-companions/*.oci.tar; endpoints src/runtime/evolution.ts:285,302,351,373"
+    },
+
+    {
+      "id": "obs.telemetry",
+      "name": "RuntimeTelemetry bus (in-process pub/sub, ring buffer, SSE fan-out)",
+      "kind": "observability",
+      "runtime": "live",
+      "source": "src/runtime/telemetry.ts:16 (bus), :64 (singleton)"
+    },
+    {
+      "id": "obs.footprint",
+      "name": "FootprintTracker (in-memory token/cost attribution) — instantiated inside the kernel but never fed at runtime",
+      "kind": "observability",
+      "runtime": "dormant",
+      "source": "src/observability/index.ts:33; instantiated src/kernel.ts:52"
+    },
+    {
+      "id": "obs.audit",
+      "name": "AuditLog (hash-chained, Merkle, in-memory) — written for kernel lifecycle + evolution, NOT for the turn hot path",
+      "kind": "observability",
+      "runtime": "live",
+      "source": "src/audit/log.ts:25; instantiated src/kernel.ts:41"
+    },
+    {
+      "id": "obs.reporter",
+      "name": "Error reporter (GlitchTip) — fed via #capture from turn/gateway/skill/evolution failures",
+      "kind": "observability",
+      "runtime": "live",
+      "source": "src/runtime/reporter.ts:5 (class); instantiated src/runtime/app.ts:80; #capture app.ts:361"
+    },
+    {
+      "id": "obs.map",
+      "name": "telemetry-map extension — serves observability routes, subscribes to the bus, read-only tails sessions.sqlite (this map's own backend)",
+      "kind": "observability",
+      "runtime": "live",
+      "source": "skills/telemetry-map/src/index.ts:25 (register)"
+    },
+
+    {
+      "id": "container.elliott",
+      "name": "elliott app container (127.0.0.1:18082→8080; networks default+browser)",
+      "kind": "container",
+      "runtime": "live",
+      "source": "deploy/docker-compose.yml:4-27; Dockerfile"
+    },
+    {
+      "id": "container.postgres",
+      "name": "postgres container (pgvector/pgvector:pg16) — declared; postgresDsn is loaded but has zero readers in runtime code",
+      "kind": "container",
+      "runtime": "declared",
+      "source": "deploy/docker-compose.yml:49"
+    },
+    {
+      "id": "container.browser",
+      "name": "agent-browser container (browserless/chromium) — isolated 'browser' network, token from Vault",
+      "kind": "container",
+      "runtime": "live",
+      "source": "deploy/docker-compose.yml:65"
+    }
+  ],
+  "edges": [
+    {
+      "id": "e.gw-slack.rt",
+      "from": "gateway.slack",
+      "to": "runtime.inbound",
+      "kind": "data",
+      "protocol": "in-process (GatewayEvents.onMessage)",
+      "label": "inbound message → turn",
+      "evidence": "skills/gateway-slack/src/gateway.ts:213 (onMessage) → src/runtime/app.ts:209 (gateway.start(events)) → :246 (#handleInbound)"
+    },
+    {
+      "id": "e.http.webhook",
+      "from": "runtime.http",
+      "to": "gateway.webhook",
+      "kind": "control",
+      "protocol": "in-process (route dispatch, exact method+path)",
+      "label": "dispatch POST /v1/gateways/webhook",
+      "evidence": "src/runtime/app.ts:354-357 (route.handle) → skills/gateway-webhook/src/index.ts:25"
+    },
+    {
+      "id": "e.webhook.inbound",
+      "from": "gateway.webhook",
+      "to": "runtime.inbound",
+      "kind": "data",
+      "protocol": "in-process (GatewayEvents.onMessage)",
+      "label": "verified webhook payload → turn",
+      "evidence": "skills/gateway-webhook/src/index.ts:54 (events.onMessage) → src/runtime/app.ts:246"
+    },
+
+    {
+      "id": "e.inbound.loop",
+      "from": "runtime.inbound",
+      "to": "runtime.agentLoop",
+      "kind": "control",
+      "protocol": "in-process",
+      "label": "agent.turn(conversation, text)",
+      "evidence": "src/runtime/app.ts:292"
+    },
+    {
+      "id": "e.loop.prompt",
+      "from": "runtime.agentLoop",
+      "to": "runtime.prompt",
+      "kind": "data",
+      "protocol": "in-process",
+      "label": "assemble system + messages + tools",
+      "evidence": "src/runtime/agent.ts:65-70 (#systemPrompt call; def at :91)"
+    },
+    {
+      "id": "e.prompt.model",
+      "from": "runtime.prompt",
+      "to": "runtime.modelClient",
+      "kind": "data",
+      "protocol": "in-process",
+      "label": "ModelTurnRequest",
+      "evidence": "src/runtime/agent.ts:72 (this.#model.complete)"
+    },
+    {
+      "id": "e.model.router",
+      "from": "runtime.modelClient",
+      "to": "runtime.router",
+      "kind": "control",
+      "protocol": "in-process (internal step in complete())",
+      "label": "attest fixed route",
+      "evidence": "src/runtime/model/client.ts:61 (return this.#attest) → :64"
+    },
+    {
+      "id": "e.model.litellm",
+      "from": "runtime.modelClient",
+      "to": "provider.litellm",
+      "kind": "data",
+      "protocol": "http (POST /v1/chat/completions, Bearer)",
+      "label": "chat completion request",
+      "evidence": "src/runtime/model/client.ts:28 (fetch), :33 (Bearer)",
+      "carries": ["model", "system", "messages", "tools", "stream"]
+    },
+    {
+      "id": "e.router.selection",
+      "from": "runtime.router",
+      "to": "runtime.agentLoop",
+      "kind": "control",
+      "protocol": "in-process",
+      "label": "RuntimeModelSelection (routeDigest, usageReference)",
+      "evidence": "src/runtime/agent.ts:76 (notifyModelSelection)"
+    },
+    {
+      "id": "e.loop.toolexec",
+      "from": "runtime.agentLoop",
+      "to": "runtime.toolExec",
+      "kind": "control",
+      "protocol": "in-process (Promise.all fan-out)",
+      "label": "tool calls",
+      "evidence": "src/runtime/agent.ts:82"
+    },
+
+    {
+      "id": "e.tool.files",
+      "from": "runtime.toolExec",
+      "to": "tool.files",
+      "kind": "data",
+      "protocol": "in-process (ToolDefinition.execute)",
+      "label": "execute",
+      "evidence": "src/runtime/agent.ts:132"
+    },
+    {
+      "id": "e.tool.terminal",
+      "from": "runtime.toolExec",
+      "to": "tool.terminal",
+      "kind": "data",
+      "protocol": "in-process (ToolDefinition.execute)",
+      "label": "execute",
+      "evidence": "src/runtime/agent.ts:132"
+    },
+    {
+      "id": "e.tool.ssh",
+      "from": "runtime.toolExec",
+      "to": "tool.ssh",
+      "kind": "data",
+      "protocol": "in-process (ToolDefinition.execute)",
+      "label": "execute",
+      "evidence": "src/runtime/agent.ts:132"
+    },
+    {
+      "id": "e.tool.fetch",
+      "from": "runtime.toolExec",
+      "to": "tool.fetch",
+      "kind": "data",
+      "protocol": "in-process (ToolDefinition.execute)",
+      "label": "execute",
+      "evidence": "src/runtime/agent.ts:132"
+    },
+    {
+      "id": "e.tool.search",
+      "from": "runtime.toolExec",
+      "to": "tool.search",
+      "kind": "data",
+      "protocol": "in-process (ToolDefinition.execute)",
+      "label": "execute",
+      "evidence": "src/runtime/agent.ts:132"
+    },
+    {
+      "id": "e.tool.browser",
+      "from": "runtime.toolExec",
+      "to": "tool.browser",
+      "kind": "data",
+      "protocol": "in-process (ToolDefinition.execute)",
+      "label": "execute",
+      "evidence": "src/runtime/agent.ts:132"
+    },
+    {
+      "id": "e.tool.gmail",
+      "from": "runtime.toolExec",
+      "to": "tool.gmail",
+      "kind": "data",
+      "protocol": "in-process (ToolDefinition.execute)",
+      "label": "execute",
+      "evidence": "src/runtime/agent.ts:132"
+    },
+    {
+      "id": "e.tool.email",
+      "from": "runtime.toolExec",
+      "to": "tool.email",
+      "kind": "data",
+      "protocol": "in-process (ToolDefinition.execute)",
+      "label": "execute",
+      "evidence": "src/runtime/agent.ts:132"
+    },
+    {
+      "id": "e.tool.imessage",
+      "from": "runtime.toolExec",
+      "to": "tool.imessage",
+      "kind": "data",
+      "protocol": "in-process (ToolDefinition.execute)",
+      "label": "execute",
+      "evidence": "src/runtime/agent.ts:132"
+    },
+    {
+      "id": "e.tool.homeassistant",
+      "from": "runtime.toolExec",
+      "to": "tool.homeassistant",
+      "kind": "data",
+      "protocol": "in-process (ToolDefinition.execute)",
+      "label": "execute",
+      "evidence": "src/runtime/agent.ts:132"
+    },
+    {
+      "id": "e.tool.mcp",
+      "from": "runtime.toolExec",
+      "to": "mcp.client",
+      "kind": "data",
+      "protocol": "in-process (ToolDefinition.execute; tool named mcp_<id>_<tool>)",
+      "label": "mcp tool call",
+      "evidence": "src/runtime/agent.ts:132 → skills/mcp-client/src/client.ts:78"
+    },
+    {
+      "id": "e.tool.scheduler",
+      "from": "runtime.toolExec",
+      "to": "service.scheduler",
+      "kind": "data",
+      "protocol": "in-process (ToolDefinition.execute)",
+      "label": "reminder_set / reminder_list / reminder_cancel",
+      "evidence": "src/runtime/agent.ts:132 → skills/scheduler/src/index.ts:27-83"
+    },
+
+    {
+      "id": "e.mcp.h12o",
+      "from": "mcp.client",
+      "to": "mcp.h12o",
+      "kind": "data",
+      "protocol": "jsonrpc over streamable-http (POST, mcp-session-id)",
+      "label": "tools/call",
+      "evidence": "skills/mcp-client/src/client.ts:15-17 (wire select) → skills/mcp-client/src/http.ts:27"
+    },
+    {
+      "id": "e.mcp.ha",
+      "from": "mcp.client",
+      "to": "mcp.homeassistant",
+      "kind": "data",
+      "protocol": "jsonrpc over sse (open stream + endpoint event + POST)",
+      "label": "tools/call",
+      "evidence": "skills/mcp-client/src/client.ts:15-16 (wire select) → skills/mcp-client/src/sse.ts:11"
+    },
+    {
+      "id": "e.browser.companion",
+      "from": "tool.browser",
+      "to": "container.browser",
+      "kind": "data",
+      "protocol": "http to browserless daemon (/content, /scrape); daemon→Chrome is CDP",
+      "label": "render / scrape",
+      "evidence": "skills/browser/src/index.ts:108 (daemonRequest)"
+    },
+    {
+      "id": "e.sched.deliver",
+      "from": "service.scheduler",
+      "to": "gateway.slack",
+      "kind": "data",
+      "protocol": "in-process (context.deliver → #deliver → primaryGateway.send)",
+      "label": "due reminder (outbound)",
+      "evidence": "skills/scheduler/src/index.ts:95 → src/runtime/app.ts:223,228,231-236"
+    },
+
+    {
+      "id": "e.loop.evidence",
+      "from": "runtime.inbound",
+      "to": "memory.evidence",
+      "kind": "persist",
+      "protocol": "in-process (beginTurn / finishRun in #handleInbound)",
+      "label": "turn evidence (runs)",
+      "evidence": "src/runtime/app.ts:279 (beginTurn), :298/:304 (finish) → src/runtime/evolution-evidence.ts:85 (finishRun). Note: recordRun/finishRun are called in #handleInbound (runtime.inbound), not RuntimeAgent.turn."
+    },
+    {
+      "id": "e.toolexec.evidence",
+      "from": "runtime.toolExec",
+      "to": "memory.evidence",
+      "kind": "persist",
+      "protocol": "in-process (observer.onToolProgress)",
+      "label": "tool_calls + component_uses",
+      "evidence": "src/runtime/evolution-evidence.ts:164 (onToolProgress) → :205 (recordToolCall), :230 (recordComponentUse)"
+    },
+    {
+      "id": "e.model.evidence",
+      "from": "runtime.modelClient",
+      "to": "memory.evidence",
+      "kind": "persist",
+      "protocol": "in-process (observer.onModelSelection)",
+      "label": "model selection → model_selections",
+      "evidence": "src/runtime/agent.ts:76 (notifyModelSelection) → src/runtime/evolution-evidence.ts:155 (recordModelSelection)"
+    },
+    {
+      "id": "e.feedback.evidence",
+      "from": "gateway.slack",
+      "to": "memory.evidence",
+      "kind": "persist",
+      "protocol": "in-process (GatewayEvents.onFeedback → #handleFeedback)",
+      "label": "feedback → feedback table",
+      "evidence": "src/runtime/app.ts:315 (#handleFeedback), :316 → src/runtime/evolution-evidence.ts:123 (recordFeedback)"
+    },
+    {
+      "id": "e.evidence.store",
+      "from": "memory.evidence",
+      "to": "memory.sessionStore",
+      "kind": "persist",
+      "protocol": "in-process (SessionEvolutionStore, shared sqlite handle)",
+      "label": "evidence sink → store",
+      "evidence": "src/runtime/app.ts:126 (sink = this.#evidenceStore.evolution)"
+    },
+    {
+      "id": "e.store.db",
+      "from": "memory.sessionStore",
+      "to": "database.sessions",
+      "kind": "persist",
+      "protocol": "sqlite (INSERT, WAL)",
+      "label": "INSERT (evolution tables)",
+      "evidence": "src/memory/session-store/evolution.ts (recordRun/recordToolCall/... INSERTs)"
+    },
+    {
+      "id": "e.inbound.snap",
+      "from": "runtime.inbound",
+      "to": "memory.snapshots",
+      "kind": "control",
+      "protocol": "in-process (RuntimeConversationSnapshots.resolve; in-memory ID pin)",
+      "label": "pin snapshot id per conversation",
+      "evidence": "src/runtime/app.ts:273 → src/runtime/conversation-snapshots.ts:4"
+    },
+    {
+      "id": "e.kernel.snap",
+      "from": "runtime.kernel",
+      "to": "memory.snapshots",
+      "kind": "persist",
+      "protocol": "in-process (kernel.snapshots / FileSnapshotStore)",
+      "label": "ensureRuntimeSnapshot (boot)",
+      "evidence": "src/runtime/app.ts:95-101 (ensureRuntimeSnapshot)"
+    },
+
+    {
+      "id": "e.db.signals",
+      "from": "database.sessions",
+      "to": "learning.signals",
+      "kind": "learn",
+      "protocol": "sqlite read (evolution scheduler tails evidence tables)",
+      "label": "evidence → signal",
+      "evidence": "src/runtime/evolution-scheduler.ts:191-216 (feedbackForTarget / toolFailureSummaryForTarget) → src/runtime/evolution-signals.ts:113 (selectRuntimeEvolutionSignal)"
+    },
+    {
+      "id": "e.signals.triage",
+      "from": "learning.signals",
+      "to": "learning.triage",
+      "kind": "learn",
+      "protocol": "in-process (selectRuntimeEvolutionSignal)",
+      "label": "signals → top-scored selection",
+      "evidence": "src/runtime/evolution-scheduler.ts:210 → src/learning/evolution/continuous/triage.ts:44 (toSorted[0])"
+    },
+    {
+      "id": "e.triage.eval",
+      "from": "learning.triage",
+      "to": "evaluator.gauntlet",
+      "kind": "learn",
+      "protocol": "in-process (orchestrator.scope → evaluate)",
+      "label": "scoped run → evaluate",
+      "evidence": "src/learning/evolution/application/index.ts:237 (scope), :315 (recordEvaluation); orchestrator/index.ts:33"
+    },
+    {
+      "id": "e.eval.companions",
+      "from": "evaluator.gauntlet",
+      "to": "evaluator.companions",
+      "kind": "learn",
+      "protocol": "http (POST to sealed OCI workers; conditional on *_URL config)",
+      "label": "optimize / compare / baseline",
+      "evidence": "src/learning/evolution/evaluation/http.ts:25 (POST /v1/baseline,/v1/compare); companions/*/*_worker.py"
+    },
+    {
+      "id": "e.eval.proposals",
+      "from": "evaluator.gauntlet",
+      "to": "learning.proposals",
+      "kind": "learn",
+      "protocol": "in-process (authorEvolutionProposal)",
+      "label": "author proposal",
+      "evidence": "src/learning/evolution/orchestrator/index.ts:78 → src/learning/evolution/release/proposal.ts:147 → src/learning/proposals/index.ts:32"
+    },
+    {
+      "id": "e.proposals.control",
+      "from": "learning.proposals",
+      "to": "learning.control",
+      "kind": "control",
+      "protocol": "http (token-gated /v1/control/evolution)",
+      "label": "review / promote / rollback",
+      "evidence": "src/runtime/app.ts:350 → src/learning/evolution/application/index.ts:469 (promote), :475 (rollback)"
+    },
+
+    {
+      "id": "e.tel.inbound",
+      "from": "runtime.inbound",
+      "to": "obs.telemetry",
+      "kind": "control",
+      "protocol": "in-process (bus.emit)",
+      "label": "emit inbound / turn.begin / turn.finish",
+      "evidence": "src/runtime/app.ts:250, :287, :299, :305"
+    },
+    {
+      "id": "e.tel.model",
+      "from": "runtime.modelClient",
+      "to": "obs.telemetry",
+      "kind": "control",
+      "protocol": "in-process (telemetry observer → bus.emit)",
+      "label": "emit model.request / model.selection",
+      "evidence": "src/runtime/telemetry.ts:98, :106 (driven by agent.ts:71,76)"
+    },
+    {
+      "id": "e.tel.tool",
+      "from": "runtime.toolExec",
+      "to": "obs.telemetry",
+      "kind": "control",
+      "protocol": "in-process (telemetry observer → bus.emit)",
+      "label": "emit tool.progress",
+      "evidence": "src/runtime/telemetry.ts:109-110 (driven by agent.ts:123,134,149)"
+    },
+    {
+      "id": "e.tel.map",
+      "from": "obs.telemetry",
+      "to": "obs.map",
+      "kind": "data",
+      "protocol": "in-process subscribe → SSE fan-out",
+      "label": "subscribe → stream",
+      "evidence": "skills/telemetry-map/src/index.ts:140 (aggregator.start) → aggregator.ts:95 (bus.subscribe) → sse.ts"
+    },
+    {
+      "id": "e.map.telemetry",
+      "from": "obs.map",
+      "to": "obs.telemetry",
+      "kind": "control",
+      "protocol": "in-process (bus.emit)",
+      "label": "emit db.write / heartbeat",
+      "evidence": "skills/telemetry-map/src/index.ts:37 (db.write), :146 (heartbeat)"
+    },
+    {
+      "id": "e.db.map",
+      "from": "database.sessions",
+      "to": "obs.map",
+      "kind": "data",
+      "protocol": "sqlite (readonly tail)",
+      "label": "read-only tail",
+      "evidence": "skills/telemetry-map/src/sqlite-tail.ts:65 (readonly:true)"
+    },
+    {
+      "id": "e.http.map",
+      "from": "runtime.http",
+      "to": "obs.map",
+      "kind": "data",
+      "protocol": "in-process (route dispatch; GET /v1/observability/map[/state|/stream|/turn|/topology])",
+      "label": "serve map routes",
+      "evidence": "src/runtime/app.ts:354-357 → skills/telemetry-map/src/index.ts:105-129"
+    },
+    {
+      "id": "e.inbound.reporter",
+      "from": "runtime.inbound",
+      "to": "obs.reporter",
+      "kind": "control",
+      "protocol": "in-process (#capture)",
+      "label": "turn failure → error report",
+      "evidence": "src/runtime/app.ts:306 (capture on failure), :361 (#capture)"
+    },
+
+    {
+      "id": "e.vault.model",
+      "from": "secret.vault",
+      "to": "runtime.modelClient",
+      "kind": "secret",
+      "protocol": "env (rendered value, read by field name)",
+      "label": "llmApiKey → Bearer (llmBaseUrl is a non-secret config literal, elliott.yaml:16)",
+      "evidence": "src/runtime/config.ts:179 (llmApiKey) → src/runtime/model/client.ts:33"
+    },
+    {
+      "id": "e.vault.reporter",
+      "from": "secret.vault",
+      "to": "obs.reporter",
+      "kind": "secret",
+      "protocol": "env (rendered value, read by field name)",
+      "label": "glitchtipDsn",
+      "evidence": "src/runtime/config.ts:208 → src/runtime/reporter.ts"
+    },
+
+    {
+      "id": "e.kernel.audit",
+      "from": "runtime.kernel",
+      "to": "obs.audit",
+      "kind": "persist",
+      "protocol": "in-process (AuditLog.append)",
+      "label": "kernel lifecycle records (started / stopped / crossLink)",
+      "evidence": "src/kernel.ts:41 (records), :99, :111, :118"
+    },
+    {
+      "id": "e.kernel.footprint",
+      "from": "runtime.kernel",
+      "to": "obs.footprint",
+      "kind": "control",
+      "protocol": "in-process (instantiation; unfed)",
+      "label": "contains FootprintTracker (dormant)",
+      "evidence": "src/kernel.ts:52 (footprints)"
+    },
+
+    {
+      "id": "e.elliott.pg",
+      "from": "container.elliott",
+      "to": "container.postgres",
+      "kind": "control",
+      "protocol": "compose depends_on (startup ordering; no runtime TCP)",
+      "label": "depends_on: service_healthy",
+      "evidence": "deploy/docker-compose.yml:24-26"
+    },
+    {
+      "id": "e.elliott.browser",
+      "from": "container.elliott",
+      "to": "container.browser",
+      "kind": "data",
+      "protocol": "tcp (shared isolated 'browser' network)",
+      "label": "browser network",
+      "evidence": "deploy/docker-compose.yml:27, :65-75"
+    },
+    {
+      "id": "e.map.in.elliott",
+      "from": "obs.map",
+      "to": "container.elliott",
+      "kind": "health",
+      "protocol": "in-process (bundled skill served by the runtime)",
+      "label": "runs inside (co-located)",
+      "evidence": "skills/telemetry-map rides the elliott app container in-process"
+    }
+  ]
+}

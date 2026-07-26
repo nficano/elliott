@@ -92,6 +92,21 @@ const fontResponse = async (file: string): Promise<Response> => {
   }
 };
 
+const iconResponse = async (file: string): Promise<Response> => {
+  try {
+    const bytes = await readFile(new URL(`icons/${file}`, import.meta.url));
+    return new Response(bytes, {
+      status: HTTP_OK,
+      headers: {
+        "content-type": "image/svg+xml; charset=utf-8",
+        "cache-control": "public, max-age=604800",
+      },
+    });
+  } catch {
+    return new Response("icon missing", { status: HTTP_NOT_FOUND });
+  }
+};
+
 const turnResponse = (aggregator: Aggregator, request: Request): Response => {
   const id = new URL(request.url).searchParams.get("id");
   if (id === null) {
@@ -198,6 +213,22 @@ const routes = (
     () => fontResponse("generation_1970_light.woff2"),
   ),
   route("GET", `${BASE}/font/body`, () => fontResponse("inter-variable.woff2")),
+  route("GET", `${BASE}/icon/browser`, () => iconResponse("browser.svg")),
+  route("GET", `${BASE}/icon/gmail`, () => iconResponse("gmail.svg")),
+  route(
+    "GET",
+    `${BASE}/icon/home-assistant`,
+    () => iconResponse("home-assistant.svg"),
+  ),
+  route("GET", `${BASE}/icon/imessage`, () => iconResponse("imessage.svg")),
+  route("GET", `${BASE}/icon/litellm`, () => iconResponse("litellm.svg")),
+  route("GET", `${BASE}/icon/ollama`, () => iconResponse("ollama.svg")),
+  route(
+    "GET",
+    `${BASE}/icon/postgresql`,
+    () => iconResponse("postgresql.svg"),
+  ),
+  route("GET", `${BASE}/icon/vault`, () => iconResponse("vault.svg")),
   routeE(
     "POST",
     `${BASE}/send`,

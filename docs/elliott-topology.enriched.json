@@ -1,0 +1,2830 @@
+{
+  "version": "2.0.0-enriched",
+  "title": "Elliott Runtime — Connection Graph (verified)",
+  "generatedFrom": "elliott production runtime (src/runtime/*) and bundled skills; visual/UI fields stripped; verified against source by three independent agents.",
+  "note": "Pure architectural connection graph: nodes (system components) and edges (how they connect). No visualization, layout, color, or feature metadata. Each node carries its source (file[:line]) and a factual `runtime` liveness flag. Each edge carries kind, protocol, a label, and the evidence (call site) that proves the connection. Awaiting enrichment (domains, classifications, contracts, routing). ENRICHMENT v2.0.0-enriched: added top-level `domains` (12), `classificationSchemes`, and `enrichmentNotes`; each node now carries `domain`, `classifications`, `interface`, and `characteristics`; each edge now carries `contract`, `routing`, `activation`, and `security`. The verified connection core (node id/kind/source/runtime, edge id/from/to/kind/protocol/label/evidence) is unchanged -- enrichment is strictly additive. Suspected-but-unedited issues are recorded under enrichmentNotes.concerns.",
+  "runtimeLegend": {
+    "live": "active in the running production runtime",
+    "config-gated": "wired, but only registers/activates when its secret or enabled flag resolves",
+    "dormant": "exists in code (often the canonical framework layer) but is never instantiated or fed at runtime",
+    "declared": "declared in deploy/compose config but not consumed by any runtime code path"
+  },
+  "nodeKinds": [
+    "secret-source",
+    "gateway",
+    "runtime",
+    "agent-loop",
+    "provider",
+    "tool",
+    "service",
+    "mcp-endpoint",
+    "memory",
+    "database",
+    "learning",
+    "evaluator",
+    "observability",
+    "container"
+  ],
+  "edgeKinds": ["data", "control", "persist", "learn", "health", "secret"],
+  "domains": [
+    {
+      "id": "secrets",
+      "title": "Secrets",
+      "purpose": "Deploy-time secret provenance: Vault (secret/services/oslo) values rendered into container env and read by field name at boot.",
+      "members": ["secret.vault"],
+      "internalCommunication": "Single node; no intra-domain traffic. Values are materialized once at boot by the config loader's SecretResolver.",
+      "ingressContracts": "None at runtime. At deploy time scripts/deploy-spruce.sh authenticates to Vault via AppRole and renders secret/services/oslo into the container environment.",
+      "egressContracts": "Rendered strings flow OUT one-way into model-inference (llmApiKey -> Bearer; llmBaseUrl is a non-secret config literal, elliott.yaml:16), observability (glitchtipDsn), external-integrations (brave/firecrawl/parallel/gmail/bluebubbles/smtp/ssh keys), deployment-substrate (browser_token) via ${VAULT:path#field} config expressions.",
+      "routing": "config.ts resolveExpression() matches ${VAULT:path#field}/${ENV:name} and calls SecretResolver.vault/env; the runtime resolver reads the vault-rendered value from process.env by field name.",
+      "trustBoundary": "secret",
+      "dataClassification": "secret",
+      "failureIsolation": "Per-secret best-effort resolution: an unresolvable config/secrets.yaml entry is dropped so the owning skill stays unregistered, while a missing required core value throws and aborts boot."
+    },
+    {
+      "id": "ingress",
+      "title": "Ingress & Front Controller",
+      "purpose": "The untrusted edge: receive inbound messages (Slack Socket Mode, HMAC webhook), dispatch HTTP routes, dedup, single-flight, and admit work as turns.",
+      "members": [
+        "gateway.slack",
+        "gateway.webhook",
+        "runtime.http",
+        "runtime.inbound"
+      ],
+      "internalCommunication": "In-process callbacks. Gateways invoke the shared GatewayEvents.onMessage/onFeedback closures; the HTTP server dispatches RouteBindings by exact method+path; all funnel into #handleInbound.",
+      "ingressContracts": "External-untrusted: Slack events over a Socket Mode WebSocket (owner-only gate) and POST /v1/gateways/webhook (HMAC-SHA256 verified). InboundMessage is the normalized shape.",
+      "egressContracts": "control -> agent-core (agent.turn); persist -> memory-persistence (snapshot pin, evidence beginTurn, feedback); control -> observability (telemetry emit, error capture).",
+      "routing": "SlackGateway frame router -> events.onMessage; Bun.serve fetch -> #handleRequest exact-match route table; #handleInbound builds the per-turn observer and calls the agent.",
+      "trustBoundary": "external-untrusted",
+      "dataClassification": "untrusted-external (message text/attachments); owner-pii (live Slack thread history)",
+      "failureIsolation": "message.id dedup (#seen), per-conversation single-flight (#inflight busy reply), per-turn try/catch -> evidence failure + telemetry + error report + user apology; gateway connect errors retried with backoff."
+    },
+    {
+      "id": "agent-core",
+      "title": "Agent Core",
+      "purpose": "The trusted reasoning core: the bounded round loop, prompt assembly with the untrusted-evidence security contract, and parallel tool dispatch.",
+      "members": ["runtime.agentLoop", "runtime.prompt", "runtime.toolExec"],
+      "internalCommunication": "Direct in-process method calls inside RuntimeAgent.turn: #systemPrompt() assembles the request each round; Promise.all(#execute) fans out tool calls; results reassembled into messages.",
+      "ingressContracts": "control -> agent.turn(conversation, text, {observer, context, retainHistory}) from ingress.",
+      "egressContracts": "data -> model-inference (ModelTurnRequest); data -> tool-execution/external-integrations/mcp-federation (ToolDefinition.execute); persist -> memory-persistence (evidence via threaded observer); control -> observability (tool.progress).",
+      "routing": "MAX_ROUNDS=8 loop; ReadonlyMap<string,ToolDefinition> name lookup for dispatch; final round forces allowTools=false.",
+      "trustBoundary": "trusted-core",
+      "dataClassification": "internal (prompt/persona) mixed with untrusted-external (model/tool content)",
+      "failureIsolation": "#execute never throws (errors become tool messages); tool output truncated to 30000 chars and wrapped [UNTRUSTED TOOL OUTPUT]; per-conversation persona/tool pinning isolates in-flight sessions from evolution promotions."
+    },
+    {
+      "id": "model-inference",
+      "title": "Model Inference",
+      "purpose": "Route attestation and the OpenAI-compatible completion call to the LiteLLM gateway; the only model egress path.",
+      "members": [
+        "runtime.router",
+        "runtime.modelClient",
+        "provider.litellm",
+        "provider.ollama"
+      ],
+      "internalCommunication": "In-process: RuntimeModelClient.complete() calls #attest() as a synchronous internal step to stamp a routeDigest; the provider is reached by fetch.",
+      "ingressContracts": "data <- agent-core (ModelTurnRequest); secret <- secrets (Bearer key + base URL).",
+      "egressContracts": "http -> provider.litellm (POST /v1/chat/completions, Bearer); control -> agent-core (RuntimeModelSelection); persist -> memory-persistence (model_selections); control -> observability (model.request/model.selection).",
+      "routing": "No dynamic selection: #attest hashes a FIXED {baseUrl, model} into routeDigest; the request is always POSTed to the single configured LiteLLM base URL with the single configured model id.",
+      "trustBoundary": "egress",
+      "dataClassification": "user-content (prompt leaves the process); secret (Bearer)",
+      "failureIsolation": "Non-2xx from LiteLLM throws 'LiteLLM <status>: <detail<=500>' which bubbles to the turn catch and a user apology; no retry. provider.ollama is dormant (never constructed)."
+    },
+    {
+      "id": "tool-execution",
+      "title": "Sandboxed Local Tool Execution",
+      "purpose": "First-party capability tools that act on the local workspace, host processes, allowlisted SSH hosts, or the file-backed reminder store.",
+      "members": [
+        "tool.files",
+        "tool.terminal",
+        "tool.ssh",
+        "service.scheduler"
+      ],
+      "internalCommunication": "None between tools; each is an independent ToolDefinition dispatched by runtime.toolExec. The scheduler additionally runs its own 30s poll service.",
+      "ingressContracts": "data <- agent-core (ToolDefinition.execute with parsed JSON args).",
+      "egressContracts": "Local side effects: workspace file IO, argv-only process spawn, ssh to allowlisted hosts. service.scheduler also emits data -> ingress (outbound reminder delivery via primaryGateway.send).",
+      "routing": "runtime.toolExec map lookup by tool name; scheduler tick via setInterval filters due reminders and calls context.deliver.",
+      "trustBoundary": "sandboxed",
+      "dataClassification": "user-content (workspace files, reminder text); internal; secret (materialized ssh key)",
+      "failureIsolation": "Path containment rejects escapes (files); command allowlist + minimal PATH + 60s kill (terminal); host allowlist + BatchMode + 0600 key (ssh); scheduler tick errors reported, delivery needs a send-capable gateway."
+    },
+    {
+      "id": "external-integrations",
+      "title": "External Integrations",
+      "purpose": "Tools that reach services outside the process over the network: public-web readers and the owner's personal accounts/devices with real-world side effects.",
+      "members": [
+        "tool.fetch",
+        "tool.search",
+        "tool.browser",
+        "tool.gmail",
+        "tool.email",
+        "tool.imessage",
+        "tool.homeassistant"
+      ],
+      "internalCommunication": "None between tools; each is an independent ToolDefinition. browser routes through the companion daemon; the rest fetch third-party HTTP APIs.",
+      "ingressContracts": "data <- agent-core (ToolDefinition.execute).",
+      "egressContracts": "http/https -> third-party services (Brave/DDG/Firecrawl/Parallel, Gmail API, SMTP, BlueBubbles, Home Assistant REST); http -> deployment-substrate (browserless companion).",
+      "routing": "runtime.toolExec map lookup; each tool builds its own fetch/SMTP call with per-tool allowlists and API keys.",
+      "trustBoundary": "egress",
+      "dataClassification": "untrusted-external (web/page content inbound); owner-pii (email/iMessage/home state outbound)",
+      "failureIsolation": "SSRF guard (publicUrl) + domain allowlists; recipient allowlists for send tools (email/imessage); entity/service regex validation (HA); config-gating so unconfigured integrations never register; each tool throw becomes a tool-message error."
+    },
+    {
+      "id": "mcp-federation",
+      "title": "MCP Federation",
+      "purpose": "Federate remote MCP servers, exposing their tools as mcp_<id>_<tool> and bridging JSON-RPC over streamable-http (h12o) and SSE (home-assistant).",
+      "members": ["mcp.client", "mcp.h12o", "mcp.homeassistant"],
+      "internalCommunication": "mcp.client owns one RpcWire (ServiceBinding) per endpoint; wire.request('tools/call') marshals JSON-RPC to the remote server and correlates the response.",
+      "ingressContracts": "data <- agent-core (execute on an mcp_<id>_<tool> ToolDefinition).",
+      "egressContracts": "jsonrpc over streamable-http -> mcp.h12o; jsonrpc over SSE -> mcp.homeassistant.",
+      "routing": "connectMcp selects wire by settings.transport; at boot: initialize -> notifications/initialized -> paged tools/list; per call: tools/call {name, arguments}.",
+      "trustBoundary": "egress",
+      "dataClassification": "untrusted-external (remote tool results); owner-pii (home-assistant)",
+      "failureIsolation": "Per-endpoint Promise.allSettled at boot: a failed endpoint is reported (mcp:<id>) and contributes no tools; SSE has a 60s per-request timeout and fails pending calls on stream close; JSON-RPC errors unwrap to thrown Errors."
+    },
+    {
+      "id": "memory-persistence",
+      "title": "Memory",
+      "purpose": "Durable evidence and provenance: the sqlite session store (evolution tables), the digest-only evidence sink, immutable config snapshots, and the dormant curated memory.",
+      "members": [
+        "memory.sessionStore",
+        "memory.evidence",
+        "memory.curated",
+        "memory.snapshots",
+        "database.sessions"
+      ],
+      "internalCommunication": "In-process: the evidence sink is a narrow Pick of SessionEvolutionStore sharing the SessionStore's bun:sqlite handle; INSERT/UPDATE go to sessions.sqlite (WAL). Snapshots are an independent file store + in-memory per-conversation pin.",
+      "ingressContracts": "persist <- agent-core/model-inference/ingress (runs, tool_calls, component_uses, model_selections, feedback); control <- ingress/kernel-governance (snapshot pin / boot snapshot create).",
+      "egressContracts": "learn -> self-evolution (sqlite reads of feedback/tool-failure summaries); data -> observability (read-only sqlite tail by the map).",
+      "routing": "Evidence observer callbacks -> record* methods -> parameterized SQL; snapshot resolve() first-write-wins per conversation; content-addressed snapshot ids stamp every run.",
+      "trustBoundary": "trusted-core",
+      "dataClassification": "operational-metadata + digest-only (no raw prompt/args/tool output persisted)",
+      "failureIsolation": "Every evidence write is wrapped in a try/catch that reports and continues; a failed recordRun disables the turn's evidence without breaking the turn; WAL single-writer; the readonly tail tolerates a briefly-absent file."
+    },
+    {
+      "id": "self-evolution",
+      "title": "Darwin",
+      "purpose": "The governed, off-hot-path learning loop: detect regression signals from evidence, triage/score them, optimize+evaluate candidates, author proposals, and gate promotion via an operator control plane.",
+      "members": [
+        "learning.signals",
+        "learning.triage",
+        "learning.proposals",
+        "learning.control",
+        "evaluator.gauntlet",
+        "evaluator.companions"
+      ],
+      "internalCommunication": "In-process Effect pipelines driven by the continuous scheduler tick: signals -> triage (top-scored) -> orchestrator scope/evaluate -> proposal author; the control plane and companions are reached over HTTP.",
+      "ingressContracts": "learn <- memory-persistence (evidence reads); control <- operator via POST /v1/control/evolution.",
+      "egressContracts": "http -> evaluator.companions (sealed OCI: dspy/darwinian/evaluator/canary); control -> memory-persistence/kernel-governance (snapshot promotion, audit records); data -> ingress (Slack notifications via notify).",
+      "routing": "Campaign gate (single-flight queue) + selectRuntimeEvolutionSignal + triageEvolutionSignals scoring; control-plane maps operation->capability and authorizes before executing; scheduler ticks every 30s.",
+      "trustBoundary": "trusted-core (operator surface is token+capability gated)",
+      "dataClassification": "internal / operational-metadata",
+      "failureIsolation": "Entire subsystem is config-gated (evolution config + evolutionRuntime + continuous.enabled) and inert otherwise; distinct scheduler principal with Proposal-only capabilities (approve/promote/rollback forbidden); unavailable engines/evaluators degrade to typed errors; budgets + concurrency caps + cooldowns."
+    },
+    {
+      "id": "observability",
+      "title": "Observability",
+      "purpose": "The live operational-visibility surface: the in-process telemetry bus, the GlitchTip error reporter, and the telemetry-map extension (routes + SSE + read-only DB tail).",
+      "members": ["obs.telemetry", "obs.reporter", "obs.map"],
+      "internalCommunication": "In-process pub/sub: core emits onto runtimeTelemetry; the map's Aggregator subscribes and re-emits db.write/heartbeat; the reporter is a standalone capture funnel.",
+      "ingressContracts": "control <- ingress/agent-core/model-inference (telemetry emit, error capture); data <- memory-persistence (readonly sqlite tail); data <- ingress HTTP (GET map routes); secret <- secrets (glitchtipDsn).",
+      "egressContracts": "http -> GlitchTip (Sentry envelope, best-effort); SSE/JSON -> operator browser; in-process -> deployment-substrate (co-located skill).",
+      "routing": "bus.emit(type,payload,runId) fan-out to a subscriber set; exact method+path route dispatch for /v1/observability/map*; SqliteTail 1.5s poll.",
+      "trustBoundary": "edge (map GET routes are unauthenticated but loopback-published only)",
+      "dataClassification": "operational-metadata; digest-only; optionally prompt content in model.request events when ELLIOTT_TELEMETRY_PROMPTS!=0",
+      "failureIsolation": "Subscriber isolation: a throwing telemetry subscriber or dead SSE client is caught and never affects a turn; the reporter's send failures only console.error; the ring buffer (512) and map windows (400 events / 60 turns) bound memory."
+    },
+    {
+      "id": "kernel-governance",
+      "title": "Kernel",
+      "purpose": "The AgentKernel lifecycle and the two governance ledgers it instantiates: the hash-chained/Merkle AuditLog (live for lifecycle + evolution) and the dormant FootprintTracker.",
+      "members": ["runtime.kernel", "obs.audit", "obs.footprint"],
+      "internalCommunication": "In-process: the kernel appends RecordDrafts to its AuditLog and constructs the FootprintTracker; both are members instantiated by the kernel constructor.",
+      "ingressContracts": "control <- boot (kernel.start); persist <- self-evolution (audit records for signals/releases).",
+      "egressContracts": "persist -> memory-persistence (kernel owns the FileSnapshotStore used to create the boot snapshot); records/epochs/snapshots handed to self-evolution.",
+      "routing": "kernel.start/stop append kernel.started/stopped + crossLink; audit shards chain by digest and cross-link into a Merkle root.",
+      "trustBoundary": "trusted-core",
+      "dataClassification": "internal (lifecycle + governance records)",
+      "failureIsolation": "start() throws if already started; most sub-registries (registry/broker/dispatcher/placement/footprints/discovery) are dormant so cannot fail on the hot path; audit uses durability classes (effect-gating committed immediately, observational buffered to a 128 tail)."
+    },
+    {
+      "id": "deployment-substrate",
+      "title": "Deployment Substrate",
+      "purpose": "The container topology: the hardened elliott app container, the declared-but-unread postgres, and the network-isolated browserless companion.",
+      "members": [
+        "container.elliott",
+        "container.postgres",
+        "container.browser"
+      ],
+      "internalCommunication": "Docker Compose: elliott depends_on postgres (startup ordering only) and shares an isolated 'browser' network with agent-browser.",
+      "ingressContracts": "HTTP on 127.0.0.1:18082 -> 8080 (loopback-published); env_file + Vault-rendered environment.",
+      "egressContracts": "tcp -> agent-browser (browser network); depends_on -> postgres; hosts the in-process runtime + bundled skills.",
+      "routing": "compose service graph; healthchecks (wget /healthz; pg_isready).",
+      "trustBoundary": "substrate (hardened)",
+      "dataClassification": "internal; untrusted-external (rendered pages in the browser companion)",
+      "failureIsolation": "elliott: read-only rootfs, cap_drop ALL, no-new-privileges, tmpfs, non-root uid, restart unless-stopped, healthcheck retries; agent-browser isolated to the 'browser' network and token-gated; postgres is declared-only (no runtime reader)."
+    }
+  ],
+  "classificationSchemes": {
+    "trustZone": {
+      "external-untrusted": "Data/callers from outside the trust boundary (Slack events, webhook posts); never treated as instructions.",
+      "edge": "Boundary components that receive/dispatch untrusted input but run trusted code (HTTP server, front controller, unauthenticated-but-loopback map routes).",
+      "trusted-core": "In-process trusted runtime logic (turn loop, prompt, evidence, kernel, audit).",
+      "sandboxed": "Capability execution constrained by containment/allowlists/isolated networks (files/terminal/ssh, browser companion).",
+      "egress": "Outbound calls leaving the process to a provider/integration (LiteLLM, MCP, web APIs, GlitchTip, OCI companions).",
+      "secret": "Secret material and its provenance.",
+      "substrate": "Deployment/hosting layer (containers, networks)."
+    },
+    "criticality": {
+      "path-critical": "On the synchronous request path; its failure fails or degrades a user turn.",
+      "supporting": "Live and exercised, but a turn can complete without it (tools, evidence, telemetry, reminders).",
+      "latent": "Present but not exercised on the hot path (dormant/declared, or gated subsystems only active off-path)."
+    },
+    "statefulness": {
+      "stateless": "Holds no state across calls.",
+      "in-memory-state": "Process-local mutable state lost on restart (dedup sets, ring buffer, caches, sockets).",
+      "durable-state": "State that survives restarts (sqlite, snapshot files, reminder store, named volume, external stores)."
+    },
+    "concurrency": {
+      "per-conversation-serialized": "Serialized per conversation key (single-flight lock / pinned state).",
+      "parallel-fan-out": "Concurrent fan-out (Promise.all tool calls, subscriber set, companion workers).",
+      "stateless-parallel": "Independent concurrent invocations with no shared mutable state.",
+      "single-writer": "One writer (sqlite WAL, audit append, snapshot create).",
+      "poll-loop": "Timer-driven periodic execution (setInterval).",
+      "single-flight-queue": "Serialized via an internal promise queue (evolution campaign gate).",
+      "socket-loop": "A single reconnecting connection loop (Slack Socket Mode)."
+    },
+    "lifecycle": {
+      "boot": "Runs once during ElliottRuntime.start().",
+      "per-turn": "Once per inbound message/turn.",
+      "per-round": "Once per model round within a turn (<=8).",
+      "per-tool-call": "Once per tool invocation.",
+      "scheduled": "Timer/cron driven off the request path.",
+      "on-demand": "On an external request (HTTP route, operator action).",
+      "always-on": "Long-lived listener/service for the process lifetime."
+    },
+    "dataClassification": {
+      "secret": "Credentials/tokens.",
+      "owner-pii": "The owner's personal data (email, messages, home state, Slack history).",
+      "user-content": "User-authored content (prompt text, workspace files, reminders).",
+      "untrusted-external": "Content from outside that must be treated as data, not instructions.",
+      "operational-metadata": "Ids, counts, timings, gateway/sender labels, dispositions.",
+      "digest-only": "sha256 digests standing in for content (schema/args/result/route digests).",
+      "internal": "Runtime-internal config/lifecycle data.",
+      "public": "Non-sensitive."
+    }
+  },
+  "nodes": [
+    {
+      "id": "secret.vault",
+      "name": "Vault secret source (secret/services/oslo)",
+      "kind": "secret-source",
+      "runtime": "live",
+      "source": "scripts/deploy-spruce.sh:31; src/runtime/config.ts (VAULT: expressions)",
+      "domain": "secrets",
+      "classifications": {
+        "trustZone": "secret",
+        "dataClassification": "secret",
+        "criticality": "path-critical",
+        "statefulness": "durable-state",
+        "concurrency": "single-writer",
+        "lifecycle": "boot",
+        "idempotency": "read-only; same path#field yields the same value",
+        "scalability": "external HashiCorp Vault (AppRole at deploy); resolved once into env",
+        "failureMode": "unresolvable secret dropped (skill unregistered); missing required core value throws at boot"
+      },
+      "interface": "Consumed via SecretResolver.vault(path, field) / env(name) (types.ts:2-5). At runtime envBackedSecretResolver reads the vault-rendered value from process.env by field name (config.ts:50-59). Config expressions ${VAULT:path#field} and ${ENV:name} (config.ts:271-282). Backing path: secret/services/oslo.",
+      "characteristics": [
+        "Deploy renders Vault secrets into container env; at runtime the 'vault' resolver just reads env by field name -- there is NO live Vault client in the runtime process (config.ts:52-58).",
+        "Feeds litellm_key (api_key), glitchtip_dsn, browser_token, slack tokens, postgres_dsn, and optional brave/firecrawl/parallel/gmail/bluebubbles/smtp/ssh/webhook secrets (config/elliott.yaml + config.ts optionalSettings). NB: the LiteLLM base_url is a config literal (elliott.yaml:16), NOT a Vault-rendered secret.",
+        "config/secrets.yaml resolves best-effort: an unresolved secret returns undefined and is omitted so its skill stays unregistered rather than crashing boot (config.ts:236-247).",
+        "Never surfaced to the model: the system prompt forbids revealing credentials/tokens/secret references (agent.ts:99)."
+      ]
+    },
+    {
+      "id": "gateway.slack",
+      "name": "Slack gateway (Socket Mode) — the only real inbound GatewayBinding; also exposes 2 Slack tools",
+      "kind": "gateway",
+      "runtime": "live",
+      "source": "skills/gateway-slack/src/index.ts:10 (register); skills/gateway-slack/src/gateway.ts:38 (binding), :213 (onMessage)",
+      "domain": "ingress",
+      "classifications": {
+        "trustZone": "external-untrusted",
+        "dataClassification": "untrusted-external",
+        "criticality": "path-critical",
+        "statefulness": "in-memory-state",
+        "concurrency": "socket-loop",
+        "lifecycle": "always-on",
+        "idempotency": "Slack redelivers with envelope_id ack; runtime dedups by message.id downstream",
+        "scalability": "single Socket Mode connection; shares the Slack app with oslo (events load-balanced)",
+        "failureMode": "connect errors -> onError + backoff reconnect; a failed conversations.replies is reported but the message still dispatches without live history"
+      },
+      "interface": "GatewayBinding (skills/types.ts:29-37): name='gateway-slack', defaultChannel, status(), start(events), send(channel,text,thread?), beginResponse(message)->GatewayResponse, stop(). Emits GatewayEvents.onMessage(InboundMessage)/onFeedback(GatewayFeedback)/onError. Also exposes tools slack_message (Block Kit) and slack_search (assistant.search.context, resultRetention:'turn').",
+      "characteristics": [
+        "Inbound is owner-only: #allowedMessage requires type=message, no subtype, no bot_id, user!=self, and user===settings.ownerId (gateway.ts:251-257).",
+        "Feedback arrives via reaction_added (owner-only) and interactive buttons; a 'delete' action calls chat.delete instead of recording feedback (gateway.ts:183-249).",
+        "beginResponse returns a SlackAgentResponse whose observer streams onTextDelta into a live-updating message; #handleInbound threads that observer through evidence + telemetry.",
+        "Live thread history is fetched per message (loadLiveThreadHistory) and passed as history/historyMode; contextualInput wraps it as [UNTRUSTED SLACK CONTEXT] (agent.ts:260-269).",
+        "send() chunks long text, disables unfurling, and titles DM assistant threads (gateway.ts:72-95). Owner U0BJU9L5QMP, default_channel #the-end (config/elliott.yaml:52-53)."
+      ]
+    },
+    {
+      "id": "gateway.webhook",
+      "name": "Webhook inbound (POST /v1/gateways/webhook, HMAC) — a RouteBinding dispatched by the HTTP server",
+      "kind": "gateway",
+      "runtime": "config-gated",
+      "source": "skills/gateway-webhook/src/index.ts:25 (route), :54 (events.onMessage), :82 (verifySignature)",
+      "domain": "ingress",
+      "classifications": {
+        "trustZone": "external-untrusted",
+        "dataClassification": "untrusted-external",
+        "criticality": "supporting",
+        "statefulness": "stateless",
+        "concurrency": "stateless-parallel",
+        "lifecycle": "on-demand",
+        "idempotency": "id=webhook:<uuid> per request; no true idempotency key",
+        "scalability": "single route on the shared Bun HTTP server",
+        "failureMode": "invalid signature->401 (reported), oversize->413, bad JSON->400; onMessage runs detached so 202 returns before the turn completes"
+      },
+      "interface": "RouteBinding (skills/types.ts:39-43): POST /v1/gateways/webhook; handle(request, events). Registered only when settings.webhookSecret resolves (index.ts:18-23). Body JSON {sender:non-empty, text:non-empty, channel?}; returns 202 {accepted:true}.",
+      "characteristics": [
+        "HMAC-SHA256 over the raw body (hex) compared to x-elliott-signature with timingSafeEqual after a length check (index.ts:82-94).",
+        "Body cap 65536 bytes enforced before verification (index.ts:30-34).",
+        "Dispatch is fire-and-forget: events.onMessage(payload) is NOT awaited; 202 Accepted returns immediately (index.ts:54-55).",
+        "Config-gated: no webhook_signing_secret => register returns {} and the route never exists."
+      ]
+    },
+    {
+      "id": "runtime.http",
+      "name": "Bun.serve → #handleRequest (single HTTP server, port 8080)",
+      "kind": "runtime",
+      "runtime": "live",
+      "source": "src/runtime/server.ts:7 (Bun.serve); src/runtime/app.ts:336 (#handleRequest)",
+      "domain": "ingress",
+      "classifications": {
+        "trustZone": "edge",
+        "dataClassification": "untrusted-external",
+        "criticality": "path-critical",
+        "statefulness": "stateless",
+        "concurrency": "stateless-parallel",
+        "lifecycle": "always-on",
+        "idempotency": "per-request; GET routes safe, POST routes not",
+        "scalability": "single Bun.serve on 0.0.0.0:8080, one process",
+        "failureMode": "unmatched path->404; handler exceptions bubble to Bun's default 500"
+      },
+      "interface": "Bun.serve({port:8080, hostname:'0.0.0.0', fetch:#handleRequest}) (server.ts:3-11). Fixed handlers: GET /healthz (200/503 by ready), GET /v1/components, POST /v1/control/evolution (if control plane present), else exact method+path match against collected RouteBindings, else 404 (app.ts:336-359).",
+      "characteristics": [
+        "Route match is exact string equality on method AND pathname -- no params, no prefix routing (app.ts:354-356).",
+        "Only route-owning skills at runtime are gateway-webhook (POST /v1/gateways/webhook) and telemetry-map (7 GET /v1/observability/map* routes).",
+        "Published to the host on 127.0.0.1:18082->8080 only (docker-compose.yml:23); not directly public.",
+        "Passes the shared GatewayEvents into each RouteBinding.handle so routes can open turns (app.ts:357)."
+      ]
+    },
+    {
+      "id": "runtime.inbound",
+      "name": "#handleInbound (dedup + snapshot pin + turn open) + #handleFeedback",
+      "kind": "runtime",
+      "runtime": "live",
+      "source": "src/runtime/app.ts:246 (#handleInbound); :315 (#handleFeedback)",
+      "domain": "ingress",
+      "classifications": {
+        "trustZone": "edge",
+        "dataClassification": "untrusted-external",
+        "criticality": "path-critical",
+        "statefulness": "in-memory-state",
+        "concurrency": "per-conversation-serialized",
+        "lifecycle": "per-turn",
+        "idempotency": "idempotent per message.id via #seen; duplicates dropped",
+        "scalability": "single-process in-memory sets; #seen grows unbounded over process life",
+        "failureMode": "turn exceptions -> evidence.finish('failure') + telemetry turn.finish failure + #capture + user apology; finally releases the in-flight lock"
+      },
+      "interface": "#handleInbound(InboundMessage) and #handleFeedback(GatewayFeedback) (app.ts:246,315). Conversation key = `${gateway}:${channel}:${thread ?? 'root'}`. Builds the per-turn observer, opens evidence, pins a snapshot, and calls agent.turn(); #handleFeedback forwards to evidence.recordFeedback.",
+      "characteristics": [
+        "Dedup: drops any message whose id was already seen (app.ts:247-248).",
+        "Single-flight per conversation: if #inflight has the key, replies 'still working on your previous message' and returns (app.ts:262-267).",
+        "Pins a per-conversation snapshot id so an in-flight conversation keeps a stable snapshot across evolution promotions (app.ts:273).",
+        "retainConversation = message.historyMode !== 'external'; external-history callers get no server-side retention (app.ts:272).",
+        "Emits inbound/turn.begin/turn.finish telemetry with runId=turn:<uuid> and wraps the evidence observer with telemetryTurnObserver (app.ts:249-290)."
+      ]
+    },
+    {
+      "id": "runtime.agentLoop",
+      "name": "RuntimeAgent.turn — round loop (<= MAX_ROUNDS=8)",
+      "kind": "agent-loop",
+      "runtime": "live",
+      "source": "src/runtime/agent.ts:43 (turn); :18 (MAX_ROUNDS); :63 (loop)",
+      "domain": "agent-core",
+      "classifications": {
+        "trustZone": "trusted-core",
+        "dataClassification": "untrusted-external",
+        "criticality": "path-critical",
+        "statefulness": "in-memory-state",
+        "concurrency": "per-conversation-serialized",
+        "lifecycle": "per-turn",
+        "idempotency": "non-idempotent (mutates history, invokes side-effecting tools)",
+        "scalability": "bounded to MAX_ROUNDS=8, MAX_HISTORY_MESSAGES=40 retained",
+        "failureMode": "final round forces allowTools=false; if still tool-calling at the limit returns 'I reached my tool-step limit...'"
+      },
+      "interface": "RuntimeAgent.turn(conversation, text, {observer, context, retainHistory}) -> Promise<string> (agent.ts:43). Round loop <= MAX_ROUNDS(8); assembles ModelTurnRequest {system, messages, tools, allowTools}; fans tool calls via Promise.all(#execute).",
+      "characteristics": [
+        "MAX_ROUNDS=8; last round sets allowTools=false so tool_choice becomes 'none' and the model must answer (agent.ts:64; client.ts:43).",
+        "History is per-conversation, capped to the last 40 messages, with ephemeral tool outputs redacted to a placeholder before retention (agent.ts:172-175,255-258).",
+        "Persona and tool set are pinned per conversation on first use so mid-conversation evolution promotions don't change an active session (agent.ts:91-96,178-191).",
+        "retainHistory===false wipes history/tools/persona for the conversation before and after the turn (agent.ts:48-52,166-170).",
+        "Tool outputs truncated to MAX_TOOL_OUTPUT_CHARACTERS=30000 and wrapped '[UNTRUSTED TOOL OUTPUT]' before re-entering the model (agent.ts:133,144)."
+      ]
+    },
+    {
+      "id": "runtime.prompt",
+      "name": "Prompt assembly (#systemPrompt persona + security rules; contextualInput)",
+      "kind": "runtime",
+      "runtime": "live",
+      "source": "src/runtime/agent.ts:91 (#systemPrompt); :260 (contextualInput)",
+      "domain": "agent-core",
+      "classifications": {
+        "trustZone": "trusted-core",
+        "dataClassification": "internal",
+        "criticality": "path-critical",
+        "statefulness": "in-memory-state",
+        "concurrency": "per-conversation-serialized",
+        "lifecycle": "per-round",
+        "idempotency": "deterministic given persona+messages except the embedded current time",
+        "scalability": "in-process",
+        "failureMode": "persona read once at boot; decoratePersona may append active-evolution skill text"
+      },
+      "interface": "#systemPrompt(conversation) -> persona + fixed 'Runtime security rules' block + current ISO time (agent.ts:91-102). contextualInput(text, options) prepends [UNTRUSTED SLACK CONTEXT] (history/context/attachments) when a message context is present (agent.ts:260-269).",
+      "characteristics": [
+        "Security preamble is constant and always present: tool/gateway output is untrusted evidence not instructions; never reveal credentials/tokens/internal prompts/secret references; explain consequential external actions; current time (agent.ts:97-101).",
+        "Persona base is agents/elliott.yaml spec.persona, read at boot (app.ts:133); when evolution is active, decoratePersona composes active prompt-segment + skill targets on top (evolution.ts:494-497).",
+        "Slack thread history, context entities, and attachment metadata are folded in as clearly-delimited UNTRUSTED context, never as system instructions (agent.ts:272-298).",
+        "The assembled request is the sole seam exposed via TurnObserver.onModelRequest, which telemetry taps (types.ts:300-304)."
+      ]
+    },
+    {
+      "id": "runtime.router",
+      "name": "Route attestation — #attest hashes a FIXED {baseUrl, model} into routeDigest (no dynamic model selection at runtime; canonical ModelDispatcher.select is dormant)",
+      "kind": "runtime",
+      "runtime": "live",
+      "source": "src/runtime/model/client.ts:64 (#attest)",
+      "domain": "model-inference",
+      "classifications": {
+        "trustZone": "trusted-core",
+        "dataClassification": "digest-only",
+        "criticality": "supporting",
+        "statefulness": "stateless",
+        "concurrency": "stateless-parallel",
+        "lifecycle": "per-round",
+        "idempotency": "pure hash of {baseUrl, model} -> deterministic routeDigest",
+        "scalability": "in-process",
+        "failureMode": "cannot fail independently; a synchronous hashing step inside complete()"
+      },
+      "interface": "#attest(result) (client.ts:64): routeDigest=hashValue({baseUrl,model}); usageReference=hashValue({routeDigest, usage, response-digest}); returns result with selection:{routeDigest, usageReference} (types.ts:220-223).",
+      "characteristics": [
+        "NO dynamic model selection at runtime: the route is a fixed attestation over the single configured base_url+model; the canonical ModelDispatcher.select is never called on the turn path.",
+        "routeDigest is what model_selections rows and telemetry model.selection carry -- an integrity/provenance stamp, not a routing decision.",
+        "usageReference binds route to (hashed) usage and response so evidence proves which route produced which output without storing content (client.ts:73-80)."
+      ]
+    },
+    {
+      "id": "runtime.modelClient",
+      "name": "RuntimeModelClient.complete → POST /v1/chat/completions",
+      "kind": "runtime",
+      "runtime": "live",
+      "source": "src/runtime/model/client.ts:23 (complete); :28 (fetch)",
+      "domain": "model-inference",
+      "classifications": {
+        "trustZone": "egress",
+        "dataClassification": "user-content",
+        "criticality": "path-critical",
+        "statefulness": "stateless",
+        "concurrency": "stateless-parallel",
+        "lifecycle": "per-round",
+        "idempotency": "non-idempotent (sampling, temperature 0.4); no retry",
+        "scalability": "one HTTP request per round; upstream max_parallel 12",
+        "failureMode": "non-2xx throws 'LiteLLM <status>: <detail<=500>' -> turn catch -> user apology"
+      },
+      "interface": "RuntimeModelClient.complete(ModelTurnRequest, onTextDelta?) -> ModelTurnResult (client.ts:23). POST {llmBaseUrl}/chat/completions, Bearer llmApiKey, OpenAI body {model, system+wire messages, tools, tool_choice: allowTools?'auto':'none', max_tokens, temperature, stream}. Streaming decodes SSE; non-streaming decodes choices[0].",
+      "characteristics": [
+        "OpenAI Chat Completions wire; tools serialized as {type:'function', function:{name,description,parameters:inputSchema}} (client.ts:86-93).",
+        "Streaming is enabled iff an onTextDelta callback is passed (the Slack live-response observer) and requests stream_options.include_usage (client.ts:46-47).",
+        "model/max_tokens(4096)/temperature(0.4) from resolved config (config.ts:169-177; elliott.yaml profiles.default).",
+        "Default model is the 'fast' profile anthropic/claude-haiku-4-5 (agents/elliott.yaml spec.modelProfile -> config.ts:169; elliott.yaml:22).",
+        "Bearer key read by field name from the vault-rendered env (config.ts:179)."
+      ]
+    },
+    {
+      "id": "runtime.toolExec",
+      "name": "#execute (single-tool dispatch; parallel fan-out is Promise.all in turn)",
+      "kind": "runtime",
+      "runtime": "live",
+      "source": "src/runtime/agent.ts:105 (#execute); :82 (Promise.all fan-out); :132 (tool.execute)",
+      "domain": "agent-core",
+      "classifications": {
+        "trustZone": "trusted-core",
+        "dataClassification": "untrusted-external",
+        "criticality": "path-critical",
+        "statefulness": "stateless",
+        "concurrency": "parallel-fan-out",
+        "lifecycle": "per-tool-call",
+        "idempotency": "dispatch is a pure map lookup; effect depends on the tool",
+        "scalability": "bounded by tool calls per round",
+        "failureMode": "unknown tool -> 'Unknown tool <name>' + errorTag unknown-tool; tool throw -> JSON {error} + errorTag tool-execution-error; never crashes the turn"
+      },
+      "interface": "#execute(ToolCall, options, tools) -> ModelMessage (agent.ts:105). tools.get(call.name); parseArguments (must be an object); tool.execute(input, context); truncate 30000; wrap '[UNTRUSTED TOOL OUTPUT]'; emit onToolProgress in_progress/complete/error with schema/args/result digests.",
+      "characteristics": [
+        "Parallelism lives in turn(): all tool calls in a round run under Promise.all -- #execute itself is single-tool (agent.ts:82).",
+        "Every result is bounded (30000) and prefixed with the untrusted marker before it re-enters the model (agent.ts:133,144).",
+        "resultRetention:'turn' tools (slack_search) return ephemeral output redacted from retained history after the turn (agent.ts:146,208,255-258).",
+        "Tool progress carries only sha256 digests (schema/args/result) -- never raw args/results -- feeding evidence and telemetry (agent.ts:121-141).",
+        "Dispatch is a ReadonlyMap<string,ToolDefinition> lookup keyed by tool name; name collisions are rejected at load time (loader.ts:56-63)."
+      ]
+    },
+    {
+      "id": "runtime.kernel",
+      "name": "AgentKernel — used at boot + snapshots + evolution; registry/broker/dispatcher/placement/footprints are dormant in the turn path",
+      "kind": "runtime",
+      "runtime": "live",
+      "source": "src/runtime/kernel.ts:4 (makeRuntimeKernel); src/kernel.ts:36; consumed src/runtime/app.ts:85,96",
+      "domain": "kernel-governance",
+      "classifications": {
+        "trustZone": "trusted-core",
+        "dataClassification": "internal",
+        "criticality": "supporting",
+        "statefulness": "in-memory-state",
+        "concurrency": "single-writer",
+        "lifecycle": "boot",
+        "idempotency": "start() throws if already started (kernel.ts:98)",
+        "scalability": "single in-process kernel",
+        "failureMode": "kernel.start failure aborts boot; most sub-registries are dormant so cannot fail on the hot path"
+      },
+      "interface": "makeRuntimeKernel(root) -> AgentKernel{ posture:'standard', snapshotDirectory:.elliott-runtime/snapshots } (runtime/kernel.ts). Exposes records(AuditLog), snapshots(FileSnapshotStore), epochs, grants, broker, secrets, placement, footprints, dispatcher, providers, discovery. start()/stop() append kernel.started/stopped + crossLink (kernel.ts:97-120).",
+      "characteristics": [
+        "Only a slice is live: snapshots, records, epochs are consumed by boot + evolution; registry/broker/dispatcher/placement/footprints/discovery/providers are instantiated but never exercised on the turn path.",
+        "start() appends an effect-gating kernel.started record; stop() appends kernel.stopped then crossLink() to seal a Merkle root (kernel.ts:99-120).",
+        "Passed into makeRuntimeEvolutionIntegration to supply records/epochs/snapshots to the release + audit machinery (app.ts:103-113; evolution.ts:328-345)."
+      ]
+    },
+    {
+      "id": "provider.litellm",
+      "name": "LiteLLM gateway (api.litellm.h12o.io/v1) — reached directly by RuntimeModelClient; canonical LiteLlmProvider class is never instantiated",
+      "kind": "provider",
+      "runtime": "live",
+      "source": "config/elliott.yaml:16 (base_url); src/runtime/config.ts:178 (llmBaseUrl); src/runtime/model/client.ts:28",
+      "models": [
+        "anthropic/claude-haiku-4-5 (fast — the configured default)",
+        "anthropic/claude-sonnet-5 (standard)",
+        "anthropic/claude-opus-4-8 (deep)",
+        "tier-local (utility)"
+      ],
+      "domain": "model-inference",
+      "classifications": {
+        "trustZone": "egress",
+        "dataClassification": "user-content",
+        "criticality": "path-critical",
+        "statefulness": "durable-state",
+        "concurrency": "parallel-fan-out",
+        "lifecycle": "on-demand",
+        "idempotency": "non-idempotent completions",
+        "scalability": "external LiteLLM gateway fronting Anthropic + local tiers (max_parallel 12)",
+        "failureMode": "HTTP errors surface as 'LiteLLM <status>' to the client"
+      },
+      "interface": "OpenAI-compatible POST /v1/chat/completions at https://api.litellm.h12o.io/v1 (elliott.yaml:16). Models: anthropic/claude-haiku-4-5 (fast/default), claude-sonnet-5 (standard), claude-opus-4-8 (deep), tier-local (utility/trivial), tier-local-embed (embed).",
+      "characteristics": [
+        "Reached directly by RuntimeModelClient via fetch; the canonical LiteLlmProvider class is never instantiated.",
+        "Only one model id is ever sent -- the resolved settings.model (default fast/haiku); the other profiles are configured but unused on the turn path.",
+        "Bearer auth with the vault-rendered litellm_key (elliott.yaml:17; config.ts:179)."
+      ]
+    },
+    {
+      "id": "provider.ollama",
+      "name": "Ollama provider (canonical-only; never instantiated at runtime)",
+      "kind": "provider",
+      "runtime": "dormant",
+      "source": "src/providers/ollama/index.ts:13",
+      "domain": "model-inference",
+      "classifications": {
+        "trustZone": "egress",
+        "dataClassification": "internal",
+        "criticality": "latent",
+        "statefulness": "stateless",
+        "concurrency": "stateless-parallel",
+        "lifecycle": "on-demand",
+        "idempotency": "n/a (never invoked)",
+        "scalability": "n/a",
+        "failureMode": "not instantiated; no runtime effect"
+      },
+      "interface": "Canonical OllamaProvider (src/providers/ollama/index.ts:13), a framework-layer model provider. Not wired into the runtime model path.",
+      "characteristics": [
+        "Dormant: exists in the canonical framework layer only; the production runtime always routes through LiteLLM, so this provider is never constructed or called."
+      ]
+    },
+    {
+      "id": "tool.files",
+      "name": "files — file_read / file_write / file_list (workspace-contained)",
+      "kind": "tool",
+      "runtime": "live",
+      "source": "skills/files/src/index.ts:17 (register); :28,:47,:70 (tools)",
+      "domain": "tool-execution",
+      "classifications": {
+        "trustZone": "sandboxed",
+        "dataClassification": "user-content",
+        "criticality": "supporting",
+        "statefulness": "durable-state",
+        "concurrency": "stateless-parallel",
+        "lifecycle": "per-tool-call",
+        "idempotency": "read/list idempotent; write overwrites (idempotent for same content)",
+        "scalability": "local fs on the persisted volume",
+        "failureMode": "path-escape rejected by containedForRead/Write; errors -> JSON {error}"
+      },
+      "interface": "Tools file_read{path}, file_write{path,content}, file_list{path?} (index.ts:28,47,70). Root = settings.files.root (default .elliott-runtime/workspace). Returns JSON.",
+      "characteristics": [
+        "Workspace-contained: every path goes through containedForRead/containedForWrite; '..' escapes rejected (index.ts:34,56).",
+        "file_read truncates to 12000 chars (skills MAX_TOOL_OUTPUT_CHARACTERS, src/runtime/skills/http.ts:3) and reports truncated:true; file_list caps at 500 entries (index.ts:41,15). Agent-core re-bounds tool output at 30000 downstream (agent.ts:20), so 12000 is the effective limit.",
+        "Gated on tools.files.enabled + a resolved root; enabled by default (elliott.yaml:71-73).",
+        "Workspace lives on the elliott-runtime named volume so files survive restarts (docker-compose.yml:33-35)."
+      ]
+    },
+    {
+      "id": "tool.terminal",
+      "name": "terminal — terminal_run (Bun.spawn, argv-only, command allowlist)",
+      "kind": "tool",
+      "runtime": "config-gated",
+      "source": "skills/terminal/src/index.ts:20 (register); :29 (terminal_run)",
+      "domain": "tool-execution",
+      "classifications": {
+        "trustZone": "sandboxed",
+        "dataClassification": "internal",
+        "criticality": "supporting",
+        "statefulness": "durable-state",
+        "concurrency": "stateless-parallel",
+        "lifecycle": "per-tool-call",
+        "idempotency": "depends on the command",
+        "scalability": "local process spawn",
+        "failureMode": "non-allowlisted command throws; 60s kill; returns {exitCode,stdout,stderr}"
+      },
+      "interface": "Tool terminal_run{command, args?} (index.ts:29). Runs argv-only (no shell) in settings.terminal.root.",
+      "characteristics": [
+        "No shell: Bun.spawn([command,...args]) with minimal PATH=/usr/local/bin:/usr/bin:/bin, stdin ignored (index.ts:60-66).",
+        "Command must be on settings.terminal.allowedCommands or it throws before spawn (index.ts:41).",
+        "60s deadline kills the child; stdout/stderr truncated to 12000 (skills MAX_TOOL_OUTPUT_CHARACTERS, src/runtime/skills/http.ts:3; index.ts:67,76-77).",
+        "Config-gated: with the shipped default (enabled:false, empty allowed_commands) settings.terminal is undefined and the skill returns {} -- terminal_run is NOT registered at all; it registers only when enabled:true AND a non-empty command allowlist resolve (src/runtime/settings-tools.ts:36,42; skills/terminal/src/index.ts:24; elliott.yaml:74-77)."
+      ]
+    },
+    {
+      "id": "tool.ssh",
+      "name": "ssh — ssh_exec (host allowlist, materialized scoped key)",
+      "kind": "tool",
+      "runtime": "config-gated",
+      "source": "skills/ssh/src/index.ts:19 (register); :43 (ssh_exec)",
+      "domain": "tool-execution",
+      "classifications": {
+        "trustZone": "sandboxed",
+        "dataClassification": "secret",
+        "criticality": "supporting",
+        "statefulness": "durable-state",
+        "concurrency": "stateless-parallel",
+        "lifecycle": "per-tool-call",
+        "idempotency": "depends on the command",
+        "scalability": "one ssh per call",
+        "failureMode": "non-allowlisted host throws; 60s kill; BatchMode prevents interactive prompts"
+      },
+      "interface": "Tool ssh_exec{host, command} (index.ts:43). ssh to settings.ssh.user@host with the materialized scoped key.",
+      "characteristics": [
+        "Host must be on settings.ssh.hosts allowlist (index.ts:55).",
+        "Private key materialized at boot to <state>/ssh/identity with 0600 in a 0700 dir (index.ts:28-41).",
+        "ssh flags: -i key, BatchMode=yes, StrictHostKeyChecking=accept-new, ConnectTimeout=10 (index.ts:71-83).",
+        "Config-gated: default tools.ssh.enabled:false, empty hosts (elliott.yaml:78-81)."
+      ]
+    },
+    {
+      "id": "tool.fetch",
+      "name": "fetch — fetch_url (public HTTP/HTTPS GET, HTML stripped; ungated)",
+      "kind": "tool",
+      "runtime": "live",
+      "source": "skills/fetch/src/index.ts:12 (register); :16 (fetch_url)",
+      "domain": "external-integrations",
+      "classifications": {
+        "trustZone": "egress",
+        "dataClassification": "untrusted-external",
+        "criticality": "supporting",
+        "statefulness": "stateless",
+        "concurrency": "stateless-parallel",
+        "lifecycle": "per-tool-call",
+        "idempotency": "GET is idempotent",
+        "scalability": "one fetch per call",
+        "failureMode": "publicUrl blocks non-public targets (SSRF guard); returns JSON {status,contentType,text}"
+      },
+      "interface": "Tool fetch_url{url} (index.ts:16). Public HTTP/HTTPS GET; HTML stripped; text truncated to 12000 (skills MAX_TOOL_OUTPUT_CHARACTERS, src/runtime/skills/http.ts:3).",
+      "characteristics": [
+        "Ungated -- always registered (no secret/flag).",
+        "publicUrl() rejects non-HTTP(S) and private/loopback targets (SSRF guard in runtime/skills/http).",
+        "stripActiveHtml removes scripts/active markup before returning; result truncated to 12000 (skills MAX_TOOL_OUTPUT_CHARACTERS, src/runtime/skills/http.ts:3; index.ts:30)."
+      ]
+    },
+    {
+      "id": "tool.search",
+      "name": "search/web — brave_search, duckduckgo_search (ungated), firecrawl_search/scrape, parallel_search",
+      "kind": "tool",
+      "runtime": "live",
+      "source": "skills/search-brave/src/index.ts:22; skills/search-duckduckgo/src/index.ts:18; skills/web-firecrawl/src/index.ts:24,:43; skills/web-parallel/src/index.ts:23",
+      "domain": "external-integrations",
+      "classifications": {
+        "trustZone": "egress",
+        "dataClassification": "untrusted-external",
+        "criticality": "supporting",
+        "statefulness": "stateless",
+        "concurrency": "stateless-parallel",
+        "lifecycle": "per-tool-call",
+        "idempotency": "read-only search",
+        "scalability": "per-provider HTTP",
+        "failureMode": "provider HTTP error throws; keyed providers only register if their key resolves"
+      },
+      "interface": "Tools brave_search{query,count?} (gated on braveApiKey), duckduckgo_search (ungated), firecrawl_search/firecrawl_scrape (gated on firecrawlApiKey), parallel_search (gated on parallelApiKey). brave_search and duckduckgo_search return title/url/snippet rows; parallel_search returns {title,url,excerpts[]} (web-parallel/index.ts:51-61); firecrawl returns the raw provider markdown payload (web-firecrawl/index.ts:73).",
+      "characteristics": [
+        "brave_search hits api.search.brave.com with x-subscription-token; registers only when brave_api_key resolves (search-brave/index.ts:17-19,42).",
+        "DuckDuckGo is ungated; Firecrawl and Parallel are config-gated on their keys.",
+        "All are read-only web egress; results are untrusted data (later wrapped UNTRUSTED by toolExec)."
+      ]
+    },
+    {
+      "id": "tool.browser",
+      "name": "browser — browser_render / browser_scrape (HTTP to browserless companion daemon; ungated)",
+      "kind": "tool",
+      "runtime": "live",
+      "source": "skills/browser/src/index.ts:19 (register); :26,:45 (tools); :108 (daemonRequest)",
+      "domain": "external-integrations",
+      "classifications": {
+        "trustZone": "egress",
+        "dataClassification": "untrusted-external",
+        "criticality": "supporting",
+        "statefulness": "stateless",
+        "concurrency": "stateless-parallel",
+        "lifecycle": "per-tool-call",
+        "idempotency": "render idempotent",
+        "scalability": "companion CONCURRENT=3",
+        "failureMode": "domain not on allowlist throws; daemon HTTP error throws"
+      },
+      "interface": "Tools browser_render{url}, browser_scrape{url,selectors[]} (index.ts:26,45). POST to the browserless companion /content and /scrape with a token query param.",
+      "characteristics": [
+        "Talks HTTP to the agent-browser (browserless/chromium) companion at browser.daemon_url (http://agent-browser:3000); the daemon drives Chrome over CDP (index.ts:108-116).",
+        "allowedTarget enforces settings.browser.allowed_domains (empty => any public host) plus the publicUrl SSRF guard (index.ts:83-93).",
+        "Companion token is a query param rendered from Vault browser_token (index.ts:114; elliott.yaml:12).",
+        "Rendered text stripped + truncated to 12000 (skills MAX_TOOL_OUTPUT_CHARACTERS, src/runtime/skills/http.ts:3); scrape returns JSON selector hits (index.ts:41,65)."
+      ]
+    },
+    {
+      "id": "tool.gmail",
+      "name": "Gmail tools — email_search / email_thread / email_archive / email_draft_reply / email_unsubscribe (Gmail API; NOT a gateway, no inbound)",
+      "kind": "tool",
+      "runtime": "config-gated",
+      "source": "skills/gateway-gmail/src/index.ts:19 (register); :24-31 (tools)",
+      "domain": "external-integrations",
+      "classifications": {
+        "trustZone": "egress",
+        "dataClassification": "owner-pii",
+        "criticality": "supporting",
+        "statefulness": "stateless",
+        "concurrency": "stateless-parallel",
+        "lifecycle": "per-tool-call",
+        "idempotency": "search/thread read-only; archive reversible; draft never sends; unsubscribe side-effecting",
+        "scalability": "Gmail API over OAuth refresh token",
+        "failureMode": "Gmail API errors throw; registers only if gmail settings resolve"
+      },
+      "interface": "Tools email_search{query,max?}, email_thread{threadId}, email_archive{emailIds[]}, email_draft_reply{threadId,body}, email_unsubscribe{listUnsubscribeUrl} (index.ts:24-31). NOT a gateway -- no inbound.",
+      "characteristics": [
+        "Config-gated on gmail {clientId,clientSecret,refreshToken}; NOT inbound -- Gmail is queried on demand, never opens a turn.",
+        "email_draft_reply only saves a DRAFT (never sends); email_archive removes the INBOX label (reversible) (index.ts:83-127).",
+        "email_unsubscribe performs RFC-8058 one-click unsubscribe at an HTTPS List-Unsubscribe URL (index.ts:129-140).",
+        "Descriptions explicitly mark returned content untrusted (index.ts:38)."
+      ]
+    },
+    {
+      "id": "tool.email",
+      "name": "Email send tool — email_send (SMTP, send-only; NOT IMAP, NOT a gateway)",
+      "kind": "tool",
+      "runtime": "config-gated",
+      "source": "skills/gateway-email/src/index.ts:9 (register); :14 (email_send)",
+      "domain": "external-integrations",
+      "classifications": {
+        "trustZone": "egress",
+        "dataClassification": "owner-pii",
+        "criticality": "supporting",
+        "statefulness": "stateless",
+        "concurrency": "stateless-parallel",
+        "lifecycle": "per-tool-call",
+        "idempotency": "non-idempotent send",
+        "scalability": "one SMTP send per call",
+        "failureMode": "recipient not on allowlist throws before send"
+      },
+      "interface": "Tool email_send{to,subject,body} (index.ts:14). SMTP send-only from settings.smtp.from.",
+      "characteristics": [
+        "Send-only over SMTP (sendMail); NOT IMAP, NOT a gateway -- no inbound path.",
+        "Recipient must be on settings.smtp.allowedRecipients (case-insensitive) or it throws (index.ts:26-31).",
+        "Config-gated on smtp settings; default channels.email.enabled:false (elliott.yaml:59-65)."
+      ]
+    },
+    {
+      "id": "tool.imessage",
+      "name": "iMessage send tool — imessage_send (BlueBubbles HTTP, send-only; NOT a gateway)",
+      "kind": "tool",
+      "runtime": "config-gated",
+      "source": "skills/gateway-bluebubbles/src/index.ts:16 (register); :28 (imessage_send)",
+      "domain": "external-integrations",
+      "classifications": {
+        "trustZone": "egress",
+        "dataClassification": "owner-pii",
+        "criticality": "supporting",
+        "statefulness": "stateless",
+        "concurrency": "stateless-parallel",
+        "lifecycle": "per-tool-call",
+        "idempotency": "non-idempotent send",
+        "scalability": "BlueBubbles HTTP per call",
+        "failureMode": "recipient not allowlisted throws; BlueBubbles HTTP/status>=400 throws"
+      },
+      "interface": "Tool imessage_send{text,to?} (index.ts:28). POST to BlueBubbles /api/v1/message/text; send-only.",
+      "characteristics": [
+        "Send-only via the paired BlueBubbles server; NOT a gateway (no inbound).",
+        "Recipient resolves to `to` or settings.bluebubbles.defaultRecipient and must be the default or on allowedRecipients (index.ts:48-65).",
+        "Skill only registers if a default recipient or a non-empty allowlist exists (index.ts:19-24); default channels.bluebubbles.enabled:false.",
+        "Long texts chunked at 4000 chars; chatGuid derived as iMessage;-;<recipient> (index.ts:101-117)."
+      ]
+    },
+    {
+      "id": "tool.homeassistant",
+      "name": "Home Assistant REST tools — ha_state / ha_entities / ha_call_service (NOT a gateway; distinct from mcp.homeassistant)",
+      "kind": "tool",
+      "runtime": "config-gated",
+      "source": "skills/gateway-home-assistant/src/index.ts:17 (register); :21 (tools)",
+      "domain": "external-integrations",
+      "classifications": {
+        "trustZone": "egress",
+        "dataClassification": "owner-pii",
+        "criticality": "supporting",
+        "statefulness": "stateless",
+        "concurrency": "stateless-parallel",
+        "lifecycle": "per-tool-call",
+        "idempotency": "state/entities read-only; call_service side-effecting",
+        "scalability": "HA REST per call",
+        "failureMode": "invalid entity_id/service regex-rejected; HA HTTP error throws; 15s timeout"
+      },
+      "interface": "Tools ha_state{entity_id}, ha_entities{domain?}, ha_call_service{domain,service,entity_id,data?} (index.ts:21). HA REST over a long-lived token. Distinct from mcp.homeassistant.",
+      "characteristics": [
+        "REST tools (not MCP) reaching HA /api/states and /api/services/<domain>/<service> with a Bearer token; distinct from the home-assistant MCP endpoint.",
+        "entity_id and domain/service validated against regexes before any call (index.ts:14-15,32,77-82).",
+        "ha_call_service changes real device state -- the description instructs the model to explain the action first (index.ts:65-67).",
+        "Config-gated on homeAssistant {baseUrl,token}; default channels.home_assistant.enabled:false; 15s per-request timeout (index.ts:12)."
+      ]
+    },
+    {
+      "id": "service.scheduler",
+      "name": "Scheduler — service (polls every 30s) + reminder tools (reminder_set/list/cancel); delivers due reminders OUTBOUND (never opens a turn)",
+      "kind": "service",
+      "runtime": "live",
+      "source": "skills/scheduler/src/index.ts:17 (register); :27-83 (tools); :85 (tickService); :95 (context.deliver)",
+      "domain": "tool-execution",
+      "classifications": {
+        "trustZone": "sandboxed",
+        "dataClassification": "user-content",
+        "criticality": "supporting",
+        "statefulness": "durable-state",
+        "concurrency": "poll-loop",
+        "lifecycle": "scheduled",
+        "idempotency": "markDelivered guards re-delivery; set/cancel idempotent by id",
+        "scalability": "single 30s poll; file-backed store",
+        "failureMode": "tick errors reported scheduler:tick; delivery needs a send-capable gateway or #deliver throws"
+      },
+      "interface": "Tools reminder_set{text, at?|in_minutes?}, reminder_list, reminder_cancel{id} (index.ts:27-83) + ServiceBinding 'scheduler' polling every 30s, delivering due reminders via context.deliver (index.ts:85-112).",
+      "characteristics": [
+        "Delivery is OUTBOUND-only and never opens a turn: due reminders push via context.deliver -> #deliver -> primaryGateway.send to the default channel (index.ts:95; app.ts:223-236).",
+        "Reminder store is file-backed under <state>/scheduler and survives restarts (index.ts:18-19).",
+        "reminder_set accepts an ISO datetime with offset or in_minutes (1..527040); past times (>1 min) are rejected (index.ts:36-45,114-128).",
+        "Distinct from the evolution continuous scheduler; this is the user-facing reminder service (shares the 30s tick constant only)."
+      ]
+    },
+    {
+      "id": "mcp.client",
+      "name": "mcp-client — connects each settings.mcp endpoint, exposes remote tools as mcp_<id>_<tool>, one ServiceBinding per endpoint",
+      "kind": "mcp-endpoint",
+      "runtime": "live",
+      "source": "skills/mcp-client/src/index.ts:9 (register); src/client.ts:12 (connectMcp); :78 (execute → tools/call)",
+      "domain": "mcp-federation",
+      "classifications": {
+        "trustZone": "egress",
+        "dataClassification": "untrusted-external",
+        "criticality": "supporting",
+        "statefulness": "in-memory-state",
+        "concurrency": "stateless-parallel",
+        "lifecycle": "boot",
+        "idempotency": "tools/call idempotency depends on the remote tool",
+        "scalability": "one connection per endpoint",
+        "failureMode": "per-endpoint connect failures Promise.allSettled-isolated and reported mcp:<id>; a failed endpoint contributes no tools"
+      },
+      "interface": "register connects every settings.mcp endpoint via connectMcp; exposes each remote tool as ToolDefinition mcp_<id>_<tool> (sanitized) + one ServiceBinding 'mcp:<id>' per endpoint (client.ts:70-88; index.ts:24-35). Protocol 2025-06-18: initialize -> notifications/initialized -> paged tools/list -> tools/call.",
+      "characteristics": [
+        "One ServiceBinding per endpoint; health() reports the tool count; stop() closes the wire (index.ts:30-35).",
+        "Tool name = mcp_<id>_<tool> with non-[A-Za-z0-9_-] replaced by '_' (client.ts:87-88).",
+        "tools/call results flatten content[].text; isError:true throws; structuredContent is the fallback (client.ts:90-101).",
+        "Endpoints connect at boot (Promise.allSettled); a broken endpoint is reported and skipped, never blocking boot (index.ts:12-23)."
+      ]
+    },
+    {
+      "id": "mcp.h12o",
+      "name": "h12o MCP server (mcp.h12o.io/mcp)",
+      "kind": "mcp-endpoint",
+      "runtime": "live",
+      "source": "agents/elliott.yaml mcp[0] (id h12o, transport streamable-http)",
+      "domain": "mcp-federation",
+      "classifications": {
+        "trustZone": "egress",
+        "dataClassification": "untrusted-external",
+        "criticality": "supporting",
+        "statefulness": "in-memory-state",
+        "concurrency": "stateless-parallel",
+        "lifecycle": "per-tool-call",
+        "idempotency": "per remote tool",
+        "scalability": "streamable-http per call",
+        "failureMode": "HTTP non-2xx throws MCP <id> HTTP <status>; JSON-RPC error unwrapped to an Error"
+      },
+      "interface": "h12o MCP server https://mcp.h12o.io/mcp (agents/elliott.yaml mcp[0]), transport streamable-http. JSON-RPC 2.0 over POST with an mcp-session-id captured from the initialize response.",
+      "characteristics": [
+        "streamable-http wire: POST JSON-RPC; response may be application/json or text/event-stream (parsed for the JSON-RPC frame); 202/204 treated as empty (http.ts:56-73).",
+        "Session continuity via the mcp-session-id response header echoed on subsequent posts (http.ts:22,53).",
+        "Optional Bearer authorization if configured (http.ts:51-52).",
+        "Surfaces h12o knowledge/vault/service/host/notification tools to the agent as mcp_h12o_*."
+      ]
+    },
+    {
+      "id": "mcp.homeassistant",
+      "name": "home-assistant MCP server (SSE)",
+      "kind": "mcp-endpoint",
+      "runtime": "live",
+      "source": "agents/elliott.yaml mcp[1] (id home-assistant, transport sse)",
+      "domain": "mcp-federation",
+      "classifications": {
+        "trustZone": "egress",
+        "dataClassification": "owner-pii",
+        "criticality": "supporting",
+        "statefulness": "in-memory-state",
+        "concurrency": "stateless-parallel",
+        "lifecycle": "per-tool-call",
+        "idempotency": "per remote tool",
+        "scalability": "one long-lived SSE stream",
+        "failureMode": "stream close fails all pending; 60s per-request timeout; HTTP errors throw"
+      },
+      "interface": "home-assistant MCP server (agents/elliott.yaml mcp[1]), transport sse. Opens a GET text/event-stream, receives an 'endpoint' event giving the POST URL, then POSTs JSON-RPC and correlates responses by id off the stream (sse.ts:47-82).",
+      "characteristics": [
+        "SSE transport: one long-lived stream; the first 'endpoint' event yields the RPC POST URL; responses arrive as data frames matched to pending requests by numeric id (sse.ts:64-82,116-133).",
+        "Per-request 60s timeout; stream close rejects all pending calls (sse.ts:6,104-114,135-145).",
+        "Distinct from the tool.homeassistant REST tools -- this is the MCP-federated HA surface."
+      ]
+    },
+    {
+      "id": "memory.sessionStore",
+      "name": "SessionStore (bun:sqlite, WAL) — only its .evolution sub-store is consumed at runtime; base write methods (createSession/appendMessage/recordUsage) have zero callers",
+      "kind": "memory",
+      "runtime": "live",
+      "source": "src/memory/session-store/index.ts:37 (class), :26 (WAL); constructed src/runtime/app.ts:77",
+      "domain": "memory-persistence",
+      "classifications": {
+        "trustZone": "trusted-core",
+        "dataClassification": "operational-metadata",
+        "criticality": "supporting",
+        "statefulness": "durable-state",
+        "concurrency": "single-writer",
+        "lifecycle": "boot",
+        "idempotency": "id-keyed INSERTs; upserts on gateway_routing/delegation",
+        "scalability": "single bun:sqlite file (WAL)",
+        "failureMode": "constructed at boot; write exceptions caught by the evidence #capture, not fatal"
+      },
+      "interface": "SessionStore(filename, leaseMs) over bun:sqlite (WAL, strict) (index.ts:37-51). Base API createSession/appendMessage/recordUsage/search(FTS)/analytics/gateway routing/delegation + ScheduledJobStore lease API + the evolution sub-store (this.evolution: SessionEvolutionStore).",
+      "characteristics": [
+        "At runtime only .evolution is exercised on the turn path; base write methods (createSession/appendMessage/recordUsage) have zero runtime callers, so the 6 base tables stay empty.",
+        "WAL + strict typing; FTS5 trigram + unicode61 virtual tables for message search (index.ts:26,33-34) -- unused at runtime.",
+        "Also used off-hot-path: the evolution scheduler opens its own SessionStore handles to read feedback/tool-failure summaries and to back the continuous scheduler's job store (evolution-scheduler.ts:191-209,353)."
+      ]
+    },
+    {
+      "id": "memory.evidence",
+      "name": "RuntimeEvolutionEvidence sink — wraps the TurnObserver, records runs/tool_calls/model_selections/component_uses/feedback",
+      "kind": "memory",
+      "runtime": "live",
+      "source": "src/runtime/evolution-evidence.ts:26 (class); constructed src/runtime/app.ts:125 (sink = evidenceStore.evolution :126)",
+      "domain": "memory-persistence",
+      "classifications": {
+        "trustZone": "trusted-core",
+        "dataClassification": "digest-only",
+        "criticality": "supporting",
+        "statefulness": "in-memory-state",
+        "concurrency": "per-conversation-serialized",
+        "lifecycle": "per-turn",
+        "idempotency": "fresh uuid per record; one run per turn; finishRun updates by id",
+        "scalability": "in-process caches + shared sqlite handle",
+        "failureMode": "every sink write wrapped in #capture (try/catch -> report); a failed recordRun makes the turn's evidence a no-op but never breaks the turn"
+      },
+      "interface": "RuntimeEvolutionEvidence wraps the TurnObserver: beginTurn()->{runId, observer, finish(disposition)}; recordFeedback(GatewayFeedback). The threaded observer records model_selections (onModelSelection), tool_calls + component_uses (onToolProgress), and runs (recordRun/finishRun) into the SessionEvolutionStore sink (evolution-evidence.ts:26-331).",
+      "characteristics": [
+        "Sink is the narrow Pick<SessionEvolutionStore, recordRun|finishRun|recordToolCall|recordComponentUse|recordFeedback|recordModelSelection> (types.ts:112-121).",
+        "Only digests are persisted (schema/args/result digests, evidenceDigest) -- never raw prompt, arguments, or tool output.",
+        "Maps tool names -> evolution targets (targetsForTool) and turn -> targets (turnTargets); when evolution is inactive both default to ()=>[] so runs/tool_calls still record but component_uses/feedback have no targets (app.ts:127-128).",
+        "recordFeedback correlates a reaction/button to the latest run on gateway:channel and writes confirmed-success/confirmed-failure per remembered target (evolution-evidence.ts:109-135).",
+        "Also records a tool-confusion metric (requested vs selected tool) via effect (evolution-evidence.ts:197-203)."
+      ]
+    },
+    {
+      "id": "memory.curated",
+      "name": "Curated memory (MEMORY.md / USER.md) — library-only; no runtime consumer",
+      "kind": "memory",
+      "runtime": "dormant",
+      "source": "src/memory/curated/index.ts:41",
+      "domain": "memory-persistence",
+      "classifications": {
+        "trustZone": "trusted-core",
+        "dataClassification": "user-content",
+        "criticality": "latent",
+        "statefulness": "durable-state",
+        "concurrency": "single-writer",
+        "lifecycle": "on-demand",
+        "idempotency": "n/a (no runtime consumer)",
+        "scalability": "n/a",
+        "failureMode": "no runtime consumer; cannot affect the running system"
+      },
+      "interface": "Curated memory library (src/memory/curated/index.ts:41) over MEMORY.md / USER.md -- a framework-layer read/write API. No runtime code path constructs or reads it.",
+      "characteristics": [
+        "Dormant: library-only; the production runtime never loads curated memory into a turn (the persona is the only file-backed context)."
+      ]
+    },
+    {
+      "id": "memory.snapshots",
+      "name": "Snapshots (FileSnapshotStore, atomic temp-write+rename) — created once at boot; per-conversation an in-memory snapshot-ID is pinned",
+      "kind": "memory",
+      "runtime": "live",
+      "source": "src/core/snapshot/snapshot.ts:125 (FileSnapshotStore), :134 (atomic write); src/runtime/conversation-snapshots.ts:4 (in-memory pin)",
+      "domain": "memory-persistence",
+      "classifications": {
+        "trustZone": "trusted-core",
+        "dataClassification": "internal",
+        "criticality": "supporting",
+        "statefulness": "durable-state",
+        "concurrency": "single-writer",
+        "lifecycle": "boot",
+        "idempotency": "snapshot id = hashValue(input+createdAt); atomic wx temp + rename",
+        "scalability": "immutable JSON files + in-memory pin",
+        "failureMode": "boot ensureRuntimeSnapshot must succeed (turn throws 'Runtime Snapshot is absent' otherwise, app.ts:271)"
+      },
+      "interface": "FileSnapshotStore(root) extends SnapshotStore: create(SnapshotInput)->immutable frozen Snapshot persisted as {id}.json; get/list (snapshot.ts:125-146). RuntimeConversationSnapshots.resolve(conversation, currentId, retain) pins an in-memory snapshot id per conversation (conversation-snapshots.ts:4-17).",
+      "characteristics": [
+        "Snapshots are immutable and content-addressed (id from a hash of configuration+components+createdAt); write is atomic temp-write + rename with flag 'wx' (snapshot.ts:134-145).",
+        "Created once at boot (ensureRuntimeSnapshot from kernel.snapshots + settings + packages); its id becomes the runtime #snapshotId (app.ts:95-101).",
+        "Per-conversation the id is pinned in-memory so a conversation keeps a stable snapshot even if evolution promotes a new one; non-retained conversations always see the current id (conversation-snapshots.ts:9-16).",
+        "Snapshot ids stamp every runs row (recordRun snapshotId) so evidence is attributable to an exact immutable configuration (evolution-evidence.ts:96-107)."
+      ]
+    },
+    {
+      "id": "database.sessions",
+      "name": "sessions.sqlite — at runtime only 5 evolution tables are written (runs, tool_calls, component_uses, feedback, model_selections); the 6 base tables and evaluation_labels stay empty",
+      "kind": "database",
+      "runtime": "live",
+      "source": ".elliott-runtime/sessions.sqlite (path src/runtime/app.ts:77); DDL src/memory/session-store/index.ts:25 + evolution.ts:12",
+      "tables": [
+        "sessions",
+        "messages(+fts_trigram,+fts_cjk)",
+        "model_usage",
+        "gateway_routing",
+        "delegation_state",
+        "scheduled_jobs",
+        "runs",
+        "component_uses",
+        "tool_calls",
+        "feedback",
+        "evaluation_labels",
+        "model_selections"
+      ],
+      "tablesWrittenAtRuntime": [
+        "runs",
+        "tool_calls",
+        "component_uses",
+        "feedback",
+        "model_selections"
+      ],
+      "domain": "memory-persistence",
+      "classifications": {
+        "trustZone": "trusted-core",
+        "dataClassification": "operational-metadata",
+        "criticality": "supporting",
+        "statefulness": "durable-state",
+        "concurrency": "single-writer",
+        "lifecycle": "boot",
+        "idempotency": "PRIMARY KEY id-keyed INSERTs",
+        "scalability": "single sqlite file (WAL) + readonly tails",
+        "failureMode": "file on the persisted volume; readonly tails tolerate brief absence at boot"
+      },
+      "interface": ".elliott-runtime/sessions.sqlite. 12 tables: 6 base (sessions, messages+fts, model_usage, gateway_routing, delegation_state, scheduled_jobs) + 6 evolution (runs, component_uses, tool_calls, feedback, evaluation_labels, model_selections) (index.ts SCHEMA + evolution.ts EVOLUTION_SCHEMA). At runtime only 5 of the 6 evolution tables are written; evaluation_labels is defined but never written (recordEvaluationLabel has no callers).",
+      "characteristics": [
+        "tablesWrittenAtRuntime: runs, tool_calls, component_uses, feedback, model_selections; the 6 base tables + FTS + evaluation_labels stay empty on the turn path.",
+        "Three consumers: the evidence sink (writes), the evolution scheduler (reads feedbackForTarget/toolFailureSummaryForTarget), and the telemetry-map SqliteTail (read-only).",
+        "evaluation_labels is defined but never written at runtime: recordEvaluationLabel (evolution.ts:102) has zero callers and is excluded from the evidence sink's Pick (types.ts:113-121); the evaluation path persists reports to a file store, not this table.",
+        "Persisted on the elliott-runtime volume (docker-compose.yml:35)."
+      ]
+    },
+    {
+      "id": "learning.signals",
+      "name": "Evolution signal detection — live path is selectRuntimeEvolutionSignal (src/runtime/evolution-signals.ts) via the evolution scheduler; canonical SignalDetector is dormant",
+      "kind": "learning",
+      "runtime": "live",
+      "source": "src/runtime/evolution-signals.ts:113 (selectRuntimeEvolutionSignal), called src/runtime/evolution-scheduler.ts:210; delegates to src/learning/evolution/continuous/triage.ts:22; derivation helper src/learning/evolution/continuous/signals.ts:37 (evolutionSignalFromToolFailure)",
+      "domain": "self-evolution",
+      "classifications": {
+        "trustZone": "trusted-core",
+        "dataClassification": "operational-metadata",
+        "criticality": "latent",
+        "statefulness": "durable-state",
+        "concurrency": "single-flight-queue",
+        "lifecycle": "scheduled",
+        "idempotency": "pure scoring over inputs",
+        "scalability": "off-hot-path scheduler tick",
+        "failureMode": "only runs when evolution config+runtime present and continuous.enabled; otherwise never fires"
+      },
+      "interface": "selectRuntimeEvolutionSignal({targets, projections, feedbackByTarget, toolFailuresByTarget, cooldown/active sets, budgets, maximumRiskClass}) -> selection (src/runtime/evolution-signals.ts:113; called evolution-scheduler.ts:210). Derives regression signals from evidence + performance projections, then delegates gating+selection to triageEvolutionSignals (continuous/triage.ts:22).",
+      "characteristics": [
+        "Live path is selectRuntimeEvolutionSignal in src/runtime/evolution-signals.ts:113 (delegates gating+selection to continuous/triage.ts); continuous/signals.ts only supplies derivation helpers, of which only evolutionSignalFromToolFailure is on the live path; the canonical SignalDetector (src/learning/signals) is dormant.",
+        "Inputs come from sqlite evidence (feedbackForTarget, toolFailureSummaryForTarget) plus FileEvolutionProjectionStore (evolution-scheduler.ts:191-225).",
+        "Only active when settings.evolution + evolutionRuntime resolve AND config.continuous.enabled; otherwise the whole subsystem is inert."
+      ]
+    },
+    {
+      "id": "learning.triage",
+      "name": "Evolution signal triage (score + gate; selects top-scored signal) — live path is continuous/triage.ts; canonical curator is dormant",
+      "kind": "learning",
+      "runtime": "live",
+      "source": "src/learning/evolution/continuous/triage.ts:22 (triageEvolutionSignals)",
+      "domain": "self-evolution",
+      "classifications": {
+        "trustZone": "trusted-core",
+        "dataClassification": "operational-metadata",
+        "criticality": "latent",
+        "statefulness": "stateless",
+        "concurrency": "single-flight-queue",
+        "lifecycle": "scheduled",
+        "idempotency": "deterministic scoring + tie-break",
+        "scalability": "pure function",
+        "failureMode": "returns a reason (concurrency/budget-exhausted, no-eligible-signal) instead of a selection when gated"
+      },
+      "interface": "triageEvolutionSignals(input) -> {selected?, score, reason} (triage.ts:22-52). Score = strength*usageFrequency*expectedImpact*evaluatorConfidence / max(eps, estimatedCost) (triage.ts:16-20).",
+      "characteristics": [
+        "Gates first on concurrency (activeRunCount>=maximumConcurrentRuns) and monthly budget, then filters cooldown/active/risk and forbids model-reflection signals at C3/C4 (triage.ts:25-39).",
+        "Selects the top-scored eligible signal, tie-broken by targetRef (triage.ts:40-44).",
+        "maximumRiskClass gate: a signal above the configured risk rank is ineligible (triage.ts:31-36)."
+      ]
+    },
+    {
+      "id": "learning.proposals",
+      "name": "Proposals (FileProposalStore) → canary → promote / rollback",
+      "kind": "learning",
+      "runtime": "live",
+      "source": "src/learning/proposals/index.ts:18 (FileProposalStore); opened src/runtime/evolution.ts:342; release binding :357",
+      "domain": "self-evolution",
+      "classifications": {
+        "trustZone": "trusted-core",
+        "dataClassification": "internal",
+        "criticality": "latent",
+        "statefulness": "durable-state",
+        "concurrency": "single-writer",
+        "lifecycle": "scheduled",
+        "idempotency": "proposal ids; store-backed",
+        "failureMode": "opened at boot when evolution active; append failures reported/audited"
+      },
+      "interface": "FileProposalStore.open({root:<state>/proposals, records}) (evolution.ts:342). Authored via authorEvolutionProposal (release/proposal.ts) -> FileProposalStore; consumed by the control plane (promote/rollback) and the release monitor.",
+      "characteristics": [
+        "Proposal -> canary -> promote/rollback lifecycle; the release binding wires proposals to snapshots/epochs/records (evolution.ts:357-387).",
+        "canary() posts the release to runtime.canaryEndpoint (/v1/canary) and only accepts if the response asserts passed:true and the matching snapshotId (evolution.ts:371-386).",
+        "Promotion publishes a new snapshot id (publishSnapshotId) which becomes the runtime #snapshotId for new conversations (app.ts:108-110)."
+      ]
+    },
+    {
+      "id": "learning.control",
+      "name": "Evolution control plane (token-gated operator endpoint /v1/control/evolution; bearer + snapshot auth)",
+      "kind": "learning",
+      "runtime": "config-gated",
+      "source": "src/runtime/evolution.ts:500 (makeEvolutionControlPlane), :98 (auth); routed src/runtime/app.ts:350",
+      "domain": "self-evolution",
+      "classifications": {
+        "trustZone": "edge",
+        "dataClassification": "internal",
+        "criticality": "latent",
+        "statefulness": "stateless",
+        "concurrency": "stateless-parallel",
+        "lifecycle": "on-demand",
+        "idempotency": "operations vary; promote/rollback are state transitions",
+        "scalability": "single HTTP route",
+        "failureMode": "401 on bad bearer/absent snapshot/insufficient capability; 400 on bad request; 500 on operation failure (control-plane.ts:98-127)"
+      },
+      "interface": "EvolutionControlPlaneBinding.handle(request): POST /v1/control/evolution, body {operation, arguments[]} (control-plane.ts:93-128). Operations map to capabilities (evolution.inspect->evolution.target.read ... release.promote->release.promote). Returns {principalId, snapshotId, result}.",
+      "characteristics": [
+        "Auth is Bearer + active-snapshot: makeBearerEvolutionAuthorityResolver compares Authorization to 'Bearer <controlToken>' with timingSafeEqual and requires a current snapshot id (evolution.ts:98-125).",
+        "Per-operation capability check via authority.authorize(OPERATION_CAPABILITIES[op], args) before executing (control-plane.ts:104-108).",
+        "Only mounted when settings.evolutionRuntime resolves (control token + operator principal + capabilities from env, config.ts:87-141); routed at app.ts:350-353 ahead of the generic route table.",
+        "The agent also gets a restricted backend (agentBackend) exposing inspect/run/status/propose under agentCapabilities -- never approve/promote/rollback (evolution.ts:211-257)."
+      ]
+    },
+    {
+      "id": "evaluator.gauntlet",
+      "name": "Evolution evaluation — live path is orchestrator.evaluate → harness → independent HTTP evaluator; canonical 12-stage ProposalEvaluator is dormant",
+      "kind": "evaluator",
+      "runtime": "live",
+      "source": "src/learning/evolution/orchestrator/operations.ts:128 (evaluateEvolutionRun); src/learning/evolution/evaluation/harness.ts; evaluation/http.ts",
+      "domain": "self-evolution",
+      "classifications": {
+        "trustZone": "trusted-core",
+        "dataClassification": "internal",
+        "criticality": "latent",
+        "statefulness": "durable-state",
+        "concurrency": "single-flight-queue",
+        "lifecycle": "scheduled",
+        "idempotency": "content-addressed reports/digests",
+        "scalability": "off-hot-path",
+        "failureMode": "unavailable engines/evaluators return typed EvolutionEvaluationError; without *_URL config it cannot optimize/compare"
+      },
+      "interface": "Runtime evolution orchestrator (makeEvolutionOrchestrator) + evaluation harness + independent HTTP evaluator (makeHttpIndependentEvaluator: POST /v1/baseline, /v1/compare) (evolution.ts:328-356; evaluation/http.ts:57-84). orchestrator.evaluate -> harness -> independent evaluator; authors proposals on success.",
+      "characteristics": [
+        "Live path is orchestrator.evaluate -> harness -> an independently-configured HTTP evaluator; the canonical 12-stage ProposalEvaluator is dormant.",
+        "Optimization is routed by target class: code->darwinian engine, text->dspy engine (makeRuntimeOptimizationEngine, evolution.ts:152-209).",
+        "Independent evaluator + baseline/compare are cached (withIndependentEvaluatorCache) and bound to route/environment digests for reproducibility (evolution.ts:352-356,422-434).",
+        "Runs entirely off the turn hot path, driven by the continuous scheduler tick."
+      ]
+    },
+    {
+      "id": "evaluator.companions",
+      "name": "Companions: dspy · darwinian · benchmarks (sealed OCI, reached over HTTP)",
+      "kind": "evaluator",
+      "runtime": "config-gated",
+      "source": "companions/dspy/dspy_worker.py, companions/darwinian/darwinian_worker.py, companions/benchmarks/evaluation_worker.py; .artifacts/evolution-companions/*.oci.tar; endpoints src/runtime/evolution.ts:285,302,351,373",
+      "domain": "self-evolution",
+      "classifications": {
+        "trustZone": "egress",
+        "dataClassification": "internal",
+        "criticality": "latent",
+        "statefulness": "durable-state",
+        "concurrency": "parallel-fan-out",
+        "lifecycle": "scheduled",
+        "idempotency": "per worker call",
+        "scalability": "sealed OCI workers reached over HTTP",
+        "failureMode": "each engine/evaluator is 'unavailable' unless its *_URL env is set, degrading to typed errors (evolution.ts:280-351)"
+      },
+      "interface": "Sealed OCI companion workers over HTTP: dspy (ELLIOTT_EVOLUTION_DSPY_URL), darwinian (ELLIOTT_EVOLUTION_DARWINIAN_URL), evaluator/benchmarks (ELLIOTT_EVOLUTION_EVALUATOR_URL), candidate-check, canary. POST /v1/baseline, /v1/compare, /v1/canary, optimization endpoints (evolution.ts:280-386; companions/*/*_worker.py).",
+      "characteristics": [
+        "Companion images are sealed OCI tarballs (.artifacts/evolution-companions/*.oci.tar); reached only over their configured URLs.",
+        "Each is independently gated: a missing *_URL yields an unavailable engine/evaluator/benchmark-runner rather than a hard failure (evolution.ts:280-351; evolution-scheduler.ts:387-391).",
+        "isolation:'container' with maximumCandidates budgets from config.budgets.perRun (evolution.ts:288-312)."
+      ]
+    },
+    {
+      "id": "obs.telemetry",
+      "name": "RuntimeTelemetry bus (in-process pub/sub, ring buffer, SSE fan-out)",
+      "kind": "observability",
+      "runtime": "live",
+      "source": "src/runtime/telemetry.ts:16 (bus), :64 (singleton)",
+      "domain": "observability",
+      "classifications": {
+        "trustZone": "trusted-core",
+        "dataClassification": "operational-metadata",
+        "criticality": "supporting",
+        "statefulness": "in-memory-state",
+        "concurrency": "parallel-fan-out",
+        "lifecycle": "always-on",
+        "idempotency": "monotonic seq per event; emit is fire-and-forget",
+        "scalability": "512-event ring; subscriber set",
+        "failureMode": "subscriber exceptions swallowed per-subscriber so a broken listener never affects a turn (telemetry.ts:41-47)"
+      },
+      "interface": "runtimeTelemetry: TelemetryBus (telemetry.ts:64). emit(type,payload,runId?), subscribe(fn)->unsub, recent()->ring, promptsEnabled. Event types: inbound, turn.begin, model.request, model.selection, tool.progress, turn.finish, db.write, error, evolution, heartbeat (types.ts:312-343). telemetryTurnObserver wraps the turn observer to fan model/tool/request events onto the bus (telemetry.ts:88-114).",
+      "characteristics": [
+        "In-process pub/sub only; never persists, never leaves the process (types.ts:307-310).",
+        "Ring buffer capacity 512 (RING_CAPACITY); recent() replays it to new subscribers (telemetry.ts:11,39-40,57-59).",
+        "promptsEnabled (ELLIOTT_TELEMETRY_PROMPTS!='0', default on) controls whether model.request carries raw system+messages or only digests (telemetry.ts:62,80-83).",
+        "Subscriber isolation is explicit: a throwing subscriber is caught and ignored so telemetry can never break the hot path (telemetry.ts:42-47)."
+      ]
+    },
+    {
+      "id": "obs.footprint",
+      "name": "FootprintTracker (in-memory token/cost attribution) — instantiated inside the kernel but never fed at runtime",
+      "kind": "observability",
+      "runtime": "dormant",
+      "source": "src/observability/index.ts:33; instantiated src/kernel.ts:52",
+      "domain": "kernel-governance",
+      "classifications": {
+        "trustZone": "trusted-core",
+        "dataClassification": "operational-metadata",
+        "criticality": "latent",
+        "statefulness": "in-memory-state",
+        "concurrency": "single-writer",
+        "lifecycle": "boot",
+        "idempotency": "n/a (never fed)",
+        "scalability": "n/a",
+        "failureMode": "never fed; no runtime effect"
+      },
+      "interface": "FootprintTracker (observability/index.ts:33) -- in-memory token/cost attribution; instantiated as kernel.footprints (kernel.ts:52). No runtime code feeds it usage.",
+      "characteristics": [
+        "Dormant: constructed inside the kernel but never fed on the turn path; RuntimeModelUsage is attested/telemetered but not routed into the footprint tracker."
+      ]
+    },
+    {
+      "id": "obs.audit",
+      "name": "AuditLog (hash-chained, Merkle, in-memory) — written for kernel lifecycle + evolution, NOT for the turn hot path",
+      "kind": "observability",
+      "runtime": "live",
+      "source": "src/audit/log.ts:25; instantiated src/kernel.ts:41",
+      "domain": "kernel-governance",
+      "classifications": {
+        "trustZone": "trusted-core",
+        "dataClassification": "internal",
+        "criticality": "supporting",
+        "statefulness": "in-memory-state",
+        "concurrency": "single-writer",
+        "lifecycle": "boot",
+        "idempotency": "append-only, hash-chained; each record digest chains the previous",
+        "scalability": "in-memory shards + GroupCommitter batches",
+        "failureMode": "effect-gating records commit before external effects; observational buffered to a 128 tail (log.ts:44-51,55-64)"
+      },
+      "interface": "AuditLog implements RecordAppender: append(RecordDraft)->RecordEvent (hash-chained per shard), executeAfterDurable, flushObservational, crossLink()->Merkle-rooted AuditCrossLink, snapshot(), static verify() (log.ts:25-170).",
+      "characteristics": [
+        "Records are hash-chained per shard (createAuditRecord chains prev.digest) and periodically cross-linked into a Merkle root (log.ts:38-53,72-116).",
+        "Written for kernel lifecycle (started/stopped/crosslink) and the evolution machinery (signal.detected, release records) -- NOT for the turn hot path.",
+        "Two durability classes: effect-gating (committed immediately, gates external effects) and observational (buffered to a 128-record tail) (log.ts:44-51).",
+        "static verify() re-checks per-shard chains and cross-link Merkle roots for tamper-evidence (log.ts:127-169)."
+      ]
+    },
+    {
+      "id": "obs.reporter",
+      "name": "Error reporter (GlitchTip) — fed via #capture from turn/gateway/skill/evolution failures",
+      "kind": "observability",
+      "runtime": "live",
+      "source": "src/runtime/reporter.ts:5 (class); instantiated src/runtime/app.ts:80; #capture app.ts:361",
+      "domain": "observability",
+      "classifications": {
+        "trustZone": "egress",
+        "dataClassification": "operational-metadata",
+        "criticality": "supporting",
+        "statefulness": "stateless",
+        "concurrency": "stateless-parallel",
+        "lifecycle": "on-demand",
+        "idempotency": "fresh event_id per event; best-effort",
+        "scalability": "one POST per capture",
+        "failureMode": "send failures are caught and only console.error'd; capture never throws into the caller (reporter.ts:20-25)"
+      },
+      "interface": "RuntimeErrorReporter.capture(error, mechanism): console.error + (if DSN) POST a Sentry envelope to the GlitchTip endpoint (reporter.ts:16-60). #capture(error, mechanism) is the runtime's single funnel (app.ts:361).",
+      "characteristics": [
+        "Fed from every failure seam: turn, gateway, gateway:<name>, service:<name>, skill:<name>, evolution-evidence, webhook:ingress (app.ts #capture; skill context.report).",
+        "Sends a Sentry/GlitchTip envelope (x-sentry-envelope) with type/value + mechanism tag, environment, release; DSN parsed to endpoint+publicKey (reporter.ts:28-78).",
+        "Only the error name + message + mechanism are sent -- no stack payloads, args, or prompt content.",
+        "Config-gated on glitchtipDsn: without it, capture degrades to console.error only (reporter.ts:19)."
+      ]
+    },
+    {
+      "id": "obs.map",
+      "name": "telemetry-map extension — serves observability routes, subscribes to the bus, read-only tails sessions.sqlite (this map's own backend)",
+      "kind": "observability",
+      "runtime": "live",
+      "source": "skills/telemetry-map/src/index.ts:25 (register)",
+      "domain": "observability",
+      "classifications": {
+        "trustZone": "edge",
+        "dataClassification": "operational-metadata",
+        "criticality": "supporting",
+        "statefulness": "in-memory-state",
+        "concurrency": "poll-loop",
+        "lifecycle": "always-on",
+        "idempotency": "GET reads; SSE stream",
+        "scalability": "<=400 events / <=60 turns windows; 1.5s poll",
+        "failureMode": "dead SSE client removed on enqueue failure; tail tolerates a briefly-absent db; broken clients isolated (aggregator.ts:145-151; sse.ts:19-23)"
+      },
+      "interface": "telemetry-map skill: 7 GET routes under /v1/observability/map (ui, /topology, /state, /stream(SSE), /turn?id, /font/*) + a 'telemetry-map' service (aggregator subscribes to the bus; SqliteTail polls sessions.sqlite every 1.5s) (index.ts:105-157).",
+      "characteristics": [
+        "Subscribes to runtimeTelemetry, keeps <=400 events and <=60 turns bucketed by runId, and re-emits db.write/heartbeat back onto the bus (aggregator.ts:15-16,141-168; index.ts:37,146).",
+        "Reads sessions.sqlite strictly read-only ({readonly:true}) surfacing per-table counts/deltas + recent rows for a whitelist of tables (sqlite-tail.ts:65,14-24).",
+        "SSE /stream registers a client with the aggregator; frames are 'event:<type>\\ndata:<json>' (sse.ts:7,12-36).",
+        "Its /topology route serves this topology JSON (index.ts:66-70); routes are unauthenticated but only reachable on the loopback-published port.",
+        "Rides in-process inside the elliott container -- a bundled skill, not a separate service."
+      ]
+    },
+    {
+      "id": "container.elliott",
+      "name": "elliott app container (127.0.0.1:18082→8080; networks default+browser)",
+      "kind": "container",
+      "runtime": "live",
+      "source": "deploy/docker-compose.yml:4-27; Dockerfile",
+      "domain": "deployment-substrate",
+      "classifications": {
+        "trustZone": "substrate",
+        "dataClassification": "internal",
+        "criticality": "path-critical",
+        "statefulness": "durable-state",
+        "concurrency": "single-writer",
+        "lifecycle": "always-on",
+        "idempotency": "compose-managed; restart unless-stopped",
+        "scalability": "single container, one process",
+        "failureMode": "healthcheck wget /healthz every 30s x5 retries; read-only rootfs with tmpfs for /tmp and /app/data"
+      },
+      "interface": "elliott service (docker-compose.yml:4-47): image elliott:latest, ports 127.0.0.1:18082->8080, networks default+browser, volume elliott-runtime:/app/.elliott-runtime, healthcheck GET /healthz.",
+      "characteristics": [
+        "Hardened: read_only rootfs, cap_drop ALL, no-new-privileges, init:true, tmpfs /tmp + /app/data, non-root uid 1000 (docker-compose.yml:28-38).",
+        "Bound to 127.0.0.1:18082 on the host only -- not directly public (docker-compose.yml:23).",
+        "depends_on postgres service_healthy for startup ordering; joined to an isolated 'browser' network for the companion (docker-compose.yml:24-27).",
+        "Persists .elliott-runtime (sessions.sqlite, snapshots, workspace, reminders, ssh key, evolution state) across restarts via the named volume (docker-compose.yml:33-35)."
+      ]
+    },
+    {
+      "id": "container.postgres",
+      "name": "postgres container (pgvector/pgvector:pg16) — declared; postgresDsn is loaded but has zero readers in runtime code",
+      "kind": "container",
+      "runtime": "declared",
+      "source": "deploy/docker-compose.yml:49",
+      "domain": "deployment-substrate",
+      "classifications": {
+        "trustZone": "substrate",
+        "dataClassification": "internal",
+        "criticality": "latent",
+        "statefulness": "durable-state",
+        "concurrency": "single-writer",
+        "lifecycle": "always-on",
+        "idempotency": "n/a",
+        "scalability": "single pgvector container",
+        "failureMode": "healthchecked, but no runtime reader ever connects"
+      },
+      "interface": "postgres service pgvector/pgvector:pg16 (docker-compose.yml:49-63), DB/user oslo, pg_isready healthcheck. DSN would be store.dsn / postgresDsn.",
+      "characteristics": [
+        "Declared only: postgresDsn is loaded into settings (config.ts:213) but has zero readers in runtime code -- no runtime TCP connection is opened.",
+        "elliott depends_on postgres service_healthy purely for startup ordering (docker-compose.yml:24-26).",
+        "pgvector image + store.vectors(dim 768) anticipate a vector store the production runtime does not yet use."
+      ]
+    },
+    {
+      "id": "container.browser",
+      "name": "agent-browser container (browserless/chromium) — isolated 'browser' network, token from Vault",
+      "kind": "container",
+      "runtime": "live",
+      "source": "deploy/docker-compose.yml:65",
+      "domain": "deployment-substrate",
+      "classifications": {
+        "trustZone": "sandboxed",
+        "dataClassification": "untrusted-external",
+        "criticality": "supporting",
+        "statefulness": "stateless",
+        "concurrency": "parallel-fan-out",
+        "lifecycle": "always-on",
+        "idempotency": "stateless render",
+        "scalability": "CONCURRENT=3, 60s timeout",
+        "failureMode": "on the isolated 'browser' network only; token-gated"
+      },
+      "interface": "agent-browser service ghcr.io/browserless/chromium (docker-compose.yml:65-75): HTTP on :3000, TOKEN from Vault, CONCURRENT=3, TIMEOUT=60000, only on the 'browser' network.",
+      "characteristics": [
+        "Isolated: joined only to the 'browser' network (no default network), so only the elliott container can reach it (docker-compose.yml:75-79).",
+        "Token-gated (TOKEN rendered from Vault browser_token); the browser tool passes it as a query param (docker-compose.yml:71; browser/index.ts:114).",
+        "shm_size 1gb for Chromium; browserless drives Chrome over CDP."
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "id": "e.gw-slack.rt",
+      "from": "gateway.slack",
+      "to": "runtime.inbound",
+      "kind": "data",
+      "protocol": "in-process (GatewayEvents.onMessage)",
+      "label": "inbound message → turn",
+      "evidence": "skills/gateway-slack/src/gateway.ts:213 (onMessage) → src/runtime/app.ts:209 (gateway.start(events)) → :246 (#handleInbound)",
+      "contract": {
+        "payload": "InboundMessage {id, gateway, channel, thread, sender, text, context/history/attachments}",
+        "synchrony": "async",
+        "direction": "one-way",
+        "cardinality": "1:1",
+        "delivery": "best-effort (awaited in-process; deduped downstream)",
+        "ordering": "per Socket Mode frame order",
+        "idempotency": "deduped by message.id in #handleInbound",
+        "authz": "owner-only gate in #allowedMessage (user===ownerId)",
+        "errorHandling": "onError -> #capture('gateway'); #routeFrame catches per frame",
+        "backpressure": "single-flight per conversation downstream"
+      },
+      "routing": "gateway.start(events); frame router #handleMessage -> events.onMessage -> #handleInbound (gateway.ts:213 -> app.ts:199,246)",
+      "activation": "per-turn (each allowed owner message)",
+      "security": "owner-only ingress gate; live thread history + context wrapped [UNTRUSTED SLACK CONTEXT] downstream (agent.ts:269)"
+    },
+    {
+      "id": "e.http.webhook",
+      "from": "runtime.http",
+      "to": "gateway.webhook",
+      "kind": "control",
+      "protocol": "in-process (route dispatch, exact method+path)",
+      "label": "dispatch POST /v1/gateways/webhook",
+      "evidence": "src/runtime/app.ts:354-357 (route.handle) → skills/gateway-webhook/src/index.ts:25",
+      "contract": {
+        "payload": "raw Request (POST body + headers)",
+        "synchrony": "sync",
+        "direction": "request",
+        "cardinality": "1:1",
+        "delivery": "in-process-call",
+        "ordering": "n/a",
+        "idempotency": "route handler; each request distinct",
+        "authz": "none at dispatch -- the handler performs HMAC verification itself",
+        "errorHandling": "handler returns 4xx/202; exceptions bubble to Bun",
+        "backpressure": "none"
+      },
+      "routing": "exact method+path match in #handleRequest (app.ts:354-356) -> RouteBinding.handle",
+      "activation": "on-demand (per POST)",
+      "security": "the dispatched handler verifies HMAC-SHA256 (x-elliott-signature) before doing anything (webhook/index.ts:35,82-94)"
+    },
+    {
+      "id": "e.webhook.inbound",
+      "from": "gateway.webhook",
+      "to": "runtime.inbound",
+      "kind": "data",
+      "protocol": "in-process (GatewayEvents.onMessage)",
+      "label": "verified webhook payload → turn",
+      "evidence": "skills/gateway-webhook/src/index.ts:54 (events.onMessage) → src/runtime/app.ts:246",
+      "contract": {
+        "payload": "normalized InboundMessage {id:webhook:<uuid>, gateway:'gateway-webhook', channel, sender, text}",
+        "synchrony": "fire-and-forget",
+        "direction": "one-way",
+        "cardinality": "1:1",
+        "delivery": "best-effort (not awaited)",
+        "ordering": "none",
+        "idempotency": "id is a fresh uuid; #seen dedup is effectively per-request",
+        "authz": "already HMAC-authenticated upstream",
+        "errorHandling": "void events.onMessage(payload).catch(events.onError)",
+        "backpressure": "202 returned before the turn runs"
+      },
+      "routing": "dispatch() -> events.onMessage (webhook/index.ts:54) -> #handleInbound",
+      "activation": "on-demand",
+      "security": "payload validated (sender/text non-empty strings) before dispatch (webhook/index.ts:58-80)"
+    },
+    {
+      "id": "e.inbound.loop",
+      "from": "runtime.inbound",
+      "to": "runtime.agentLoop",
+      "kind": "control",
+      "protocol": "in-process",
+      "label": "agent.turn(conversation, text)",
+      "evidence": "src/runtime/app.ts:292",
+      "contract": {
+        "payload": "agent.turn(conversation, message.text, {observer, context:{message}, retainHistory})",
+        "synchrony": "sync (awaited)",
+        "direction": "request",
+        "cardinality": "1:1",
+        "delivery": "in-process-call",
+        "ordering": "serialized per conversation",
+        "idempotency": "non-idempotent; guarded by #seen + #inflight",
+        "authz": "trusted in-process call (owner authenticated at the gateway)",
+        "errorHandling": "try/catch -> evidence.finish('failure'), telemetry, #capture('turn'), user apology (app.ts:303-309)",
+        "backpressure": "in-flight lock rejects concurrent same-conversation turns with a busy reply (app.ts:262-267)"
+      },
+      "routing": "direct method call this.#agent.turn(...) (app.ts:292)",
+      "activation": "per-turn",
+      "security": "message passed as ToolExecutionContext.message; user text becomes a user message, never system"
+    },
+    {
+      "id": "e.loop.prompt",
+      "from": "runtime.agentLoop",
+      "to": "runtime.prompt",
+      "kind": "data",
+      "protocol": "in-process",
+      "label": "assemble system + messages + tools",
+      "evidence": "src/runtime/agent.ts:65-70 (#systemPrompt call; def at :91)",
+      "contract": {
+        "payload": "conversation id -> assembled {system, messages, tools, allowTools}",
+        "synchrony": "sync",
+        "direction": "request",
+        "cardinality": "1:1",
+        "delivery": "in-process-call",
+        "ordering": "per-round",
+        "idempotency": "deterministic but embeds current time",
+        "authz": "none",
+        "errorHandling": "throws bubble to the turn",
+        "backpressure": "none"
+      },
+      "routing": "#systemPrompt(conversation) + [...tools.values()] each round (agent.ts:65-70)",
+      "activation": "per-round",
+      "security": "constant security-rules preamble injected; untrusted context already delimited"
+    },
+    {
+      "id": "e.prompt.model",
+      "from": "runtime.prompt",
+      "to": "runtime.modelClient",
+      "kind": "data",
+      "protocol": "in-process",
+      "label": "ModelTurnRequest",
+      "evidence": "src/runtime/agent.ts:72 (this.#model.complete)",
+      "contract": {
+        "payload": "ModelTurnRequest {system, messages[], tools[], allowTools}",
+        "synchrony": "sync",
+        "direction": "request",
+        "cardinality": "1:1",
+        "delivery": "in-process-call",
+        "ordering": "per-round",
+        "idempotency": "non-idempotent",
+        "authz": "none (in-process)",
+        "errorHandling": "model errors bubble to the turn catch",
+        "backpressure": "one in-flight completion per turn"
+      },
+      "routing": "this.#model.complete(request, observer?.onTextDelta) (agent.ts:72)",
+      "activation": "per-round",
+      "security": "onModelRequest observer fires with the assembled request first (agent.ts:71) -- the only prompt-observation seam"
+    },
+    {
+      "id": "e.model.router",
+      "from": "runtime.modelClient",
+      "to": "runtime.router",
+      "kind": "control",
+      "protocol": "in-process (internal step in complete())",
+      "label": "attest fixed route",
+      "evidence": "src/runtime/model/client.ts:61 (return this.#attest) → :64",
+      "contract": {
+        "payload": "ModelTurnResult attested with selection{routeDigest, usageReference}",
+        "synchrony": "sync",
+        "direction": "response",
+        "cardinality": "1:1",
+        "delivery": "in-process-call",
+        "ordering": "per-round",
+        "idempotency": "pure hash",
+        "authz": "none",
+        "errorHandling": "n/a (pure step)",
+        "backpressure": "none"
+      },
+      "routing": "return this.#attest(result) inside complete() (client.ts:61 -> 64)",
+      "activation": "per-round",
+      "security": "attestation binds route+usage+response by digest without storing content"
+    },
+    {
+      "id": "e.model.litellm",
+      "from": "runtime.modelClient",
+      "to": "provider.litellm",
+      "kind": "data",
+      "protocol": "http (POST /v1/chat/completions, Bearer)",
+      "label": "chat completion request",
+      "evidence": "src/runtime/model/client.ts:28 (fetch), :33 (Bearer)",
+      "carries": ["model", "system", "messages", "tools", "stream"],
+      "contract": {
+        "payload": "OpenAI chat body {model, system+messages, tools, tool_choice, max_tokens, temperature, stream}",
+        "synchrony": "sync (SSE when streaming)",
+        "direction": "duplex",
+        "cardinality": "1:1",
+        "delivery": "best-effort (no retry)",
+        "ordering": "stream chunks ordered",
+        "idempotency": "non-idempotent",
+        "authz": "Bearer llmApiKey",
+        "errorHandling": "non-2xx -> throw 'LiteLLM <status>: <detail<=500>'",
+        "backpressure": "single request per round"
+      },
+      "routing": "fetch(`${llmBaseUrl}/chat/completions`) (client.ts:28)",
+      "activation": "per-round",
+      "security": "Bearer secret from the vault-rendered env; response text/tool_calls are untrusted and re-enter as assistant/tool messages"
+    },
+    {
+      "id": "e.router.selection",
+      "from": "runtime.router",
+      "to": "runtime.agentLoop",
+      "kind": "control",
+      "protocol": "in-process",
+      "label": "RuntimeModelSelection (routeDigest, usageReference)",
+      "evidence": "src/runtime/agent.ts:76 (notifyModelSelection)",
+      "contract": {
+        "payload": "RuntimeModelSelection {routeDigest, usageReference}",
+        "synchrony": "async",
+        "direction": "one-way",
+        "cardinality": "1:1",
+        "delivery": "best-effort",
+        "ordering": "per-round",
+        "idempotency": "same digest for the same route",
+        "authz": "none",
+        "errorHandling": "notify swallows when selection is undefined",
+        "backpressure": "none"
+      },
+      "routing": "notifyModelSelection(options, result) -> observer.onModelSelection (agent.ts:76,247-253)",
+      "activation": "per-round",
+      "security": "digest-only provenance; no content"
+    },
+    {
+      "id": "e.loop.toolexec",
+      "from": "runtime.agentLoop",
+      "to": "runtime.toolExec",
+      "kind": "control",
+      "protocol": "in-process (Promise.all fan-out)",
+      "label": "tool calls",
+      "evidence": "src/runtime/agent.ts:82",
+      "contract": {
+        "payload": "ToolCall[] -> Promise.all(#execute) -> ModelMessage[]",
+        "synchrony": "sync",
+        "direction": "request-response",
+        "cardinality": "fan-out",
+        "delivery": "in-process-call",
+        "ordering": "parallel; results reassembled in call order",
+        "idempotency": "depends on the tools",
+        "authz": "none (in-process)",
+        "errorHandling": "#execute never throws -- errors become tool messages",
+        "backpressure": "bounded by tool calls the model emits per round"
+      },
+      "routing": "Promise.all(result.toolCalls.map(call => this.#execute(call, options, tools))) (agent.ts:82-84)",
+      "activation": "per-round (when toolCalls>0)",
+      "security": "tools pinned per conversation; unknown tool name -> error message, not a crash"
+    },
+    {
+      "id": "e.tool.files",
+      "from": "runtime.toolExec",
+      "to": "tool.files",
+      "kind": "data",
+      "protocol": "in-process (ToolDefinition.execute)",
+      "label": "execute",
+      "evidence": "src/runtime/agent.ts:132",
+      "contract": {
+        "payload": "file_read/file_write/file_list args -> JSON (truncated 12000 skill-side; agent-core re-bounds at 30000)",
+        "synchrony": "sync",
+        "direction": "request-response",
+        "cardinality": "1:1",
+        "delivery": "in-process-call",
+        "ordering": "parallel within a round (Promise.all); results reassembled in tool-call order",
+        "idempotency": "read/list idempotent; write overwrites",
+        "authz": "tool-internal gating (allowlist / config-gate / API key)",
+        "errorHandling": "tool throw -> ModelMessage JSON {error} + errorTag tool-execution-error; never crashes the turn (agent.ts:147-158)",
+        "backpressure": "none (bounded by tool calls per round)"
+      },
+      "routing": "runtime.toolExec #execute: tools.get(call.name).execute(input, options.context) via ReadonlyMap name lookup (agent.ts:110,132)",
+      "activation": "per-tool-call",
+      "security": "workspace containment: containedForRead/Write reject path escapes (files/index.ts:34,56)"
+    },
+    {
+      "id": "e.tool.terminal",
+      "from": "runtime.toolExec",
+      "to": "tool.terminal",
+      "kind": "data",
+      "protocol": "in-process (ToolDefinition.execute)",
+      "label": "execute",
+      "evidence": "src/runtime/agent.ts:132",
+      "contract": {
+        "payload": "terminal_run{command,args?} -> {exitCode,stdout,stderr}",
+        "synchrony": "sync",
+        "direction": "request-response",
+        "cardinality": "1:1",
+        "delivery": "in-process-call",
+        "ordering": "parallel within a round (Promise.all); results reassembled in tool-call order",
+        "idempotency": "depends on the command",
+        "authz": "tool-internal gating (allowlist / config-gate / API key)",
+        "errorHandling": "tool throw -> ModelMessage JSON {error} + errorTag tool-execution-error; never crashes the turn (agent.ts:147-158)",
+        "backpressure": "none (bounded by tool calls per round)"
+      },
+      "routing": "runtime.toolExec #execute: tools.get(call.name).execute(input, options.context) via ReadonlyMap name lookup (agent.ts:110,132)",
+      "activation": "per-tool-call",
+      "security": "argv-only Bun.spawn, command allowlist, minimal PATH, 60s kill (terminal/index.ts:41,60-67)"
+    },
+    {
+      "id": "e.tool.ssh",
+      "from": "runtime.toolExec",
+      "to": "tool.ssh",
+      "kind": "data",
+      "protocol": "in-process (ToolDefinition.execute)",
+      "label": "execute",
+      "evidence": "src/runtime/agent.ts:132",
+      "contract": {
+        "payload": "ssh_exec{host,command} -> {exitCode,stdout,stderr}",
+        "synchrony": "sync",
+        "direction": "request-response",
+        "cardinality": "1:1",
+        "delivery": "in-process-call",
+        "ordering": "parallel within a round (Promise.all); results reassembled in tool-call order",
+        "idempotency": "depends on the command",
+        "authz": "tool-internal gating (allowlist / config-gate / API key)",
+        "errorHandling": "tool throw -> ModelMessage JSON {error} + errorTag tool-execution-error; never crashes the turn (agent.ts:147-158)",
+        "backpressure": "none (bounded by tool calls per round)"
+      },
+      "routing": "runtime.toolExec #execute: tools.get(call.name).execute(input, options.context) via ReadonlyMap name lookup (agent.ts:110,132)",
+      "activation": "per-tool-call",
+      "security": "host allowlist, materialized 0600 key, BatchMode=yes, accept-new host keys (ssh/index.ts:55,71-83)"
+    },
+    {
+      "id": "e.tool.fetch",
+      "from": "runtime.toolExec",
+      "to": "tool.fetch",
+      "kind": "data",
+      "protocol": "in-process (ToolDefinition.execute)",
+      "label": "execute",
+      "evidence": "src/runtime/agent.ts:132",
+      "contract": {
+        "payload": "fetch_url{url} -> {status,contentType,text}",
+        "synchrony": "sync",
+        "direction": "request-response",
+        "cardinality": "1:1",
+        "delivery": "in-process-call",
+        "ordering": "parallel within a round (Promise.all); results reassembled in tool-call order",
+        "idempotency": "GET is idempotent",
+        "authz": "tool-internal gating (allowlist / config-gate / API key)",
+        "errorHandling": "tool throw -> ModelMessage JSON {error} + errorTag tool-execution-error; never crashes the turn (agent.ts:147-158)",
+        "backpressure": "none (bounded by tool calls per round)"
+      },
+      "routing": "runtime.toolExec #execute: tools.get(call.name).execute(input, options.context) via ReadonlyMap name lookup (agent.ts:110,132)",
+      "activation": "per-tool-call",
+      "security": "publicUrl SSRF guard; HTML stripped (fetch/index.ts:24-30)"
+    },
+    {
+      "id": "e.tool.search",
+      "from": "runtime.toolExec",
+      "to": "tool.search",
+      "kind": "data",
+      "protocol": "in-process (ToolDefinition.execute)",
+      "label": "execute",
+      "evidence": "src/runtime/agent.ts:132",
+      "contract": {
+        "payload": "brave/ddg/firecrawl/parallel query -> JSON rows",
+        "synchrony": "sync",
+        "direction": "request-response",
+        "cardinality": "1:1",
+        "delivery": "in-process-call",
+        "ordering": "parallel within a round (Promise.all); results reassembled in tool-call order",
+        "idempotency": "read-only search",
+        "authz": "tool-internal gating (allowlist / config-gate / API key)",
+        "errorHandling": "tool throw -> ModelMessage JSON {error} + errorTag tool-execution-error; never crashes the turn (agent.ts:147-158)",
+        "backpressure": "none (bounded by tool calls per round)"
+      },
+      "routing": "runtime.toolExec #execute: tools.get(call.name).execute(input, options.context) via ReadonlyMap name lookup (agent.ts:110,132)",
+      "activation": "per-tool-call",
+      "security": "provider API keys; read-only; results untrusted (search-brave/index.ts:42)"
+    },
+    {
+      "id": "e.tool.browser",
+      "from": "runtime.toolExec",
+      "to": "tool.browser",
+      "kind": "data",
+      "protocol": "in-process (ToolDefinition.execute)",
+      "label": "execute",
+      "evidence": "src/runtime/agent.ts:132",
+      "contract": {
+        "payload": "browser_render/browser_scrape -> text/JSON via companion",
+        "synchrony": "sync",
+        "direction": "request-response",
+        "cardinality": "1:1",
+        "delivery": "in-process-call",
+        "ordering": "parallel within a round (Promise.all); results reassembled in tool-call order",
+        "idempotency": "render idempotent",
+        "authz": "tool-internal gating (allowlist / config-gate / API key)",
+        "errorHandling": "tool throw -> ModelMessage JSON {error} + errorTag tool-execution-error; never crashes the turn (agent.ts:147-158)",
+        "backpressure": "none (bounded by tool calls per round)"
+      },
+      "routing": "runtime.toolExec #execute: tools.get(call.name).execute(input, options.context) via ReadonlyMap name lookup (agent.ts:110,132)",
+      "activation": "per-tool-call",
+      "security": "allowed_domains + publicUrl guard; isolated companion; Vault token query param (browser/index.ts:83-93,114)"
+    },
+    {
+      "id": "e.tool.gmail",
+      "from": "runtime.toolExec",
+      "to": "tool.gmail",
+      "kind": "data",
+      "protocol": "in-process (ToolDefinition.execute)",
+      "label": "execute",
+      "evidence": "src/runtime/agent.ts:132",
+      "contract": {
+        "payload": "email_search/thread/archive/draft_reply/unsubscribe -> JSON",
+        "synchrony": "sync",
+        "direction": "request-response",
+        "cardinality": "1:1",
+        "delivery": "in-process-call",
+        "ordering": "parallel within a round (Promise.all); results reassembled in tool-call order",
+        "idempotency": "read/thread idempotent; archive reversible; draft never sends",
+        "authz": "tool-internal gating (allowlist / config-gate / API key)",
+        "errorHandling": "tool throw -> ModelMessage JSON {error} + errorTag tool-execution-error; never crashes the turn (agent.ts:147-158)",
+        "backpressure": "none (bounded by tool calls per round)"
+      },
+      "routing": "runtime.toolExec #execute: tools.get(call.name).execute(input, options.context) via ReadonlyMap name lookup (agent.ts:110,132)",
+      "activation": "per-tool-call",
+      "security": "OAuth refresh token; draft-only reply, reversible archive; content untrusted (gmail/index.ts:113,85)"
+    },
+    {
+      "id": "e.tool.email",
+      "from": "runtime.toolExec",
+      "to": "tool.email",
+      "kind": "data",
+      "protocol": "in-process (ToolDefinition.execute)",
+      "label": "execute",
+      "evidence": "src/runtime/agent.ts:132",
+      "contract": {
+        "payload": "email_send{to,subject,body} -> {ok,to}",
+        "synchrony": "sync",
+        "direction": "request-response",
+        "cardinality": "1:1",
+        "delivery": "in-process-call",
+        "ordering": "parallel within a round (Promise.all); results reassembled in tool-call order",
+        "idempotency": "non-idempotent send",
+        "authz": "tool-internal gating (allowlist / config-gate / API key)",
+        "errorHandling": "tool throw -> ModelMessage JSON {error} + errorTag tool-execution-error; never crashes the turn (agent.ts:147-158)",
+        "backpressure": "none (bounded by tool calls per round)"
+      },
+      "routing": "runtime.toolExec #execute: tools.get(call.name).execute(input, options.context) via ReadonlyMap name lookup (agent.ts:110,132)",
+      "activation": "per-tool-call",
+      "security": "recipient allowlist enforced before SMTP send (email/index.ts:26-31)"
+    },
+    {
+      "id": "e.tool.imessage",
+      "from": "runtime.toolExec",
+      "to": "tool.imessage",
+      "kind": "data",
+      "protocol": "in-process (ToolDefinition.execute)",
+      "label": "execute",
+      "evidence": "src/runtime/agent.ts:132",
+      "contract": {
+        "payload": "imessage_send{text,to?} -> {ok,to}",
+        "synchrony": "sync",
+        "direction": "request-response",
+        "cardinality": "1:1",
+        "delivery": "in-process-call",
+        "ordering": "parallel within a round (Promise.all); results reassembled in tool-call order",
+        "idempotency": "non-idempotent send",
+        "authz": "tool-internal gating (allowlist / config-gate / API key)",
+        "errorHandling": "tool throw -> ModelMessage JSON {error} + errorTag tool-execution-error; never crashes the turn (agent.ts:147-158)",
+        "backpressure": "none (bounded by tool calls per round)"
+      },
+      "routing": "runtime.toolExec #execute: tools.get(call.name).execute(input, options.context) via ReadonlyMap name lookup (agent.ts:110,132)",
+      "activation": "per-tool-call",
+      "security": "recipient allowlist/default; BlueBubbles password query param (bluebubbles/index.ts:48-73)"
+    },
+    {
+      "id": "e.tool.homeassistant",
+      "from": "runtime.toolExec",
+      "to": "tool.homeassistant",
+      "kind": "data",
+      "protocol": "in-process (ToolDefinition.execute)",
+      "label": "execute",
+      "evidence": "src/runtime/agent.ts:132",
+      "contract": {
+        "payload": "ha_state/ha_entities/ha_call_service -> JSON",
+        "synchrony": "sync",
+        "direction": "request-response",
+        "cardinality": "1:1",
+        "delivery": "in-process-call",
+        "ordering": "parallel within a round (Promise.all); results reassembled in tool-call order",
+        "idempotency": "state/entities read-only; call_service side-effecting",
+        "authz": "tool-internal gating (allowlist / config-gate / API key)",
+        "errorHandling": "tool throw -> ModelMessage JSON {error} + errorTag tool-execution-error; never crashes the turn (agent.ts:147-158)",
+        "backpressure": "none (bounded by tool calls per round)"
+      },
+      "routing": "runtime.toolExec #execute: tools.get(call.name).execute(input, options.context) via ReadonlyMap name lookup (agent.ts:110,132)",
+      "activation": "per-tool-call",
+      "security": "entity_id/service regex validation; Bearer token; 15s timeout (home-assistant/index.ts:32,77-82,122)"
+    },
+    {
+      "id": "e.tool.mcp",
+      "from": "runtime.toolExec",
+      "to": "mcp.client",
+      "kind": "data",
+      "protocol": "in-process (ToolDefinition.execute; tool named mcp_<id>_<tool>)",
+      "label": "mcp tool call",
+      "evidence": "src/runtime/agent.ts:132 → skills/mcp-client/src/client.ts:78",
+      "contract": {
+        "payload": "mcp_<id>_<tool> args -> string; execute -> wire.request('tools/call',{name,arguments:input})",
+        "synchrony": "sync",
+        "direction": "request-response",
+        "cardinality": "1:1",
+        "delivery": "in-process-call",
+        "ordering": "parallel within a round (Promise.all); results reassembled in tool-call order",
+        "idempotency": "depends on the remote tool",
+        "authz": "tool-internal gating (allowlist / config-gate / API key)",
+        "errorHandling": "tool throw -> ModelMessage JSON {error} + errorTag tool-execution-error; never crashes the turn (agent.ts:147-158)",
+        "backpressure": "none (bounded by tool calls per round)"
+      },
+      "routing": "runtime.toolExec #execute: tools.get(call.name).execute(input, options.context) via ReadonlyMap name lookup (agent.ts:110,132)",
+      "activation": "per-tool-call",
+      "security": "remote tool call; results untrusted; per-endpoint isolation (mcp-client/client.ts:78-84)"
+    },
+    {
+      "id": "e.tool.scheduler",
+      "from": "runtime.toolExec",
+      "to": "service.scheduler",
+      "kind": "data",
+      "protocol": "in-process (ToolDefinition.execute)",
+      "label": "reminder_set / reminder_list / reminder_cancel",
+      "evidence": "src/runtime/agent.ts:132 → skills/scheduler/src/index.ts:27-83",
+      "contract": {
+        "payload": "reminder_set/reminder_list/reminder_cancel args -> JSON",
+        "synchrony": "sync",
+        "direction": "request-response",
+        "cardinality": "1:1",
+        "delivery": "in-process-call",
+        "ordering": "parallel within a round (Promise.all); results reassembled in tool-call order",
+        "idempotency": "set/cancel idempotent by id; list read-only",
+        "authz": "tool-internal gating (allowlist / config-gate / API key)",
+        "errorHandling": "tool throw -> ModelMessage JSON {error} + errorTag tool-execution-error; never crashes the turn (agent.ts:147-158)",
+        "backpressure": "none (bounded by tool calls per round)"
+      },
+      "routing": "runtime.toolExec #execute: tools.get(call.name).execute(input, options.context) via ReadonlyMap name lookup (agent.ts:110,132)",
+      "activation": "per-tool-call",
+      "security": "file-backed reminder store; past-time rejection; delivery is a separate outbound edge (scheduler/index.ts:27-83)"
+    },
+    {
+      "id": "e.mcp.h12o",
+      "from": "mcp.client",
+      "to": "mcp.h12o",
+      "kind": "data",
+      "protocol": "jsonrpc over streamable-http (POST, mcp-session-id)",
+      "label": "tools/call",
+      "evidence": "skills/mcp-client/src/client.ts:15-17 (wire select) → skills/mcp-client/src/http.ts:27",
+      "contract": {
+        "payload": "JSON-RPC 2.0 tools/call {name, arguments}",
+        "synchrony": "sync",
+        "direction": "request-response",
+        "cardinality": "1:1",
+        "delivery": "best-effort (single POST)",
+        "ordering": "per incrementing rpc id",
+        "idempotency": "per remote tool",
+        "authz": "optional Bearer (settings.authorization)",
+        "errorHandling": "HTTP non-2xx throw; JSON-RPC error unwrapped to an Error",
+        "backpressure": "none"
+      },
+      "routing": "makeHttpWire.request('tools/call',{...}) -> POST settings.url (client.ts:78 -> http.ts:27-35)",
+      "activation": "per-tool-call",
+      "security": "mcp-session-id continuity; Bearer if configured; response content untrusted"
+    },
+    {
+      "id": "e.mcp.ha",
+      "from": "mcp.client",
+      "to": "mcp.homeassistant",
+      "kind": "data",
+      "protocol": "jsonrpc over sse (open stream + endpoint event + POST)",
+      "label": "tools/call",
+      "evidence": "skills/mcp-client/src/client.ts:15-16 (wire select) → skills/mcp-client/src/sse.ts:11",
+      "contract": {
+        "payload": "JSON-RPC 2.0 tools/call {name, arguments}",
+        "synchrony": "sync",
+        "direction": "request-response",
+        "cardinality": "1:1",
+        "delivery": "correlated by JSON-RPC id off the SSE stream",
+        "ordering": "per incrementing rpc id",
+        "idempotency": "per remote tool",
+        "authz": "optional Bearer",
+        "errorHandling": "60s timeout; stream close fails all pending; HTTP non-2xx throws",
+        "backpressure": "single stream; pending map"
+      },
+      "routing": "makeSseWire.request -> postRpc to the endpoint URL from the 'endpoint' event (sse.ts:20-35,47-82)",
+      "activation": "per-tool-call",
+      "security": "Bearer if configured; owner-pii home data untrusted"
+    },
+    {
+      "id": "e.browser.companion",
+      "from": "tool.browser",
+      "to": "container.browser",
+      "kind": "data",
+      "protocol": "http to browserless daemon (/content, /scrape); daemon→Chrome is CDP",
+      "label": "render / scrape",
+      "evidence": "skills/browser/src/index.ts:108 (daemonRequest)",
+      "contract": {
+        "payload": "POST /content|/scrape {url, elements?}",
+        "synchrony": "sync",
+        "direction": "request-response",
+        "cardinality": "1:1",
+        "delivery": "best-effort",
+        "ordering": "n/a",
+        "idempotency": "render idempotent",
+        "authz": "token query param",
+        "errorHandling": "non-2xx throws; caller wraps as tool error",
+        "backpressure": "companion CONCURRENT=3"
+      },
+      "routing": "daemonRequest(settings, '/content'|'/scrape', body) (browser/index.ts:108-116)",
+      "activation": "per-tool-call",
+      "security": "isolated 'browser' network; Vault token; daemon->Chrome is CDP"
+    },
+    {
+      "id": "e.sched.deliver",
+      "from": "service.scheduler",
+      "to": "gateway.slack",
+      "kind": "data",
+      "protocol": "in-process (context.deliver → #deliver → primaryGateway.send)",
+      "label": "due reminder (outbound)",
+      "evidence": "skills/scheduler/src/index.ts:95 → src/runtime/app.ts:223,228,231-236",
+      "contract": {
+        "payload": "reminder text -> gateway.send(defaultChannel, text)",
+        "synchrony": "async",
+        "direction": "one-way (outbound)",
+        "cardinality": "1:1",
+        "delivery": "best-effort (markDelivered after send)",
+        "ordering": "per tick",
+        "idempotency": "markDelivered prevents re-delivery",
+        "authz": "in-process; delivers to the owner's default channel",
+        "errorHandling": "tick errors reported scheduler:tick; #deliver throws if no send-capable gateway",
+        "backpressure": "30s poll"
+      },
+      "routing": "context.deliver(text) -> #deliver -> primary.send(primary.defaultChannel ?? \"\", text) [2-arg send(channel, text); no thread arg] (scheduler/index.ts:95 -> app.ts:223,228; send signature skills/types.ts:34)",
+      "activation": "scheduled (30s tick, due reminders)",
+      "security": "never opens a turn; outbound-only; no model involvement"
+    },
+    {
+      "id": "e.loop.evidence",
+      "from": "runtime.inbound",
+      "to": "memory.evidence",
+      "kind": "persist",
+      "protocol": "in-process (beginTurn / finishRun in #handleInbound)",
+      "label": "turn evidence (runs)",
+      "evidence": "src/runtime/app.ts:279 (beginTurn), :298/:304 (finish) → src/runtime/evolution-evidence.ts:85 (finishRun). Note: recordRun/finishRun are called in #handleInbound (runtime.inbound), not RuntimeAgent.turn.",
+      "contract": {
+        "payload": "SessionRunEvidence {runId, sessionId=hash(conversation), snapshotId, agentRef, disposition, startedAt/finishedAt}",
+        "synchrony": "sync (in-process)",
+        "direction": "one-way (persist)",
+        "cardinality": "1:1 per turn",
+        "delivery": "best-effort with #capture guard",
+        "ordering": "recordRun before finishRun",
+        "idempotency": "one run per turn; finishRun updates by id",
+        "authz": "none",
+        "errorHandling": "#capture try/catch -> report; a failed recordRun disables the turn's evidence (recorded=false)",
+        "backpressure": "none"
+      },
+      "routing": "#handleInbound: evidence=beginTurn(...) (app.ts:279) then evidence.finish(disposition) (app.ts:298/304) -> sink.recordRun/finishRun (evolution-evidence.ts:60,85)",
+      "activation": "per-turn",
+      "security": "sessionId is a hash of the conversation key -- no raw channel/thread stored; digest-only"
+    },
+    {
+      "id": "e.toolexec.evidence",
+      "from": "runtime.toolExec",
+      "to": "memory.evidence",
+      "kind": "persist",
+      "protocol": "in-process (observer.onToolProgress)",
+      "label": "tool_calls + component_uses",
+      "evidence": "src/runtime/evolution-evidence.ts:164 (onToolProgress) → :205 (recordToolCall), :230 (recordComponentUse)",
+      "contract": {
+        "payload": "ToolCallEvidence + ComponentUseEvidence (digests, latency, errorTag, outcome)",
+        "synchrony": "async (observer)",
+        "direction": "one-way (persist)",
+        "cardinality": "1:N (per tool call, per target)",
+        "delivery": "best-effort (#capture)",
+        "ordering": "on complete/error progress",
+        "idempotency": "fresh ids",
+        "authz": "none",
+        "errorHandling": "#capture -> report",
+        "backpressure": "none"
+      },
+      "routing": "observer.onToolProgress -> #recordToolProgress -> sink.recordToolCall/recordComponentUse (evolution-evidence.ts:164,205,230)",
+      "activation": "per-tool-call",
+      "security": "only digests persisted; tool-confusion metric recorded on requested!=selected"
+    },
+    {
+      "id": "e.model.evidence",
+      "from": "runtime.modelClient",
+      "to": "memory.evidence",
+      "kind": "persist",
+      "protocol": "in-process (observer.onModelSelection)",
+      "label": "model selection → model_selections",
+      "evidence": "src/runtime/agent.ts:76 (notifyModelSelection) → src/runtime/evolution-evidence.ts:155 (recordModelSelection)",
+      "contract": {
+        "payload": "ModelSelectionEvidence {runId, routeDigest, usageReference}",
+        "synchrony": "async",
+        "direction": "one-way (persist)",
+        "cardinality": "1:1 per round",
+        "delivery": "best-effort",
+        "ordering": "per-round",
+        "idempotency": "fresh id",
+        "authz": "none",
+        "errorHandling": "#capture",
+        "backpressure": "none"
+      },
+      "routing": "notifyModelSelection -> observer.onModelSelection -> sink.recordModelSelection (agent.ts:76 -> evolution-evidence.ts:152-162)",
+      "activation": "per-round",
+      "security": "digest-only route provenance"
+    },
+    {
+      "id": "e.feedback.evidence",
+      "from": "gateway.slack",
+      "to": "memory.evidence",
+      "kind": "persist",
+      "protocol": "in-process (GatewayEvents.onFeedback → #handleFeedback)",
+      "label": "feedback → feedback table",
+      "evidence": "src/runtime/app.ts:315 (#handleFeedback), :316 → src/runtime/evolution-evidence.ts:123 (recordFeedback)",
+      "contract": {
+        "payload": "GatewayFeedback {gateway,channel,message,sender,sentiment,source} -> FeedbackEvidence {kind:confirmed-success|failure, evidenceDigest}",
+        "synchrony": "async",
+        "direction": "one-way (persist)",
+        "cardinality": "1:N (per remembered target)",
+        "delivery": "best-effort",
+        "ordering": "after the run it references",
+        "idempotency": "fresh id; correlated to the latest run on gateway:channel",
+        "authz": "owner-only feedback upstream",
+        "errorHandling": "#capture; no-op if no remembered run",
+        "backpressure": "none"
+      },
+      "routing": "onFeedback -> #handleFeedback -> evidence.recordFeedback (app.ts:315-316 -> evolution-evidence.ts:109-135)",
+      "activation": "on-feedback",
+      "security": "evidenceDigest hashes the feedback identity; correlates by gateway:channel to the last run's remembered targets"
+    },
+    {
+      "id": "e.evidence.store",
+      "from": "memory.evidence",
+      "to": "memory.sessionStore",
+      "kind": "persist",
+      "protocol": "in-process (SessionEvolutionStore, shared sqlite handle)",
+      "label": "evidence sink → store",
+      "evidence": "src/runtime/app.ts:126 (sink = this.#evidenceStore.evolution)",
+      "contract": {
+        "payload": "typed evidence rows via the narrow sink Pick<SessionEvolutionStore,...>",
+        "synchrony": "sync",
+        "direction": "one-way (persist)",
+        "cardinality": "1:1",
+        "delivery": "in-process-call",
+        "ordering": "call order",
+        "idempotency": "id-keyed",
+        "authz": "none",
+        "errorHandling": "throws caught by the evidence #capture",
+        "backpressure": "none"
+      },
+      "routing": "sink = this.#evidenceStore.evolution (app.ts:126); shared bun:sqlite handle",
+      "activation": "per-turn / per-round / per-feedback",
+      "security": "same-process, shared Database handle"
+    },
+    {
+      "id": "e.store.db",
+      "from": "memory.sessionStore",
+      "to": "database.sessions",
+      "kind": "persist",
+      "protocol": "sqlite (INSERT, WAL)",
+      "label": "INSERT (evolution tables)",
+      "evidence": "src/memory/session-store/evolution.ts (recordRun/recordToolCall/... INSERTs)",
+      "contract": {
+        "payload": "SQL INSERT/UPDATE into 5 evolution tables (runs, tool_calls, component_uses, feedback, model_selections) (WAL); evaluation_labels defined but never written",
+        "synchrony": "sync",
+        "direction": "one-way (persist)",
+        "cardinality": "1:1",
+        "delivery": "durable (WAL)",
+        "ordering": "transactional per statement",
+        "idempotency": "PRIMARY KEY ids",
+        "authz": "none",
+        "errorHandling": "sqlite exception bubbles to #capture",
+        "backpressure": "none"
+      },
+      "routing": "SessionEvolutionStore.record*/finishRun run parameterized INSERT/UPDATE (evolution.ts:29-129)",
+      "activation": "per-turn / per-round / per-feedback",
+      "security": "parameterized statements; digests only; file on the persisted volume"
+    },
+    {
+      "id": "e.inbound.snap",
+      "from": "runtime.inbound",
+      "to": "memory.snapshots",
+      "kind": "control",
+      "protocol": "in-process (RuntimeConversationSnapshots.resolve; in-memory ID pin)",
+      "label": "pin snapshot id per conversation",
+      "evidence": "src/runtime/app.ts:273 → src/runtime/conversation-snapshots.ts:4",
+      "contract": {
+        "payload": "resolve(conversation, currentSnapshotId, retain) -> pinned id",
+        "synchrony": "sync",
+        "direction": "request-response",
+        "cardinality": "1:1",
+        "delivery": "in-process-call",
+        "ordering": "first-write-wins per conversation",
+        "idempotency": "idempotent -- returns the pinned id once set",
+        "authz": "none",
+        "errorHandling": "throws upstream if snapshotId is undefined (app.ts:271)",
+        "backpressure": "none"
+      },
+      "routing": "this.#conversationSnapshots.resolve(...) (app.ts:273 -> conversation-snapshots.ts:4)",
+      "activation": "per-turn",
+      "security": "immutable snapshot id stamps evidence provenance"
+    },
+    {
+      "id": "e.kernel.snap",
+      "from": "runtime.kernel",
+      "to": "memory.snapshots",
+      "kind": "persist",
+      "protocol": "in-process (kernel.snapshots / FileSnapshotStore)",
+      "label": "ensureRuntimeSnapshot (boot)",
+      "evidence": "src/runtime/app.ts:95-101 (ensureRuntimeSnapshot)",
+      "contract": {
+        "payload": "ensureRuntimeSnapshot({store:kernel.snapshots, settings, packages, root}) -> Snapshot",
+        "synchrony": "sync (await)",
+        "direction": "request-response",
+        "cardinality": "1:1",
+        "delivery": "durable (atomic file write)",
+        "ordering": "boot",
+        "idempotency": "content-addressed id; wx flag prevents clobber",
+        "authz": "none",
+        "errorHandling": "boot fails if it throws",
+        "backpressure": "none"
+      },
+      "routing": "ensureRuntimeSnapshot(...) at boot (app.ts:95-101 -> snapshot.ts:134)",
+      "activation": "boot",
+      "security": "immutable, content-addressed, atomically-written snapshot of configuration+components"
+    },
+    {
+      "id": "e.db.signals",
+      "from": "database.sessions",
+      "to": "learning.signals",
+      "kind": "learn",
+      "protocol": "sqlite read (evolution scheduler tails evidence tables)",
+      "label": "evidence → signal",
+      "evidence": "src/runtime/evolution-scheduler.ts:191-216 (feedbackForTarget / toolFailureSummaryForTarget) → src/runtime/evolution-signals.ts:113 (selectRuntimeEvolutionSignal)",
+      "contract": {
+        "payload": "sqlite reads: feedbackForTarget(targetRef), toolFailureSummaryForTarget(targetRef,digest)",
+        "synchrony": "sync (opens a SessionStore)",
+        "direction": "request-response (read)",
+        "cardinality": "1:N",
+        "delivery": "read",
+        "ordering": "created_at",
+        "idempotency": "read-only",
+        "authz": "scheduler principal (Proposal-only)",
+        "errorHandling": "serialized in the campaign gate; errors bubble in the tick",
+        "backpressure": "single-flight queue in the campaign gate"
+      },
+      "routing": "makeRuntimeCampaignGate opens a SessionStore and reads evidence per target (evolution-scheduler.ts:191-209) -> selectRuntimeEvolutionSignal (:210)",
+      "activation": "scheduled (evolution tick, only if continuous.enabled)",
+      "security": "reads digest-only evidence; a distinct scheduler principal with Proposal-only capabilities"
+    },
+    {
+      "id": "e.signals.triage",
+      "from": "learning.signals",
+      "to": "learning.triage",
+      "kind": "learn",
+      "protocol": "in-process (selectRuntimeEvolutionSignal)",
+      "label": "signals → top-scored selection",
+      "evidence": "src/runtime/evolution-scheduler.ts:210 → src/learning/evolution/continuous/triage.ts:44 (toSorted[0])",
+      "contract": {
+        "payload": "candidate signals -> top-scored selection or a gating reason",
+        "synchrony": "sync",
+        "direction": "request-response",
+        "cardinality": "fan-in (many signals -> 1)",
+        "delivery": "in-process-call",
+        "ordering": "score desc, targetRef tie-break",
+        "idempotency": "pure",
+        "authz": "none",
+        "errorHandling": "returns a reason instead of a selection",
+        "backpressure": "none"
+      },
+      "routing": "selectRuntimeEvolutionSignal -> triageEvolutionSignals toSorted[0] (evolution-scheduler.ts:210 -> triage.ts:22-44)",
+      "activation": "scheduled",
+      "security": "risk-class gate; model-reflection signals blocked at C3/C4"
+    },
+    {
+      "id": "e.triage.eval",
+      "from": "learning.triage",
+      "to": "evaluator.gauntlet",
+      "kind": "learn",
+      "protocol": "in-process (orchestrator.scope → evaluate)",
+      "label": "scoped run → evaluate",
+      "evidence": "src/learning/evolution/application/index.ts:237 (scope), :315 (recordEvaluation); orchestrator/index.ts:33",
+      "contract": {
+        "payload": "scoped run -> orchestrator.scope/evaluate",
+        "synchrony": "sync (Effect)",
+        "direction": "request-response",
+        "cardinality": "1:1",
+        "delivery": "in-process-call",
+        "ordering": "campaign state machine",
+        "idempotency": "content-addressed runs/reports",
+        "authz": "scheduler capabilities (Proposal-only)",
+        "errorHandling": "typed EvolutionEvaluationError",
+        "backpressure": "maximumConcurrentRuns"
+      },
+      "routing": "operator.scope -> orchestrator evaluate (application/index.ts:237,315; orchestrator/index.ts:33)",
+      "activation": "scheduled",
+      "security": "forbidden capabilities (approve/promote/rollback) rejected for the scheduler principal (evolution-scheduler.ts:74-78,320-329)"
+    },
+    {
+      "id": "e.eval.companions",
+      "from": "evaluator.gauntlet",
+      "to": "evaluator.companions",
+      "kind": "learn",
+      "protocol": "http (POST to sealed OCI workers; conditional on *_URL config)",
+      "label": "optimize / compare / baseline",
+      "evidence": "src/learning/evolution/evaluation/http.ts:25 (POST /v1/baseline,/v1/compare); companions/*/*_worker.py",
+      "contract": {
+        "payload": "POST /v1/baseline,/v1/compare (evaluator), optimize (dspy/darwinian), /v1/canary -- JSON request/report",
+        "synchrony": "sync (await fetch/Effect)",
+        "direction": "request-response",
+        "cardinality": "1:1 (fan-out across engines)",
+        "delivery": "best-effort",
+        "ordering": "n/a",
+        "idempotency": "per worker",
+        "authz": "endpoint URL (config-gated)",
+        "errorHandling": "HTTP non-2xx -> typed error; unavailable if *_URL unset",
+        "backpressure": "budgets/concurrency caps"
+      },
+      "routing": "makeHttpIndependentEvaluator.post / makeHttpOptimizationEngine (evaluation/http.ts:15-46; evolution.ts:285-313)",
+      "activation": "scheduled (conditional on *_URL config)",
+      "security": "sealed OCI workers; reports schema-decoded + binding-asserted (evaluation/http.ts:66-83)"
+    },
+    {
+      "id": "e.eval.proposals",
+      "from": "evaluator.gauntlet",
+      "to": "learning.proposals",
+      "kind": "learn",
+      "protocol": "in-process (authorEvolutionProposal)",
+      "label": "author proposal",
+      "evidence": "src/learning/evolution/orchestrator/index.ts:78 → src/learning/evolution/release/proposal.ts:147 → src/learning/proposals/index.ts:32",
+      "contract": {
+        "payload": "authorEvolutionProposal(runId, candidateId) -> proposal record",
+        "synchrony": "sync",
+        "direction": "request-response",
+        "cardinality": "1:1",
+        "delivery": "in-process-call",
+        "ordering": "after a passing evaluation",
+        "idempotency": "proposal id",
+        "authz": "proposal.author capability",
+        "errorHandling": "typed errors; audit record",
+        "backpressure": "none"
+      },
+      "routing": "orchestrator -> release/proposal.ts:147 -> FileProposalStore (evolution.ts:342; orchestrator/index.ts:78)",
+      "activation": "scheduled",
+      "security": "proposal lineage bound to run + candidate + snapshot; audited"
+    },
+    {
+      "id": "e.proposals.control",
+      "from": "learning.proposals",
+      "to": "learning.control",
+      "kind": "control",
+      "protocol": "http (token-gated /v1/control/evolution)",
+      "label": "review / promote / rollback",
+      "evidence": "src/runtime/app.ts:350 → src/learning/evolution/application/index.ts:469 (promote), :475 (rollback)",
+      "contract": {
+        "payload": "operator POST {operation:release.promote|rollback|proposal.review|..., arguments} -> {principalId,snapshotId,result}",
+        "synchrony": "sync",
+        "direction": "request-response",
+        "cardinality": "1:1",
+        "delivery": "in-process-call (HTTP)",
+        "ordering": "n/a",
+        "idempotency": "state transitions",
+        "authz": "Bearer control token + active snapshot + per-op capability",
+        "errorHandling": "401/400/500 typed",
+        "backpressure": "none"
+      },
+      "routing": "app route /v1/control/evolution -> controlPlane.handle -> executor promote/rollback (app.ts:350 -> application/index.ts:469,475)",
+      "activation": "on-demand (operator)",
+      "security": "timingSafeEqual bearer; capability gate; active-snapshot requirement (evolution.ts:98-125)"
+    },
+    {
+      "id": "e.tel.inbound",
+      "from": "runtime.inbound",
+      "to": "obs.telemetry",
+      "kind": "control",
+      "protocol": "in-process (bus.emit)",
+      "label": "emit inbound / turn.begin / turn.finish",
+      "evidence": "src/runtime/app.ts:250, :287, :299, :305",
+      "contract": {
+        "payload": "emit('inbound'|'turn.begin'|'turn.finish', payload, turnId)",
+        "synchrony": "fire-and-forget",
+        "direction": "one-way",
+        "cardinality": "1:N (subscribers)",
+        "delivery": "best-effort",
+        "ordering": "monotonic seq",
+        "idempotency": "n/a",
+        "authz": "none",
+        "errorHandling": "subscriber isolation; emit never throws",
+        "backpressure": "512 ring drops oldest"
+      },
+      "routing": "runtimeTelemetry.emit(...) (app.ts:250,287,299,305)",
+      "activation": "per-turn",
+      "security": "payload carries lengths/ids/gateway/sender -- no message body"
+    },
+    {
+      "id": "e.tel.model",
+      "from": "runtime.modelClient",
+      "to": "obs.telemetry",
+      "kind": "control",
+      "protocol": "in-process (telemetry observer → bus.emit)",
+      "label": "emit model.request / model.selection",
+      "evidence": "src/runtime/telemetry.ts:98, :106 (driven by agent.ts:71,76)",
+      "contract": {
+        "payload": "emit('model.request', {round,messageCount,toolNames,systemDigest,messagesDigest[,system,messages]}) and 'model.selection'",
+        "synchrony": "fire-and-forget",
+        "direction": "one-way",
+        "cardinality": "1:N",
+        "delivery": "best-effort",
+        "ordering": "seq",
+        "idempotency": "n/a",
+        "authz": "none",
+        "errorHandling": "subscriber isolation",
+        "backpressure": "512 ring"
+      },
+      "routing": "telemetryTurnObserver.onModelRequest/onModelSelection -> bus.emit (telemetry.ts:96-108; driven by agent.ts:71,76)",
+      "activation": "per-round",
+      "security": "raw system+messages included ONLY if promptsEnabled (ELLIOTT_TELEMETRY_PROMPTS!=0); otherwise digests only (telemetry.ts:80-83)"
+    },
+    {
+      "id": "e.tel.tool",
+      "from": "runtime.toolExec",
+      "to": "obs.telemetry",
+      "kind": "control",
+      "protocol": "in-process (telemetry observer → bus.emit)",
+      "label": "emit tool.progress",
+      "evidence": "src/runtime/telemetry.ts:109-110 (driven by agent.ts:123,134,149)",
+      "contract": {
+        "payload": "emit('tool.progress', TurnToolProgress {id,name,status,digests,errorTag})",
+        "synchrony": "fire-and-forget",
+        "direction": "one-way",
+        "cardinality": "1:N",
+        "delivery": "best-effort",
+        "ordering": "seq",
+        "idempotency": "n/a",
+        "authz": "none",
+        "errorHandling": "subscriber isolation",
+        "backpressure": "512 ring"
+      },
+      "routing": "telemetryTurnObserver.onToolProgress -> bus.emit (telemetry.ts:109-110; driven by agent.ts notifyTool 123,134,149)",
+      "activation": "per-tool-call",
+      "security": "digests only; no raw args/results"
+    },
+    {
+      "id": "e.tel.map",
+      "from": "obs.telemetry",
+      "to": "obs.map",
+      "kind": "data",
+      "protocol": "in-process subscribe → SSE fan-out",
+      "label": "subscribe → stream",
+      "evidence": "skills/telemetry-map/src/index.ts:140 (aggregator.start) → aggregator.ts:95 (bus.subscribe) → sse.ts",
+      "contract": {
+        "payload": "TelemetryEnvelope stream (recent() replay + live subscribe)",
+        "synchrony": "async (push)",
+        "direction": "one-way",
+        "cardinality": "fan-out",
+        "delivery": "best-effort",
+        "ordering": "seq",
+        "idempotency": "seq monotonic",
+        "authz": "none",
+        "errorHandling": "subscriber try/catch; dead client removed",
+        "backpressure": "<=400 events / <=60 turns windows"
+      },
+      "routing": "aggregator.start(bus): bus.recent() then bus.subscribe(#ingest) (aggregator.ts:93-95); SSE fan-out via addClient (sse.ts)",
+      "activation": "always (per event)",
+      "security": "in-process subscription; no external egress"
+    },
+    {
+      "id": "e.map.telemetry",
+      "from": "obs.map",
+      "to": "obs.telemetry",
+      "kind": "control",
+      "protocol": "in-process (bus.emit)",
+      "label": "emit db.write / heartbeat",
+      "evidence": "skills/telemetry-map/src/index.ts:37 (db.write), :146 (heartbeat)",
+      "contract": {
+        "payload": "emit('db.write',{table,count,delta}) and emit('heartbeat',{})",
+        "synchrony": "fire-and-forget",
+        "direction": "one-way",
+        "cardinality": "1:N",
+        "delivery": "best-effort",
+        "ordering": "seq",
+        "idempotency": "n/a",
+        "authz": "none",
+        "errorHandling": "subscriber isolation",
+        "backpressure": "512 ring"
+      },
+      "routing": "SqliteTail listener emits db.write per positive delta (index.ts:37-42); the service tick emits heartbeat every 10 ticks (index.ts:146)",
+      "activation": "scheduled (1.5s poll; heartbeat ~15s)",
+      "security": "counts/deltas only -- the map re-injects its own DB-observation events onto the shared bus"
+    },
+    {
+      "id": "e.db.map",
+      "from": "database.sessions",
+      "to": "obs.map",
+      "kind": "data",
+      "protocol": "sqlite (readonly tail)",
+      "label": "read-only tail",
+      "evidence": "skills/telemetry-map/src/sqlite-tail.ts:65 (readonly:true)",
+      "contract": {
+        "payload": "read-only SELECT COUNT + recent rows per table",
+        "synchrony": "sync (poll)",
+        "direction": "request-response (read)",
+        "cardinality": "1:N",
+        "delivery": "read",
+        "ordering": "rowid desc for recent",
+        "idempotency": "read-only",
+        "authz": "none",
+        "errorHandling": "open failure -> undefined (tolerates missing file); errors reported telemetry-map:tail",
+        "backpressure": "1.5s poll, RECENT_LIMIT 6"
+      },
+      "routing": "SqliteTail.tick -> new Database(path,{readonly:true}) -> #collect (sqlite-tail.ts:46-90)",
+      "activation": "scheduled (1.5s)",
+      "security": "opened strictly {readonly:true}; recent rows are digest/metadata columns (base tables empty at runtime anyway)"
+    },
+    {
+      "id": "e.http.map",
+      "from": "runtime.http",
+      "to": "obs.map",
+      "kind": "data",
+      "protocol": "in-process (route dispatch; GET /v1/observability/map[/state|/stream|/turn|/topology])",
+      "label": "serve map routes",
+      "evidence": "src/runtime/app.ts:354-357 → skills/telemetry-map/src/index.ts:105-129",
+      "contract": {
+        "payload": "GET /v1/observability/map[/topology|/state|/stream|/turn|/font/*] -> HTML/JSON/SSE",
+        "synchrony": "sync (stream for /stream)",
+        "direction": "request-response",
+        "cardinality": "1:1 (fan-out for SSE)",
+        "delivery": "in-process-call",
+        "ordering": "n/a",
+        "idempotency": "GET reads",
+        "authz": "none (unauthenticated GET)",
+        "errorHandling": "400 missing id; 404 missing asset",
+        "backpressure": "SSE client isolation"
+      },
+      "routing": "exact method+path match in #handleRequest -> telemetry-map RouteBinding.handle (app.ts:354-357 -> index.ts:105-129)",
+      "activation": "on-demand",
+      "security": "unauthenticated but only reachable on the loopback-published port; serves operational metadata (and prompt content in events only if promptsEnabled)"
+    },
+    {
+      "id": "e.inbound.reporter",
+      "from": "runtime.inbound",
+      "to": "obs.reporter",
+      "kind": "control",
+      "protocol": "in-process (#capture)",
+      "label": "turn failure → error report",
+      "evidence": "src/runtime/app.ts:306 (capture on failure), :361 (#capture)",
+      "contract": {
+        "payload": "#capture(error,'turn') -> console.error + GlitchTip envelope",
+        "synchrony": "fire-and-forget (void send)",
+        "direction": "one-way",
+        "cardinality": "1:1",
+        "delivery": "best-effort",
+        "ordering": "n/a",
+        "idempotency": "fresh event_id",
+        "authz": "none",
+        "errorHandling": "reporting errors only console.error'd",
+        "backpressure": "none"
+      },
+      "routing": "catch in #handleInbound -> this.#capture (app.ts:306,361)",
+      "activation": "on-error",
+      "security": "only error name/message/mechanism sent; no prompt/args"
+    },
+    {
+      "id": "e.vault.model",
+      "from": "secret.vault",
+      "to": "runtime.modelClient",
+      "kind": "secret",
+      "protocol": "env (rendered value, read by field name)",
+      "label": "llmApiKey → Bearer (llmBaseUrl is a non-secret config literal, elliott.yaml:16)",
+      "evidence": "src/runtime/config.ts:179 (llmApiKey) → src/runtime/model/client.ts:33",
+      "contract": {
+        "payload": "llmApiKey (Vault-rendered secret via ${VAULT:...#api_key}, elliott.yaml:17); llmBaseUrl is a non-secret config literal (elliott.yaml:16), not part of the Bearer",
+        "synchrony": "sync (boot)",
+        "direction": "one-way (config)",
+        "cardinality": "1:1",
+        "delivery": "env at boot",
+        "ordering": "boot",
+        "idempotency": "static",
+        "authz": "Vault AppRole at deploy renders into env; runtime reads by field name",
+        "errorHandling": "missing required field throws at boot (config.ts:53-58,178-179)",
+        "backpressure": "none"
+      },
+      "routing": "config resolveExpression ${VAULT:secret/services/oslo#litellm_key} -> env -> settings.llmApiKey -> Bearer (config.ts:178-179 -> client.ts:33)",
+      "activation": "boot",
+      "security": "secret never logged/telemetered; the system prompt forbids revealing it"
+    },
+    {
+      "id": "e.vault.reporter",
+      "from": "secret.vault",
+      "to": "obs.reporter",
+      "kind": "secret",
+      "protocol": "env (rendered value, read by field name)",
+      "label": "glitchtipDsn",
+      "evidence": "src/runtime/config.ts:208 → src/runtime/reporter.ts",
+      "contract": {
+        "payload": "glitchtipDsn (rendered string)",
+        "synchrony": "sync (boot)",
+        "direction": "one-way (config)",
+        "cardinality": "1:1",
+        "delivery": "env at boot",
+        "ordering": "boot",
+        "idempotency": "static",
+        "authz": "Vault-rendered",
+        "errorHandling": "optional -- an omitted DSN just disables sending",
+        "backpressure": "none"
+      },
+      "routing": "config observability.glitchtip.dsn -> settings.glitchtipDsn -> RuntimeErrorReporter (config.ts:208 -> reporter.ts:10-11)",
+      "activation": "boot",
+      "security": "DSN (contains public key) held only in the reporter; not exposed"
+    },
+    {
+      "id": "e.kernel.audit",
+      "from": "runtime.kernel",
+      "to": "obs.audit",
+      "kind": "persist",
+      "protocol": "in-process (AuditLog.append)",
+      "label": "kernel lifecycle records (started / stopped / crossLink)",
+      "evidence": "src/kernel.ts:41 (records), :99, :111, :118",
+      "contract": {
+        "payload": "RecordDraft {type:kernel.started|stopped|audit.crosslink, scope, durability, classification, payload}",
+        "synchrony": "async (await append)",
+        "direction": "one-way (persist)",
+        "cardinality": "1:1",
+        "delivery": "durability-classed (effect-gating committed; observational buffered)",
+        "ordering": "hash-chained per shard",
+        "idempotency": "append-only",
+        "authz": "none",
+        "errorHandling": "GroupCommitter batches",
+        "backpressure": "observational tail 128"
+      },
+      "routing": "kernel.start/stop -> this.records.append(...) + crossLink (kernel.ts:99-118)",
+      "activation": "boot (start/stop) + scheduled (evolution records)",
+      "security": "hash-chained, Merkle cross-linked, tamper-evident (log.ts)"
+    },
+    {
+      "id": "e.kernel.footprint",
+      "from": "runtime.kernel",
+      "to": "obs.footprint",
+      "kind": "control",
+      "protocol": "in-process (instantiation; unfed)",
+      "label": "contains FootprintTracker (dormant)",
+      "evidence": "src/kernel.ts:52 (footprints)",
+      "contract": {
+        "payload": "instantiation only (FootprintTracker constructed as kernel.footprints)",
+        "synchrony": "n/a",
+        "direction": "one-way (containment)",
+        "cardinality": "1:1",
+        "delivery": "none",
+        "ordering": "n/a",
+        "idempotency": "n/a",
+        "authz": "none",
+        "errorHandling": "n/a",
+        "backpressure": "none"
+      },
+      "routing": "new FootprintTracker() in the AgentKernel constructor (kernel.ts:52)",
+      "activation": "boot",
+      "security": "dormant -- no usage attribution is fed at runtime"
+    },
+    {
+      "id": "e.elliott.pg",
+      "from": "container.elliott",
+      "to": "container.postgres",
+      "kind": "control",
+      "protocol": "compose depends_on (startup ordering; no runtime TCP)",
+      "label": "depends_on: service_healthy",
+      "evidence": "deploy/docker-compose.yml:24-26",
+      "contract": {
+        "payload": "compose depends_on: service_healthy (no runtime traffic)",
+        "synchrony": "n/a",
+        "direction": "one-way (startup ordering)",
+        "cardinality": "1:1",
+        "delivery": "none",
+        "ordering": "startup",
+        "idempotency": "n/a",
+        "authz": "n/a",
+        "errorHandling": "compose waits for pg_isready",
+        "backpressure": "none"
+      },
+      "routing": "depends_on.postgres.condition: service_healthy (docker-compose.yml:24-26)",
+      "activation": "boot",
+      "security": "no runtime TCP; postgresDsn has no runtime reader"
+    },
+    {
+      "id": "e.elliott.browser",
+      "from": "container.elliott",
+      "to": "container.browser",
+      "kind": "data",
+      "protocol": "tcp (shared isolated 'browser' network)",
+      "label": "browser network",
+      "evidence": "deploy/docker-compose.yml:27, :65-75",
+      "contract": {
+        "payload": "TCP on the shared isolated 'browser' network (HTTP to :3000)",
+        "synchrony": "n/a (network membership)",
+        "direction": "duplex",
+        "cardinality": "1:1",
+        "delivery": "tcp",
+        "ordering": "n/a",
+        "idempotency": "n/a",
+        "authz": "companion TOKEN",
+        "errorHandling": "n/a",
+        "backpressure": "companion CONCURRENT=3"
+      },
+      "routing": "networks:[default,browser] on elliott; [browser] on agent-browser (docker-compose.yml:27,75)",
+      "activation": "always-on",
+      "security": "isolated network segment; only elliott can reach the companion; Vault token"
+    },
+    {
+      "id": "e.map.in.elliott",
+      "from": "obs.map",
+      "to": "container.elliott",
+      "kind": "health",
+      "protocol": "in-process (bundled skill served by the runtime)",
+      "label": "runs inside (co-located)",
+      "evidence": "skills/telemetry-map rides the elliott app container in-process",
+      "contract": {
+        "payload": "the telemetry-map is a bundled skill loaded in-process (routes + service)",
+        "synchrony": "n/a",
+        "direction": "one-way (co-location)",
+        "cardinality": "1:1",
+        "delivery": "in-process",
+        "ordering": "n/a",
+        "idempotency": "n/a",
+        "authz": "n/a",
+        "errorHandling": "shares the runtime lifecycle",
+        "backpressure": "none"
+      },
+      "routing": "loaded via loadSkillRegistrations; routes served by the runtime HTTP server; service started with the others (loader.ts; app.ts)",
+      "activation": "boot",
+      "security": "same trust domain as the runtime; no separate process/port"
+    }
+  ],
+  "enrichmentNotes": {
+    "method": "Enriched by reading the live production runtime and bundled skills directly (src/runtime/*, src/memory/*, src/learning/*, src/audit/*, src/core/*, src/kernel.ts, skills/*, deploy/docker-compose.yml, config/elliott.yaml, agents/elliott.yaml) and grounding every non-obvious claim in file:line evidence. Additive only: the verified connection core (node id/kind/source/runtime and edge id/from/to/kind/protocol/label/evidence) is preserved verbatim; new fields (domain, classifications, interface, characteristics on nodes; contract, routing, activation, security on edges) and the top-level domains/classificationSchemes/enrichmentNotes were layered on. The 46 nodes were partitioned into 12 coherent domains by trust boundary + role; a generator asserted total node/edge coverage before writing.",
+    "concerns": [
+      {
+        "id": "e.loop.evidence",
+        "resolution": "ADJUDICATED in re-verification: from corrected runtime.agentLoop -> runtime.inbound. The runs-evidence lifecycle (beginTurn/recordRun, finish/finishRun) is orchestrated entirely by #handleInbound (app.ts:279/298/304); RuntimeAgent.turn never calls recordRun/finishRun. The agent loop's contributions (tool_calls, model_selections) are the separate edges e.toolexec.evidence and e.model.evidence.",
+        "source": "src/runtime/app.ts:279,298,304; src/runtime/agent.ts:43-89; src/runtime/evolution-evidence.ts:60,85"
+      },
+      {
+        "id": "e.model.evidence",
+        "resolution": "ADJUDICATED in re-verification: KEPT from=runtime.modelClient. The RuntimeModelSelection {routeDigest, usageReference} is produced solely by RuntimeModelClient.#attest (client.ts:64) as a field of ModelTurnResult; notifyModelSelection (agent.ts:76) is only a pass-through courier and a no-op unless the client attested. The model client is the true data origin even though the emit call-site is in agent-core.",
+        "source": "src/runtime/model/client.ts:64-82; src/runtime/agent.ts:76,247-253; src/runtime/evolution-evidence.ts:152-162"
+      }
+    ],
+    "crossDomainContracts": [
+      "REQUEST PATH: ingress (Slack/webhook -> #handleInbound) --agent.turn--> agent-core (round loop <=8) --ModelTurnRequest--> model-inference --HTTP Bearer--> LiteLLM, with tool rounds fanning into tool-execution / external-integrations / mcp-federation and back; the answer returns synchronously to the originating gateway.",
+      "PERSISTENCE PATH (digest-only): agent-core + model-inference + ingress --threaded TurnObserver--> memory-persistence (evidence sink -> shared bun:sqlite handle -> 5 evolution tables written at runtime: runs, tool_calls, component_uses, feedback, model_selections, WAL); every write is #capture-guarded and stores only hashes, latencies, ids, and dispositions -- never raw prompt/args/tool output. Immutable content-addressed snapshot ids (from kernel-governance) stamp each run for provenance.",
+      "LEARNING LOOP (gated, off-hot-path): memory-persistence (sqlite reads) --> self-evolution signals -> triage (score/gate) -> gauntlet (orchestrator+harness+independent evaluator) -> companions (sealed OCI over HTTP) -> proposals -> canary -> operator control plane; entirely inert unless evolution config + evolutionRuntime + continuous.enabled resolve, and driven by a distinct scheduler principal barred from approve/promote/rollback.",
+      "OBSERVABILITY TAP: ingress + agent-core + model-inference --emit--> observability (in-process telemetry bus, 512-ring, subscriber-isolated) --> telemetry-map (SSE + read-only sqlite tail); a parallel error funnel (#capture) egresses to GlitchTip. Prompt content crosses this tap only when ELLIOTT_TELEMETRY_PROMPTS!=0; otherwise digests only.",
+      "SECRET FLOW: secrets (Vault secret/services/oslo, rendered into env at deploy) --field-name reads at boot--> model-inference (llmApiKey -> Bearer; the LiteLLM base_url is a non-secret config literal) and observability (glitchtipDsn), plus external-integrations API keys and the browser companion token; unresolved optional secrets silently disable their skill; secrets are never logged, telemetered, or revealed to the model.",
+      "OUTBOUND DELIVERY: tool-execution (scheduler 30s tick) --context.deliver--> ingress (primary gateway send) delivers due reminders without ever opening a turn -- the one core path that pushes to the user outside a request/response."
+    ]
+  }
+}
