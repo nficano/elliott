@@ -63,17 +63,19 @@ services:
       retries: 5
 
   # Evolution companions: language-neutral optimizer/evaluator boundaries the
-  # runtime reaches over the internal `evolution` network. Fixture mode is on
-  # until the placement layer (loopback model proxy, evaluation/code-check/
-  # benchmark executors, canary service) exists — workers echo request
-  # bindings without calling a model or claiming real benchmark results.
+  # runtime reaches over the internal `evolution` network. The optimizers run
+  # real model calls through loopback proxy sidecars (below) that hold the
+  # LiteLLM credential; the benchmarks image stays in fixture mode until the
+  # evaluation/code-check/benchmark executors exist.
   evolution-dspy:
     image: elliott/evaluator-dspy:local
     container_name: elliott-evolution-dspy
     restart: unless-stopped
     environment:
-      ELLIOTT_COMPANION_FIXTURE: "1"
-    networks: [evolution]
+      ELLIOTT_MODEL_PROXY_ENDPOINT: "http://127.0.0.1:9090/v1"
+      ELLIOTT_MODEL_PROXY_TOKEN: ${ELLIOTT_MODEL_PROXY_TOKEN_DSPY:?rendered from Vault}
+      ELLIOTT_DSPY_MODEL: "openai/tier-standard"
+    networks: [evolution, default]
     read_only: true
     tmpfs:
       - /tmp:size=128m,mode=1777
@@ -98,8 +100,12 @@ services:
     container_name: elliott-evolution-darwinian
     restart: unless-stopped
     environment:
-      ELLIOTT_COMPANION_FIXTURE: "1"
-    networks: [evolution]
+      ELLIOTT_MODEL_PROXY_ENDPOINT: "http://127.0.0.1:9090/v1"
+      ELLIOTT_MODEL_PROXY_TOKEN: ${ELLIOTT_MODEL_PROXY_TOKEN_DARWINIAN:?rendered from Vault}
+      ELLIOTT_DARWINIAN_MODEL: "tier-standard"
+      ELLIOTT_MODEL_PROXY_INPUT_USD_PER_MILLION: "3"
+      ELLIOTT_MODEL_PROXY_OUTPUT_USD_PER_MILLION: "15"
+    networks: [evolution, default]
     read_only: true
     tmpfs:
       - /tmp:size=128m,mode=1777
@@ -115,6 +121,93 @@ services:
       timeout: 5s
       retries: 5
       start_period: 15s
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "2" }
+
+  # Loopback model proxies: one per optimizer, sharing that companion's
+  # network namespace so the worker's mandatory 127.0.0.1 endpoint check
+  # holds. The upstream LiteLLM key lives only here, never in the sealed
+  # companion image.
+  evolution-dspy-proxy:
+    image: elliott/model-proxy:local
+    container_name: elliott-evolution-dspy-proxy
+    restart: unless-stopped
+    network_mode: "service:evolution-dspy"
+    depends_on: [evolution-dspy]
+    environment:
+      ELLIOTT_PROXY_PORT: "9090"
+      ELLIOTT_PROXY_TOKEN: ${ELLIOTT_MODEL_PROXY_TOKEN_DSPY:?rendered from Vault}
+      ELLIOTT_PROXY_UPSTREAM: ${ELLIOTT_MODEL_PROXY_UPSTREAM:-https://litellm.h12o.io}
+      ELLIOTT_PROXY_UPSTREAM_KEY: ${litellm_key:?rendered from Vault}
+      ELLIOTT_PROXY_ALLOWED_MODELS: "tier-standard"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 64
+    mem_limit: 256m
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:9090/healthz', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "2" }
+
+  evolution-darwinian-proxy:
+    image: elliott/model-proxy:local
+    container_name: elliott-evolution-darwinian-proxy
+    restart: unless-stopped
+    network_mode: "service:evolution-darwinian"
+    depends_on: [evolution-darwinian]
+    environment:
+      ELLIOTT_PROXY_PORT: "9090"
+      ELLIOTT_PROXY_TOKEN: ${ELLIOTT_MODEL_PROXY_TOKEN_DARWINIAN:?rendered from Vault}
+      ELLIOTT_PROXY_UPSTREAM: ${ELLIOTT_MODEL_PROXY_UPSTREAM:-https://litellm.h12o.io}
+      ELLIOTT_PROXY_UPSTREAM_KEY: ${litellm_key:?rendered from Vault}
+      ELLIOTT_PROXY_ALLOWED_MODELS: "tier-standard"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 64
+    mem_limit: 256m
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:9090/healthz', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "2" }
+
+  # Promotion canary: the runtime POSTs the pending release here; the canary
+  # verifies the live runtime still completes a real agent turn and echoes
+  # the release snapshotId. Candidate quality is gated by the evaluation
+  # report and human proposal approval, not by this probe.
+  evolution-canary:
+    image: elliott/evolution-canary:local
+    container_name: elliott-evolution-canary
+    restart: unless-stopped
+    environment:
+      ELLIOTT_RUNTIME_URL: "http://elliott:8080"
+    networks: [default]
+    read_only: true
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 64
+    mem_limit: 256m
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:9080/healthz', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     logging:
       driver: json-file
       options: { max-size: "10m", max-file: "2" }

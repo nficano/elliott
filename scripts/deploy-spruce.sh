@@ -45,11 +45,17 @@ docker build --file companions/darwinian/Dockerfile \
   --tag elliott/evaluator-darwinian:local .
 docker build --file companions/benchmarks/Dockerfile \
   --tag elliott/evaluator-agent-benchmarks:local .
+docker build --file deploy/placement/model-proxy/Dockerfile \
+  --tag elliott/model-proxy:local .
+docker build --file deploy/placement/canary/Dockerfile \
+  --tag elliott/evolution-canary:local .
 docker save \
   elliott:latest \
   elliott/evaluator-dspy:local \
   elliott/evaluator-darwinian:local \
   elliott/evaluator-agent-benchmarks:local \
+  elliott/model-proxy:local \
+  elliott/evolution-canary:local \
   | gzip > "$TEMP_DIR/elliott-image.tar.gz"
 
 ssh -o BatchMode=yes "$SPRUCE_HOST" "mkdir -p '$REMOTE_DIR'"
