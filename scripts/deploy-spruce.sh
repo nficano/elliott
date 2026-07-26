@@ -39,7 +39,18 @@ docker build \
   --label "org.opencontainers.image.revision=$RELEASE" \
   --tag elliott:latest \
   .
-docker save elliott:latest | gzip > "$TEMP_DIR/elliott-image.tar.gz"
+docker build --file companions/dspy/Dockerfile \
+  --tag elliott/evaluator-dspy:local .
+docker build --file companions/darwinian/Dockerfile \
+  --tag elliott/evaluator-darwinian:local .
+docker build --file companions/benchmarks/Dockerfile \
+  --tag elliott/evaluator-agent-benchmarks:local .
+docker save \
+  elliott:latest \
+  elliott/evaluator-dspy:local \
+  elliott/evaluator-darwinian:local \
+  elliott/evaluator-agent-benchmarks:local \
+  | gzip > "$TEMP_DIR/elliott-image.tar.gz"
 
 ssh -o BatchMode=yes "$SPRUCE_HOST" "mkdir -p '$REMOTE_DIR'"
 rsync -az \

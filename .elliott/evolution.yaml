@@ -22,7 +22,7 @@ evaluation:
     validation: 0.2
     holdout: 0.2
 continuous:
-  enabled: false
+  enabled: true
   benchmarkCron: "0 3 * * 0"
   optimizationCron: "0 4 * * 0"
   maximumRiskClass: C2

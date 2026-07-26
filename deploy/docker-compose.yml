@@ -24,7 +24,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    networks: [default, browser]
+    networks: [default, browser, evolution]
     read_only: true
     tmpfs:
       - /tmp:size=512m,mode=1777
@@ -62,6 +62,89 @@ services:
       timeout: 5s
       retries: 5
 
+  # Evolution companions: language-neutral optimizer/evaluator boundaries the
+  # runtime reaches over the internal `evolution` network. Fixture mode is on
+  # until the placement layer (loopback model proxy, evaluation/code-check/
+  # benchmark executors, canary service) exists — workers echo request
+  # bindings without calling a model or claiming real benchmark results.
+  evolution-dspy:
+    image: elliott/evaluator-dspy:local
+    container_name: elliott-evolution-dspy
+    restart: unless-stopped
+    environment:
+      ELLIOTT_COMPANION_FIXTURE: "1"
+    networks: [evolution]
+    read_only: true
+    tmpfs:
+      - /tmp:size=128m,mode=1777
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 128
+    mem_limit: 1g
+    cpus: 1
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:9071/healthz', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "2" }
+
+  evolution-darwinian:
+    image: elliott/evaluator-darwinian:local
+    container_name: elliott-evolution-darwinian
+    restart: unless-stopped
+    environment:
+      ELLIOTT_COMPANION_FIXTURE: "1"
+    networks: [evolution]
+    read_only: true
+    tmpfs:
+      - /tmp:size=128m,mode=1777
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 128
+    mem_limit: 1g
+    cpus: 1
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:9072/healthz', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "2" }
+
+  evolution-benchmarks:
+    image: elliott/evaluator-agent-benchmarks:local
+    container_name: elliott-evolution-benchmarks
+    restart: unless-stopped
+    environment:
+      ELLIOTT_COMPANION_FIXTURE: "1"
+    networks: [evolution]
+    read_only: true
+    tmpfs:
+      - /tmp:size=128m,mode=1777
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 128
+    mem_limit: 1g
+    cpus: 1
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:9073/healthz', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "2" }
+
   agent-browser:
     image: ghcr.io/browserless/chromium:latest
     container_name: elliott-browser
@@ -77,6 +160,10 @@ services:
 networks:
   default:
   browser:
+  # Internal-only: companions get no route to the internet; the runtime
+  # reaches them by service name, nothing else can.
+  evolution:
+    internal: true
 
 volumes:
   elliott-postgres:
