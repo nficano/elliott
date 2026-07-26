@@ -35,6 +35,15 @@ const DEFAULT_MAX_TOKENS = 4096;
 const DEFAULT_TEMPERATURE = 0.4;
 const environment = Bun.env;
 
+// ELLIOTT_HTTP_PORT overrides the configured port for local runs (e.g. when the
+// default is already taken). Falls back to config, then DEFAULT_PORT.
+const httpPort = (resolved: unknown): number => {
+  const override = Number(environment["ELLIOTT_HTTP_PORT"]);
+  if (Number.isSafeInteger(override) && override > 0) return override;
+  return optionalNumberAt(resolved, ["runtime", "http", "port"])
+    ?? DEFAULT_PORT;
+};
+
 export const runtimeEnvironment = environment;
 export const runtimeName = environment["ELLIOTT_ENV"] ?? "prod";
 
@@ -155,8 +164,7 @@ const coreSettings = (
     environment: runtimeName,
     release: environment["ELLIOTT_RELEASE"] ?? "dev",
     timezone: stringAt(resolved, ["runtime", "timezone"]),
-    port: optionalNumberAt(resolved, ["runtime", "http", "port"])
-      ?? DEFAULT_PORT,
+    port: httpPort(resolved),
     persona: path.join(root, stringAt(agent, ["spec", "persona"])),
     model: stringAt(resolved, ["llm", "models", modelProfile, "model"]),
     maxTokens: optionalNumberAt(

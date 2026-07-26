@@ -34,6 +34,7 @@ import type {
   SkillContext,
 } from "./skills/types";
 import { ensureRuntimeSnapshot } from "./snapshot";
+import { runtimeTelemetry, telemetryTurnObserver } from "./telemetry";
 import type { InboundMessage, RuntimeHealth, RuntimeSettings } from "./types";
 
 export class ElliottRuntime {
@@ -245,6 +246,14 @@ export class ElliottRuntime {
   async #handleInbound(message: InboundMessage): Promise<void> {
     if (this.#seen.has(message.id)) return;
     this.#seen.add(message.id);
+    const turnId = `turn:${crypto.randomUUID()}`;
+    runtimeTelemetry.emit("inbound", {
+      messageId: message.id,
+      gateway: message.gateway,
+      channel: message.channel,
+      sender: message.sender,
+      textLength: message.text.length,
+    }, turnId);
     const gateway = this.#replyGateway(message);
     const response = await this.#beginResponse(gateway, message);
     const conversation = `${message.gateway}:${message.channel}:${
@@ -274,18 +283,26 @@ export class ElliottRuntime {
       retainConversation,
       ...(response.observer !== undefined && { observer: response.observer }),
     });
+    const observer = telemetryTurnObserver(evidence?.observer, turnId);
+    runtimeTelemetry.emit("turn.begin", {
+      conversation,
+      snapshotId: pinnedSnapshotId,
+    }, turnId);
     try {
       const answer = await agent.turn(conversation, message.text, {
-        ...(evidence?.observer !== undefined && {
-          observer: evidence.observer,
-        }),
+        observer,
         context: { message },
         retainHistory: retainConversation,
       });
       await response.complete(answer);
       evidence?.finish("success");
+      runtimeTelemetry.emit("turn.finish", {
+        disposition: "success",
+        answerLength: answer.length,
+      }, turnId);
     } catch (error) {
       evidence?.finish("failure");
+      runtimeTelemetry.emit("turn.finish", { disposition: "failure" }, turnId);
       this.#capture(error, "turn");
       await response.fail(
         "Something went wrong handling that. I logged the failure.",

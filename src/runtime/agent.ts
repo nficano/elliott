@@ -6,6 +6,7 @@ import type {
   InboundContextEntity,
   InboundThreadMessage,
   ModelMessage,
+  ModelTurnRequest,
   ModelTurnResult,
   RuntimeModelCompleter,
   ToolCall,
@@ -61,13 +62,15 @@ export class RuntimeAgent {
     ];
     for (let round = 0; round < MAX_ROUNDS; round++) {
       const allowTools = round < MAX_ROUNDS - 1;
+      const request = {
+        system: this.#systemPrompt(conversation),
+        messages,
+        tools: [...tools.values()],
+        allowTools,
+      } satisfies ModelTurnRequest;
+      await notifyModelRequest(options, request);
       const result = await this.#model.complete(
-        {
-          system: this.#systemPrompt(conversation),
-          messages,
-          tools: [...tools.values()],
-          allowTools,
-        },
+        request,
         options.observer?.onTextDelta,
       );
       await notifyModelSelection(options, result);
@@ -232,6 +235,13 @@ const notifyTool = async (
     name: call.name,
     ...evidence,
   });
+};
+
+const notifyModelRequest = async (
+  options: TurnOptions,
+  request: ModelTurnRequest,
+): Promise<void> => {
+  await options.observer?.onModelRequest?.(request);
 };
 
 const notifyModelSelection = async (

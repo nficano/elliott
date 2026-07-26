@@ -297,6 +297,49 @@ export interface TurnObserver {
   readonly onModelSelection?: (
     selection: RuntimeModelSelection,
   ) => Promise<void>;
+  // Fires once per round with the fully assembled request (system prompt +
+  // messages + tools) immediately before the provider call. This is the only
+  // seam where the raw prompt is observable; used by the telemetry bus so an
+  // operator can watch the prompt that is relayed to the model.
+  readonly onModelRequest?: (request: ModelTurnRequest) => Promise<void>;
+}
+
+// --- In-process telemetry (observability map) ---------------------------------
+// A cheap, always-on pub/sub surface that mirrors turn activity to local
+// subscribers (the telemetry-map extension). It never persists and never leaves
+// the process; durable evidence still lives in sessions.sqlite.
+
+export type TelemetryEventType =
+  | "inbound"
+  | "turn.begin"
+  | "model.request"
+  | "model.selection"
+  | "tool.progress"
+  | "turn.finish"
+  | "db.write"
+  | "error"
+  | "evolution"
+  | "heartbeat";
+
+export interface TelemetryEnvelope {
+  readonly seq: number;
+  readonly at: string;
+  readonly type: TelemetryEventType;
+  readonly runId?: string;
+  readonly payload: Readonly<Record<string, unknown>>;
+}
+
+export type TelemetrySubscriber = (event: TelemetryEnvelope) => void;
+
+export interface TelemetryBus {
+  readonly promptsEnabled: boolean;
+  emit(
+    type: TelemetryEventType,
+    payload: Readonly<Record<string, unknown>>,
+    runId?: string,
+  ): void;
+  subscribe(subscriber: TelemetrySubscriber): () => void;
+  recent(): readonly TelemetryEnvelope[];
 }
 
 export interface TurnOptions {
