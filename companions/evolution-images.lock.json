@@ -9,9 +9,9 @@
   },
   "images": {
     "evaluator-dspy": {
-      "localReference": "elliott/evaluator-dspy@sha256:83644cc6c9bdcf08bd5c8b1f47f76eb2bab4eafefb2f75b7214ce30eb5b26a3e",
-      "ociManifestDigest": "sha256:83644cc6c9bdcf08bd5c8b1f47f76eb2bab4eafefb2f75b7214ce30eb5b26a3e",
-      "sourceDigest": "sha256:99fecdfed15003471efd070156c4165f9930e1bbb9d44a69384101419458ab1b",
+      "localReference": "elliott/evaluator-dspy@sha256:4dcf63d818354f9b0663baf1d87ede229290dfd8b15fcb23e653fc21eedd4baa",
+      "ociManifestDigest": "sha256:4dcf63d818354f9b0663baf1d87ede229290dfd8b15fcb23e653fc21eedd4baa",
+      "sourceDigest": "sha256:d0879298d587b6c2ccdcc6fcb4ea5d94fe62c7351b098591a2173fcd1e40ed16",
       "artifact": ".artifacts/evolution-companions/evaluator-dspy.oci.tar",
       "dependency": {
         "name": "dspy",

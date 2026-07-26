@@ -206,10 +206,12 @@ def _optimize_with_dspy(
     started = time.monotonic()
     with dspy.context(lm=lm):
         if engine_kind == "gepa":
+            # DSPy 3.2.1 requires exactly one of max_metric_calls,
+            # max_full_evals, auto; the budget-derived call ceiling is the
+            # one that honors the run's declared limits.
             optimizer = _call_supported(
                 dspy.GEPA,
                 metric=_metric,
-                auto="light",
                 max_metric_calls=maximum_calls,
                 reflection_lm=lm,
                 num_threads=maximum_concurrency,
