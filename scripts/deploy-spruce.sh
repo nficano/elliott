@@ -49,6 +49,8 @@ docker build --file deploy/placement/model-proxy/Dockerfile \
   --tag elliott/model-proxy:local .
 docker build --file deploy/placement/canary/Dockerfile \
   --tag elliott/evolution-canary:local .
+docker build --file deploy/placement/loopback-bridge/Dockerfile \
+  --tag elliott/loopback-bridge:local .
 docker save \
   elliott:latest \
   elliott/evaluator-dspy:local \
@@ -56,6 +58,7 @@ docker save \
   elliott/evaluator-agent-benchmarks:local \
   elliott/model-proxy:local \
   elliott/evolution-canary:local \
+  elliott/loopback-bridge:local \
   | gzip > "$TEMP_DIR/elliott-image.tar.gz"
 
 ssh -o BatchMode=yes "$SPRUCE_HOST" "mkdir -p '$REMOTE_DIR'"

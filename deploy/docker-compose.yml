@@ -185,6 +185,85 @@ services:
       driver: json-file
       options: { max-size: "10m", max-file: "2" }
 
+  # Loopback bridges: companion job servers refuse to bind anything but
+  # 127.0.0.1, so each companion gets a netns sidecar that listens on the
+  # container's external interface (:19xxx) and pipes to the loopback port.
+  # The runtime's ELLIOTT_EVOLUTION_*_URL values point at these.
+  evolution-dspy-bridge:
+    image: elliott/loopback-bridge:local
+    container_name: elliott-evolution-dspy-bridge
+    restart: unless-stopped
+    network_mode: "service:evolution-dspy"
+    depends_on: [evolution-dspy]
+    environment:
+      ELLIOTT_BRIDGE_LISTEN_PORT: "19071"
+      ELLIOTT_BRIDGE_TARGET_PORT: "9071"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 64
+    mem_limit: 128m
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:19071/healthz', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "2" }
+
+  evolution-darwinian-bridge:
+    image: elliott/loopback-bridge:local
+    container_name: elliott-evolution-darwinian-bridge
+    restart: unless-stopped
+    network_mode: "service:evolution-darwinian"
+    depends_on: [evolution-darwinian]
+    environment:
+      ELLIOTT_BRIDGE_LISTEN_PORT: "19072"
+      ELLIOTT_BRIDGE_TARGET_PORT: "9072"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 64
+    mem_limit: 128m
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:19072/healthz', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "2" }
+
+  evolution-benchmarks-bridge:
+    image: elliott/loopback-bridge:local
+    container_name: elliott-evolution-benchmarks-bridge
+    restart: unless-stopped
+    network_mode: "service:evolution-benchmarks"
+    depends_on: [evolution-benchmarks]
+    environment:
+      ELLIOTT_BRIDGE_LISTEN_PORT: "19073"
+      ELLIOTT_BRIDGE_TARGET_PORT: "9073"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 64
+    mem_limit: 128m
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:19073/healthz', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "2" }
+
   # Promotion canary: the runtime POSTs the pending release here; the canary
   # verifies the live runtime still completes a real agent turn and echoes
   # the release snapshotId. Candidate quality is gated by the evaluation
