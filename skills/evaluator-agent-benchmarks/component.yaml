@@ -18,5 +18,12 @@ spec:
       endpoint: http://127.0.0.1:9073
       egress: { class: none }
       volumes: []
+  topology:
+    node: { id: evaluator.benchmarks, kind: evaluator, domain: self-evolution, trustZone: egress, dataClassification: internal, criticality: latent }
+    dispatch: none
+    gate: "config:evolution.evaluatorEndpoint"
+    egressTargets: [ "benchmarks companion (HTTP, sealed OCI)" ]
+    edges:
+      - { from: evaluator.gauntlet, to: self, kind: learn, protocol: "http (POST, conditional on *_URL)", label: compare/baseline }
   exports:
     - { ref: evaluator/agent-benchmarks, implementation: src/index.ts }

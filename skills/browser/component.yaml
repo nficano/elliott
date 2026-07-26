@@ -16,5 +16,12 @@ spec:
       egress: { class: declared, hosts: [] }
       endpoint: cdp
       volumes: [{ tmpfs: /profile }]
+  topology:
+    node: { id: tool.browser, kind: tool, domain: external-integrations, trustZone: egress, dataClassification: untrusted-external, criticality: supporting }
+    dispatch: tool
+    gate: always
+    egressTargets: [ browserless companion daemon ]
+    edges:
+      - { from: self, to: container.browser, kind: data, protocol: "http /content,/scrape (daemon->Chrome CDP)", label: render/scrape }
   exports:
     - { ref: tool/browser, implementation: src/index.ts }

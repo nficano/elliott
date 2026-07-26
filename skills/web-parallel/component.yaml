@@ -11,5 +11,10 @@ spec:
   egress: { class: declared, hosts: [api.parallel.ai] }
   isolation: container
   outputTrust: untrusted
+  topology:
+    node: { id: tool.parallel, kind: tool, domain: external-integrations, trustZone: egress, dataClassification: untrusted-external, criticality: supporting }
+    dispatch: tool
+    gate: "secret:parallelApiKey"
+    egressTargets: [ Parallel API ]
   exports:
     - { ref: tool/parallel-search, implementation: src/index.ts }

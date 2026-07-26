@@ -10,5 +10,10 @@ spec:
   egress: { class: declared, hosts: [duckduckgo.com] }
   isolation: container
   outputTrust: untrusted
+  topology:
+    node: { id: tool.search-duckduckgo, kind: tool, domain: external-integrations, trustZone: egress, dataClassification: untrusted-external, criticality: supporting }
+    dispatch: tool
+    gate: always
+    egressTargets: [ DuckDuckGo ]
   exports:
     - { ref: tool/duckduckgo-search, implementation: src/index.ts }

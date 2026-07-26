@@ -11,5 +11,10 @@ spec:
   egress: { class: none }
   isolation: container
   outputTrust: untrusted
+  topology:
+    node: { id: tool.files, kind: tool, domain: tool-execution, trustZone: sandboxed, dataClassification: user-content, criticality: supporting }
+    dispatch: tool
+    gate: "config:tools.files.enabled"
+    egressTargets: []
   exports:
     - { ref: tool/files, implementation: src/index.ts }

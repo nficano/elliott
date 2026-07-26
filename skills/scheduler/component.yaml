@@ -8,5 +8,12 @@ spec:
   capabilities: []
   egress: { class: none }
   isolation: container
+  topology:
+    node: { id: service.scheduler, kind: service, domain: tool-execution, trustZone: sandboxed, dataClassification: user-content, criticality: supporting }
+    dispatch: tool
+    gate: always
+    egressTargets: []
+    edges:
+      - { from: self, to: gateway.slack, kind: data, protocol: "in-process (context.deliver -> #deliver -> primaryGateway.send)", label: due reminder (outbound) }
   exports:
     - { ref: scheduler/reminders, implementation: src/index.ts }

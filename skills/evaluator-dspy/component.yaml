@@ -15,5 +15,12 @@ spec:
       endpoint: http://127.0.0.1:9071
       egress: { class: none }
       volumes: []
+  topology:
+    node: { id: evaluator.dspy, kind: evaluator, domain: self-evolution, trustZone: egress, dataClassification: internal, criticality: latent }
+    dispatch: none
+    gate: "config:evolution.dspyEndpoint"
+    egressTargets: [ "dspy companion (HTTP, sealed OCI)" ]
+    edges:
+      - { from: evaluator.gauntlet, to: self, kind: learn, protocol: "http (POST, conditional on *_URL)", label: optimize }
   exports:
     - { ref: evaluator/dspy, implementation: src/index.ts }

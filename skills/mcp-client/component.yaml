@@ -10,5 +10,10 @@ spec:
   egress: { class: declared, hosts: [] }
   isolation: container
   outputTrust: untrusted
+  topology:
+    node: { id: mcp.client, kind: mcp-endpoint, domain: mcp-federation, trustZone: egress, dataClassification: untrusted-external, criticality: supporting }
+    dispatch: tool
+    gate: always
+    egressTargets: [ configured MCP servers ]
   exports:
     - { ref: mcp-endpoint/mcp-client, implementation: src/index.ts }

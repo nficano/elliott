@@ -10,5 +10,10 @@ spec:
   egress: { class: none }
   isolation: container
   outputTrust: untrusted
+  topology:
+    node: { id: tool.terminal, kind: tool, domain: tool-execution, trustZone: sandboxed, dataClassification: internal, criticality: supporting }
+    dispatch: tool
+    gate: "config:tools.terminal.enabled"
+    egressTargets: []
   exports:
     - { ref: tool/terminal, implementation: src/index.ts }

@@ -186,12 +186,33 @@
           "required": ["id", "kind", "domain"],
           "description": "The connection-graph node this component contributes. Omit only if the component contributes no node.",
           "properties": {
-            "id": { "type": "string", "description": "Graph node id, e.g. tool.files, gateway.slack, service.scheduler." },
+            "id": {
+              "type": "string",
+              "description": "Graph node id, e.g. tool.files, gateway.slack, service.scheduler."
+            },
             "kind": {
-              "enum": ["gateway", "tool", "service", "mcp-endpoint", "observability", "evaluator", "provider", "runtime", "agent-loop", "memory", "database", "learning", "container", "secret-source"],
+              "enum": [
+                "gateway",
+                "tool",
+                "service",
+                "mcp-endpoint",
+                "observability",
+                "evaluator",
+                "provider",
+                "runtime",
+                "agent-loop",
+                "memory",
+                "database",
+                "learning",
+                "container",
+                "secret-source"
+              ],
               "description": "Graph node kind (the authoritative role, which may differ from the manifest `kind`: e.g. gateway-gmail declares kind:gateway but contributes a tool node)."
             },
-            "domain": { "type": "string", "description": "Architectural domain id (ingress, agent-core, tool-execution, external-integrations, mcp-federation, self-evolution, observability, …)." },
+            "domain": {
+              "type": "string",
+              "description": "Architectural domain id (ingress, agent-core, tool-execution, external-integrations, mcp-federation, self-evolution, observability, …)."
+            },
             "trustZone": { "type": "string" },
             "dataClassification": { "type": "string" },
             "criticality": { "type": "string" }
@@ -201,8 +222,15 @@
           "enum": ["socket", "route", "tool", "service", "none"],
           "description": "How the runtime reaches this node; drives the auto-derived edge. socket: gateway→inbound. route: http→node + node→inbound. tool: toolExec→node. service/none: no auto edge (declare via `edges`)."
         },
-        "gate": { "type": "string", "description": "Liveness gate that sets the node `runtime` flag: 'always' (live), a settings key like 'settings.slack' (config-gated), or 'config:<path>'." },
-        "egressTargets": { "type": "array", "items": { "type": "string" }, "description": "External endpoints this node reaches (informational)." },
+        "gate": {
+          "type": "string",
+          "description": "Liveness gate that sets the node `runtime` flag: 'always' (live), a settings key like 'settings.slack' (config-gated), or 'config:<path>'."
+        },
+        "egressTargets": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "External endpoints this node reaches (informational)."
+        },
         "edges": {
           "type": "array",
           "description": "Extra edges beyond the auto-derived one. Use the literal 'self' for this component's own node id.",
@@ -213,7 +241,16 @@
             "properties": {
               "from": { "type": "string" },
               "to": { "type": "string" },
-              "kind": { "enum": ["data", "control", "persist", "learn", "health", "secret"] },
+              "kind": {
+                "enum": [
+                  "data",
+                  "control",
+                  "persist",
+                  "learn",
+                  "health",
+                  "secret"
+                ]
+              },
               "protocol": { "type": "string" },
               "label": { "type": "string" }
             }

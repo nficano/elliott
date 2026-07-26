@@ -11,5 +11,10 @@ spec:
   egress: { class: declared, hosts: [api.firecrawl.dev] }
   isolation: container
   outputTrust: untrusted
+  topology:
+    node: { id: tool.firecrawl, kind: tool, domain: external-integrations, trustZone: egress, dataClassification: untrusted-external, criticality: supporting }
+    dispatch: tool
+    gate: "secret:firecrawlApiKey"
+    egressTargets: [ Firecrawl API ]
   exports:
     - { ref: tool/firecrawl, implementation: src/index.ts }

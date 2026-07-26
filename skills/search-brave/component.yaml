@@ -11,5 +11,10 @@ spec:
   egress: { class: declared, hosts: [api.search.brave.com] }
   isolation: container
   outputTrust: untrusted
+  topology:
+    node: { id: tool.search-brave, kind: tool, domain: external-integrations, trustZone: egress, dataClassification: untrusted-external, criticality: supporting }
+    dispatch: tool
+    gate: "secret:braveApiKey"
+    egressTargets: [ Brave Search API ]
   exports:
     - { ref: tool/brave-search, implementation: src/index.ts }

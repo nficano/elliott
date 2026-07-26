@@ -10,5 +10,10 @@ spec:
   egress: { class: declared, hosts: [] }
   isolation: container
   outputTrust: untrusted
+  topology:
+    node: { id: tool.fetch, kind: tool, domain: external-integrations, trustZone: egress, dataClassification: untrusted-external, criticality: supporting }
+    dispatch: tool
+    gate: always
+    egressTargets: [ public http/https ]
   exports:
     - { ref: tool/fetch-url, implementation: src/index.ts }

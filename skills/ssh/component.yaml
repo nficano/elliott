@@ -11,5 +11,10 @@ spec:
   egress: { class: declared, hosts: [] }
   isolation: container
   outputTrust: untrusted
+  topology:
+    node: { id: tool.ssh, kind: tool, domain: tool-execution, trustZone: sandboxed, dataClassification: secret, criticality: supporting }
+    dispatch: tool
+    gate: "secret:ssh"
+    egressTargets: [ allowlisted ssh hosts ]
   exports:
     - { ref: tool/ssh, implementation: src/index.ts }
