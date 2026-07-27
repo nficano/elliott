@@ -8,6 +8,7 @@ import {
   UNIFORM_NODE_FOOT,
 } from "../utils/layout";
 import { CANVAS_COLOR, domainColor } from "../utils/palette";
+import { cylinder } from "./cylinder";
 import { DECK_FONT, isoText, measureWorld } from "./flat-text";
 import { contactShadow, SCENE_LIGHT } from "./lighting";
 import { prism } from "./prism";
@@ -143,16 +144,28 @@ export const drawNodeShape = (
   const height = nodeHeight();
   const w = foot * SYSTEM_FOOTPRINT_WIDTH;
   const d = foot * 0.72;
-  const top = prism(scene, {
-    cx: node.rs.x,
-    cz: node.rs.z,
-    corners: roundedRectCorners(w, d, Math.min(w, d) * 0.22),
-    y0: node.rs.y,
-    h: height,
-    color: CANVAS_COLOR.tile,
-    alpha: paint.alpha,
-    topLight: 0.07,
-  });
+  const top = isDatabaseNode(node)
+    ? cylinder(scene, {
+        cx: node.rs.x,
+        cz: node.rs.z,
+        rx: w / 2,
+        rz: d / 2,
+        y0: node.rs.y,
+        h: height,
+        color: CANVAS_COLOR.tile,
+        alpha: paint.alpha,
+        topLight: 0.07,
+      })
+    : prism(scene, {
+        cx: node.rs.x,
+        cz: node.rs.z,
+        corners: roundedRectCorners(w, d, Math.min(w, d) * 0.22),
+        y0: node.rs.y,
+        h: height,
+        color: CANVAS_COLOR.tile,
+        alpha: paint.alpha,
+        topLight: 0.07,
+      });
   const emphasized = paint.hot || isHeroNode(node);
   ctx.save();
   ctx.globalAlpha = paint.alpha * (emphasized ? 0.92 : 0.28);
