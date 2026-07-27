@@ -116,6 +116,33 @@ const drawBarrel = (
   ctx.fill();
 };
 
+// The barrel silhouette: the two vertical side tangents plus the near-side
+// bottom arc, closing the shape into a readable cylinder. Stroked to match
+// the cross-section slices so the whole drum reads as one line drawing.
+const drawBarrelEdges = (
+  scene: Scene,
+  spec: CylinderSpec,
+  rings: { bottom: Projected[]; top: Projected[]; front: number[]; },
+): void => {
+  const { ctx } = scene;
+  const { bottom, top, front } = rings;
+  const li = front[0] ?? 0;
+  const ri = front.at(-1) ?? 0;
+  const topLeft = top[li];
+  const topRight = top[ri];
+  if (!topLeft || !topRight) return;
+  ctx.strokeStyle = shade(spec.color, 0.55, spec.alpha * 0.8);
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(topLeft.x, topLeft.y);
+  for (const i of front) {
+    const p = bottom[i];
+    if (p) ctx.lineTo(p.x, p.y);
+  }
+  ctx.lineTo(topRight.x, topRight.y);
+  ctx.stroke();
+};
+
 // The diagram-style cross sections: front arcs slicing the barrel into
 // evenly stacked discs.
 const drawSlices = (
@@ -157,6 +184,7 @@ export const cylinder = (scene: Scene, spec: CylinderSpec): Projected[] => {
   const top = ringPoints(scene, spec, spec.y0 + spec.h);
   const front = frontIndices(bottom);
   drawBarrel(scene, spec, { bottom, top, front });
+  drawBarrelEdges(scene, spec, { bottom, top, front });
   drawSlices(scene, spec, front);
   drawTopDisc(scene, spec, top);
   return top;
