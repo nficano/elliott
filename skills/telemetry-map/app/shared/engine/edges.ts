@@ -5,9 +5,8 @@ import type { EngineState } from "./state";
 
 import { SCALE } from "../utils/camera";
 import { point } from "../utils/camera";
-import { nodeHeight } from "../utils/layout";
 import { CANVAS_COLOR, hash01 } from "../utils/palette";
-import { visualNodeFoot } from "./nodes";
+import { visualNodeFoot, visualNodeHeight } from "./nodes";
 import { proj, qPoint } from "./scene";
 import { effectiveBrightness, isEdgePulsed } from "./state";
 
@@ -46,8 +45,8 @@ export const edgeCurve = (
   const aNode = state.nodesById.get(edge.from);
   const bNode = state.nodesById.get(edge.to);
   if (!aNode || !bNode) return out;
-  const y1 = aNode.rs.y + nodeHeight() + 0.15;
-  const y2 = bNode.rs.y + nodeHeight() + 0.15;
+  const y1 = aNode.rs.y + visualNodeHeight(aNode) + 0.15;
+  const y2 = bNode.rs.y + visualNodeHeight(bNode) + 0.15;
   const mx = (aNode.rs.x + bNode.rs.x) / 2;
   const mz = (aNode.rs.z + bNode.rs.z) / 2;
   const dist = Math.hypot(

@@ -24,6 +24,10 @@ const DATABASE_KINDS = new Set([
 ]);
 const DATABASE_NODE_IDS = new Set(["container.postgres"]);
 const HERO_NODE_IDS = new Set(["runtime.agentLoop"]);
+// Databases render as tall drums so a stack reads at a glance — noticeably
+// taller and larger than a regular tile.
+const DATABASE_HEIGHT_SCALE = 2.6;
+const DATABASE_FOOT_SCALE = 1.05;
 // The accent divider sits well above the tile label (label z ≈ foot·0.23)
 // so it never crowds the text.
 const ACCENT_Z = 0.05;
@@ -42,7 +46,12 @@ export const isHeroNode = (node: ExplorerNode): boolean =>
   HERO_NODE_IDS.has(node.id);
 
 export const visualNodeFoot = (node: ExplorerNode): number =>
-  UNIFORM_NODE_FOOT * (isHeroNode(node) ? 1.13 : 1);
+  UNIFORM_NODE_FOOT
+  * (isHeroNode(node) ? 1.13 : 1)
+  * (isDatabaseNode(node) ? DATABASE_FOOT_SCALE : 1);
+
+export const visualNodeHeight = (node: ExplorerNode): number =>
+  nodeHeight() * (isDatabaseNode(node) ? DATABASE_HEIGHT_SCALE : 1);
 
 export const drawNodeShadow = (
   scene: Scene,
@@ -52,7 +61,7 @@ export const drawNodeShadow = (
   if (alpha <= 0.01) return;
   const { ctx, cam } = scene;
   const foot = visualNodeFoot(node);
-  const height = nodeHeight();
+  const height = visualNodeHeight(node);
   const base = proj(scene, [node.rs.x, node.rs.y + 0.01, node.rs.z]);
   const k = Math.max(0.58, Math.min(1.5, cam.zoom));
   const lift = (3.2 + height * 2.6) * k;
@@ -76,7 +85,7 @@ const drawAccent = (
 ): void => {
   const { ctx, cam } = scene;
   const foot = visualNodeFoot(node);
-  const top = node.rs.y + nodeHeight() + 0.018;
+  const top = node.rs.y + visualNodeHeight(node) + 0.018;
   const accent = domainColor(node);
   const emphasized = paint.hot || isHeroNode(node);
   const p1 = proj(scene, [node.rs.x - foot * 0.22, top, node.rs.z + foot * ACCENT_Z]);
@@ -122,7 +131,7 @@ const drawTileLabel = (
   isoText(scene, {
     text: node.name,
     wx: node.rs.x,
-    wy: node.rs.y + nodeHeight() + 0.026,
+    wy: node.rs.y + visualNodeHeight(node) + 0.026,
     wz: node.rs.z + foot * 0.23,
     size,
     color,
@@ -141,15 +150,18 @@ export const drawNodeShape = (
 ): void => {
   const { ctx, cam } = scene;
   const foot = visualNodeFoot(node);
-  const height = nodeHeight();
+  const height = visualNodeHeight(node);
   const w = foot * SYSTEM_FOOTPRINT_WIDTH;
   const d = foot * 0.72;
+  // A perfect cylinder needs equal world radii; use the depth so the top is a
+  // true circle. w/2 would make an elliptical top disc.
+  const r = d / 2;
   const top = isDatabaseNode(node)
     ? cylinder(scene, {
         cx: node.rs.x,
         cz: node.rs.z,
-        rx: w / 2,
-        rz: d / 2,
+        rx: r,
+        rz: r,
         y0: node.rs.y,
         h: height,
         color: CANVAS_COLOR.tile,

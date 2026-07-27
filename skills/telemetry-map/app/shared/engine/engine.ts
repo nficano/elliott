@@ -18,12 +18,12 @@ import {
   rotateAround,
   SCALE,
 } from "../utils/camera";
-import { layoutView, nodeHeight } from "../utils/layout";
+import { layoutView } from "../utils/layout";
 import { domainColor } from "../utils/palette";
 import { drawBoard, drawBoardLabels, drawGrid } from "./boards";
 import { drawEdge, drawParticles, edgeCurve, newCurve } from "./edges";
 import { drawFlow, stepFlowClock } from "./flow-draw";
-import { visualNodeFoot } from "./nodes";
+import { visualNodeFoot, visualNodeHeight } from "./nodes";
 import { drawNodeShadow, drawNodeShape } from "./nodes";
 import { proj, qPoint, rectCorners, roundedRectCorners } from "./scene";
 import { facePath } from "./scene";
@@ -271,7 +271,7 @@ export class Engine {
     let best: ExplorerNode | null = null;
     let bestD = -1e9;
     for (const node of this.drawList) {
-      const hk = nodeHeight() * heightK(cam.tilt) * SCALE * cam.zoom * 0.5;
+      const hk = visualNodeHeight(node) * heightK(cam.tilt) * SCALE * cam.zoom * 0.5;
       const dx = mx - node.rs.sx;
       const dy = my - (node.rs.sy - hk);
       const rx = node.rs.r;
@@ -420,7 +420,7 @@ export class Engine {
       const k = Math.min(0.72, Math.max(0.5, zoomK * 0.48));
       const yTop = proj(scene, [
         node.rs.x,
-        node.rs.y + nodeHeight() + 0.95,
+        node.rs.y + visualNodeHeight(node) + 0.95,
         node.rs.z,
       ]);
       scene.ctx.globalAlpha = focused ? 1 : 0.25;
