@@ -94,19 +94,6 @@ const drawAccent = (
   ctx.lineTo(p2.x, p2.y);
   ctx.stroke();
   ctx.restore();
-  if (isHeroNode(node)) {
-    isoText(scene, {
-      text: "AI",
-      wx: node.rs.x,
-      wy: top,
-      wz: node.rs.z - 0.02,
-      size: 0.31,
-      color: CANVAS_COLOR.paper,
-      align: "center",
-      font: `700 .31px ${DECK_FONT}`,
-      tracking: ".04em",
-    });
-  }
 };
 
 const drawTileLabel = (
@@ -145,33 +132,6 @@ const drawTileLabel = (
   ctx.restore();
 };
 
-const drawLifecycleMarker = (
-  scene: Scene,
-  node: ExplorerNode,
-  height: number,
-): void => {
-  const { ctx, cam } = scene;
-  const lifecycle = node.runtime.lifecycle;
-  if (lifecycle === "active" || cam.zoom <= 0.6) return;
-  const foot = visualNodeFoot(node);
-  const marker = proj(scene, [node.rs.x, node.rs.y + height + 0.42, node.rs.z]);
-  ctx.fillStyle = lifecycle === "migration"
-    ? CANVAS_COLOR.migration
-    : CANVAS_COLOR.proposed;
-  ctx.beginPath();
-  ctx.arc(
-    marker.x + foot * SCALE * cam.zoom * 0.5,
-    marker.y,
-    3.2 * cam.zoom,
-    0,
-    7,
-  );
-  ctx.fill();
-  ctx.strokeStyle = CANVAS_COLOR.whiteStroke;
-  ctx.lineWidth = 1;
-  ctx.stroke();
-};
-
 // Paint a node: rounded prism, top outline, glyph, accent, label, marker.
 export const drawNodeShape = (
   scene: Scene,
@@ -205,7 +165,6 @@ export const drawNodeShape = (
   facePath(scene, top);
   ctx.stroke();
   ctx.restore();
-  drawLifecycleMarker(scene, node, height);
   drawAccent(scene, node, paint);
   drawTileLabel(scene, node, paint);
 };

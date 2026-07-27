@@ -1,9 +1,6 @@
 import type { Ref } from "vue";
 
 import { MAP_BASE } from "#shared/utils/base";
-import { MAP_MESSAGE_FLOW_ID } from "#shared/utils/pack-flows";
-
-import { setView, startFlowById, useExplorer } from "./useExplorer";
 
 export type SendState = "" | "loading" | "error" | "success";
 
@@ -65,12 +62,11 @@ const postMessage = async (text: string): Promise<string> => {
     ?? "Elliott returned no response text.";
 };
 
+// The map lights up in real time from the live telemetry stream; there is
+// no scripted explainer anymore.
 const beginTrace = (): void => {
-  const explorer = useExplorer();
-  if (explorer.viewMode.value !== "domains") setView("domains");
-  startFlowById(MAP_MESSAGE_FLOW_ID);
   panel.busy.value = true;
-  setSendState("loading", "Tracing the request through Elliott…");
+  setSendState("loading", "Sending — watch the map light up in real time…");
   panel.responseShown.value = true;
   panel.response.value = "Waiting for Elliott’s response…";
 };
@@ -80,17 +76,14 @@ const deliver = async (message: string): Promise<boolean> => {
     panel.response.value = await postMessage(message);
     setSendState(
       "success",
-      "Trace complete. The highlighted path stays available below.",
+      "Answered. Replay it from the invocations list below.",
     );
     return true;
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error);
     panel.response.value =
       `The message was not delivered because ${reason}. Try again.`;
-    setSendState(
-      "error",
-      "Message delivery failed; the attempted path remains visible.",
-    );
+    setSendState("error", "Message delivery failed. Try again.");
     return false;
   }
 };

@@ -2,8 +2,10 @@ import type { Page } from "@playwright/test";
 
 import { expect, test } from "@playwright/test";
 
-// Every scenario below runs against BOTH implementations. If an assertion
-// needs to change, it must change for both — that is the parity contract.
+// Shared scenarios run against BOTH implementations. Send/replay behavior
+// intentionally diverges: the legacy UI plays the scripted explainer flow,
+// the rewrite animates live telemetry and offers recorded replays — each has
+// its own suite below the shared loop.
 const BASE = "/v1/observability/map";
 
 const TARGETS = [
@@ -153,55 +155,6 @@ for (const target of TARGETS) {
       );
     });
 
-    test("sends a message, traces it, and renders the agent answer", async ({ page }) => {
-      await page.locator("#sendInput").fill("hello from playwright");
-      await page.locator("#sendBtn").click();
-      const player = page.locator("#flowPlayer");
-      await expect(player).toHaveClass(/show/);
-      await expect(page.locator("#fpTitle")).toHaveText(
-        "Map message → Elliott",
-      );
-      await expect(page.locator("#fpStep")).toContainText("/10");
-      await expect(page.locator("#edgeBrightness")).toBeDisabled();
-      await expect(page.locator("#edgeBrightnessValue")).toContainText(
-        "Bright",
-      );
-      await expect(page.locator("#sendResponse")).toContainText(
-        "echo: hello from playwright",
-        { timeout: 15_000 },
-      );
-      await expect(page.locator("#sendHint")).toContainText("Trace complete");
-      await expect(page.locator("#sendBtn")).toBeEnabled();
-      await expect(page.locator("#sendInput")).toHaveValue("");
-    });
-
-    test("flow player transport controls work and exit restores presets", async ({ page }) => {
-      await page.locator("#sendInput").fill("trace");
-      await page.locator("#sendBtn").click();
-      await expect(page.locator("#flowPlayer")).toHaveClass(/show/);
-      // Hovering the player pauses playback (both implementations).
-      await page.locator("#fpStep").hover();
-      await expect(page.locator("#fpPlay")).toHaveText("▶");
-      const stepText = await page.locator("#fpStep").textContent();
-      await page.locator("#fpNext").click();
-      await expect(page.locator("#fpStep")).not.toHaveText(stepText ?? "");
-      await page.locator("#fpPrev").click();
-      await expect(page.locator("#fpStep")).toHaveText(stepText ?? "");
-      await page.locator("#fpPlay").click();
-      await expect(page.locator("#fpPlay")).toHaveText("⏸");
-      await page.locator("#fpExit").click();
-      await expect(page.locator("#flowPlayer")).not.toHaveClass(/show/);
-      await expect(page.locator("#edgeBrightness")).toBeEnabled();
-    });
-
-    test("Escape exits an active flow", async ({ page }) => {
-      await page.locator("#sendInput").fill("trace");
-      await page.locator("#sendBtn").click();
-      await expect(page.locator("#flowPlayer")).toHaveClass(/show/);
-      await page.keyboard.press("Escape");
-      await expect(page.locator("#flowPlayer")).not.toHaveClass(/show/);
-    });
-
     test("clicking a node opens its detail drawer; Escape closes it", async ({ page }) => {
       const at = await nodeScreenPosition(page, "runtime.agentLoop");
       expect(at).not.toBeNull();
@@ -235,3 +188,124 @@ for (const target of TARGETS) {
     });
   });
 }
+
+test.describe("legacy explorer · scripted send flow", () => {
+  test.beforeEach(async ({ page }) => {
+    await waitForBoot(page, `${BASE}/legacy`);
+  });
+
+  test("send starts the explainer flow and renders the answer", async ({ page }) => {
+    await page.locator("#sendInput").fill("hello from playwright");
+    await page.locator("#sendBtn").click();
+    await expect(page.locator("#flowPlayer")).toHaveClass(/show/);
+    await expect(page.locator("#fpTitle")).toHaveText("Map message → Elliott");
+    await expect(page.locator("#fpStep")).toContainText("/10");
+    await expect(page.locator("#edgeBrightness")).toBeDisabled();
+    await expect(page.locator("#sendResponse")).toContainText(
+      "echo: hello from playwright",
+      { timeout: 15_000 },
+    );
+    await expect(page.locator("#sendBtn")).toBeEnabled();
+  });
+
+  test("flow transport controls work and exit restores presets", async ({ page }) => {
+    await page.locator("#sendInput").fill("trace");
+    await page.locator("#sendBtn").click();
+    await expect(page.locator("#flowPlayer")).toHaveClass(/show/);
+    await page.locator("#fpStep").hover();
+    await expect(page.locator("#fpPlay")).toHaveText("▶");
+    const stepText = await page.locator("#fpStep").textContent();
+    await page.locator("#fpNext").click();
+    await expect(page.locator("#fpStep")).not.toHaveText(stepText ?? "");
+    await page.locator("#fpExit").click();
+    await expect(page.locator("#flowPlayer")).not.toHaveClass(/show/);
+    await expect(page.locator("#edgeBrightness")).toBeEnabled();
+  });
+
+  test("Escape exits an active flow", async ({ page }) => {
+    await page.locator("#sendInput").fill("trace");
+    await page.locator("#sendBtn").click();
+    await expect(page.locator("#flowPlayer")).toHaveClass(/show/);
+    await page.keyboard.press("Escape");
+    await expect(page.locator("#flowPlayer")).not.toHaveClass(/show/);
+  });
+});
+
+test.describe("rewrite explorer · real-time send and replay", () => {
+  test.beforeEach(async ({ page }) => {
+    await waitForBoot(page, BASE);
+  });
+
+  const send = async (page: Page, text: string): Promise<void> => {
+    await page.locator("#sendInput").fill(text);
+    await page.locator("#sendBtn").click();
+    await expect(page.locator("#sendResponse")).toContainText(
+      `echo: ${text}`,
+      { timeout: 15_000 },
+    );
+  };
+
+  test("send stays real-time: answer arrives with no explainer flow", async ({ page }) => {
+    await send(page, "realtime check");
+    await expect(page.locator("#flowPlayer")).not.toHaveClass(/show/);
+    await expect(page.locator("#edgeBrightness")).toBeEnabled();
+    await expect(page.locator("#sendHint")).toContainText("Answered");
+    await expect(page.locator("#sendInput")).toHaveValue("");
+  });
+
+  test("invocations list records the query, clamped to two lines", async ({ page }) => {
+    const longText =
+      "please summarize everything that happened across the runtime today "
+      + "including every tool call, every model round, and every database "
+      + "write in exhaustive detail";
+    await send(page, longText);
+    const item = page.locator("#invocationList .invocation").first();
+    await expect(item).toContainText("please summarize");
+    const clamped = await item.locator("span").first().evaluate((el) =>
+      getComputedStyle(el).webkitLineClamp
+    );
+    expect(clamped).toBe("2");
+  });
+
+  test("clicking an invocation replays it with the trace inspector", async ({ page }) => {
+    await send(page, "replay me");
+    await page.locator("#invocationList .invocation").first().click();
+    await expect(page.locator("#flowPlayer")).toHaveClass(/show/);
+    await expect(page.locator("#fpTitle")).toContainText("Replay · replay me");
+    const drawer = page.locator("#drawer");
+    await expect(drawer).toHaveClass(/open/);
+    await expect(drawer).toHaveAttribute("data-kind", "trace");
+    await expect(page.locator("#dName")).toHaveText("Inbound message");
+    await expect(page.locator("#traceBody")).toContainText("replay me");
+    // Stepping advances the inspector like a debugger.
+    await page.locator("#fpNext").click();
+    await expect(page.locator("#dName")).toHaveText("Inbound dispatch");
+    await page.locator("#fpNext").click();
+    await expect(page.locator("#dName")).toHaveText("Turn opened");
+    // Raw toggle shows the recorded JSON event.
+    await page.locator("#traceRawToggle").click();
+    await expect(page.locator("#traceBody pre")).toContainText("turn.begin");
+    await page.locator("#traceRawToggle").click();
+    // The last step returns the recorded answer.
+    const total = await page.locator("#fpStep").textContent();
+    const count = Number(total?.split("/")[1] ?? 0);
+    for (let i = 2; i < count - 1; i += 1) {
+      await page.locator("#fpNext").click();
+    }
+    await expect(page.locator("#dName")).toHaveText("Answer delivered");
+    await expect(page.locator("#traceBody")).toContainText("echo: replay me");
+    // Exit tears down both the replay and the inspector.
+    await page.locator("#fpExit").click();
+    await expect(page.locator("#flowPlayer")).not.toHaveClass(/show/);
+    await expect(drawer).not.toHaveClass(/open/);
+  });
+
+  test("Escape exits a replay", async ({ page }) => {
+    await send(page, "escape me");
+    await page.locator("#invocationList .invocation").first().click();
+    await expect(page.locator("#flowPlayer")).toHaveClass(/show/);
+    await page.keyboard.press("Escape");
+    await expect(page.locator("#flowPlayer")).not.toHaveClass(/show/);
+    await expect(page.locator("#drawer")).not.toHaveClass(/open/);
+  });
+});

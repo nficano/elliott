@@ -37,6 +37,7 @@ export interface RunSummary {
   gateway?: string;
   sender?: string;
   channel?: string;
+  text?: string;
   conversation?: string;
   rounds: number;
   tools: number;

@@ -253,6 +253,8 @@ export class ElliottRuntime {
       channel: message.channel,
       sender: message.sender,
       textLength: message.text.length,
+      // Message content follows the same visibility gate as assembled prompts.
+      ...(runtimeTelemetry.promptsEnabled && { text: message.text }),
     }, turnId);
     const gateway = this.#replyGateway(message);
     const response = await this.#beginResponse(gateway, message);
@@ -299,6 +301,7 @@ export class ElliottRuntime {
       runtimeTelemetry.emit("turn.finish", {
         disposition: "success",
         answerLength: answer.length,
+        ...(runtimeTelemetry.promptsEnabled && { answer }),
       }, turnId);
     } catch (error) {
       evidence?.finish("failure");

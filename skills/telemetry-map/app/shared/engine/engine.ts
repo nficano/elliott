@@ -28,7 +28,12 @@ import { drawNodeShadow, drawNodeShape } from "./nodes";
 import { proj, qPoint, rectCorners, roundedRectCorners } from "./scene";
 import { facePath } from "./scene";
 import { drawSprite, labelSprite } from "./sprites";
-import { edgeVisible, focusSet, updateVisibility } from "./state";
+import {
+  edgeVisible,
+  focusSet,
+  isNodePulsed,
+  updateVisibility,
+} from "./state";
 
 const HOMES_STORAGE_KEY = "flowStackHomes";
 
@@ -370,7 +375,8 @@ export class Engine {
       }
       for (const node of nodes) {
         if (node.rs.paintAlpha <= 0.01) continue;
-        const hot = node === state.hovered || node === state.selected;
+        const hot = node === state.hovered || node === state.selected
+          || isNodePulsed(state, node.id);
         drawNodeShape(scene, node, { alpha: node.rs.paintAlpha, hot });
         if (hot) this.drawSelectionRing(node);
       }

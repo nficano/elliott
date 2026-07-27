@@ -51,7 +51,7 @@ export const drawFlow = (scene: Scene, state: EngineState): void => {
   if (!step) return;
   const a = state.nodesById.get(step.from);
   const b = state.nodesById.get(step.to);
-  if (!a || !b) return;
+  if (!a || !b || a === b) return;
   const { ctx } = scene;
   const t = Math.min(1, state.flowT);
   edgeCurve(scene, state, { from: a.id, to: b.id }, curve);

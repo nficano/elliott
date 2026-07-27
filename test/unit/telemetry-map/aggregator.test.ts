@@ -96,7 +96,12 @@ describe("Aggregator turn tracking", () => {
     const { aggregator, bus } = makeStarted();
     bus.emit(
       "inbound",
-      { gateway: "slack", sender: "nick", channel: "#feed" },
+      {
+        gateway: "slack",
+        sender: "nick",
+        channel: "#feed",
+        text: "what changed today?",
+      },
       "run-1",
     );
     bus.emit("turn.begin", { conversation: "conv-1" }, "run-1");
@@ -113,6 +118,7 @@ describe("Aggregator turn tracking", () => {
       gateway: "slack",
       sender: "nick",
       channel: "#feed",
+      text: "what changed today?",
       conversation: "conv-1",
       rounds: 2,
       tools: 1,

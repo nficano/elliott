@@ -37,6 +37,8 @@ export interface EngineState {
   flowT: number;
   flowPlaying: boolean;
   flowNodes: Set<string>;
+  nodePulses: Map<string, number>;
+  edgePulses: Map<string, number>;
 }
 
 export const createEngineState = (pack: ExplorerPack): EngineState => {
@@ -76,8 +78,37 @@ export const createEngineState = (pack: ExplorerPack): EngineState => {
     flowT: 0,
     flowPlaying: true,
     flowNodes: new Set(),
+    nodePulses: new Map(),
+    edgePulses: new Map(),
   };
 };
+
+// ---- live pulses -----------------------------------------------------------
+// Real-time telemetry briefly lights the node/edge it touched; expiry is a
+// timestamp so the render loop needs no bookkeeping.
+
+const PULSE_DURATION_MS = 1600;
+
+export const pulseHop = (
+  state: EngineState,
+  fromId: string,
+  toId: string,
+): void => {
+  const until = performance.now() + PULSE_DURATION_MS;
+  state.nodePulses.set(fromId, until);
+  state.nodePulses.set(toId, until);
+  const edge = (state.edgesByNode.get(fromId) ?? []).find((candidate) =>
+    (candidate.from === fromId && candidate.to === toId)
+    || (candidate.from === toId && candidate.to === fromId)
+  );
+  if (edge) state.edgePulses.set(edge.id, until);
+};
+
+export const isNodePulsed = (state: EngineState, id: string): boolean =>
+  (state.nodePulses.get(id) ?? 0) > performance.now();
+
+export const isEdgePulsed = (state: EngineState, id: string): boolean =>
+  (state.edgePulses.get(id) ?? 0) > performance.now();
 
 export const visibleSourceNodes = (
   state: EngineState,

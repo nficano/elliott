@@ -9,6 +9,10 @@
           @update:model-value="setView"
         />
         <SendPanel />
+        <InvocationsCard
+          :invocations="explorer.invocations.value"
+          @replay="replay"
+        />
         <EdgeBrightnessControl
           :flow-active="explorer.flowUi.value.active"
           :model-value="explorer.edgeBrightness.value"
@@ -26,12 +30,14 @@
         :edge="explorer.selectedEdge.value"
         :node="explorer.selectedNode.value"
         :open="explorer.drawerOpen.value"
-        @close="clearSelection"
+        :trace="traceStep"
+        :trace-run-id="explorer.trace.value?.runId"
+        @close="closeDrawer"
         @select-edge="selectEdge"
         @select-node="selectNodeById"
       />
       <FlowPlayer
-        :flow="activeFlow"
+        :flow="explorer.activeFlow.value"
         :flow-ui="explorer.flowUi.value"
         @advance="flowAdvance"
         @exit="exitFlow"
@@ -58,12 +64,31 @@ import {
   setView,
   useExplorer,
 } from "~/composables/useExplorer";
+import {
+  seedInvocations,
+  startLiveTelemetry,
+  stopLiveTelemetry,
+} from "~/composables/useLiveTelemetry";
+import { startTraceReplay } from "~/composables/useTraceReplay";
 
 const explorer = useExplorer();
 
-const activeFlow = computed(() =>
-  explorer.engineState.value?.flow ?? null
-);
+const traceStep = computed(() => {
+  const trace = explorer.trace.value;
+  if (!trace) return null;
+  return trace.steps[explorer.flowUi.value.stepIndex] ?? null;
+});
+
+const replay = (runId: string): void => {
+  void startTraceReplay(runId);
+};
+
+// Closing the trace inspector ends the replay; otherwise it is a normal
+// selection clear.
+const closeDrawer = (): void => {
+  if (explorer.trace.value) exitFlow();
+  else clearSelection();
+};
 
 const engineAction = (action: (engine: Engine) => void): void => {
   const engine = explorer.engine.value;
@@ -94,9 +119,13 @@ const selectNodeById = (nodeId: string): void => {
   engineAction((engine) => engine.focusNode(node));
 };
 
-onMounted(() => {
-  void loadExplorer();
+onMounted(async () => {
+  await loadExplorer();
+  await seedInvocations();
+  startLiveTelemetry();
 });
+
+onBeforeUnmount(stopLiveTelemetry);
 </script>
 
 <style scoped>

@@ -9,6 +9,7 @@ import type {
   ViewMode,
 } from "#shared/types/explorer";
 import type { RawTopology } from "#shared/types/topology";
+import type { InvocationItem, TraceStep } from "#shared/types/trace";
 import type { Ref, ShallowRef } from "vue";
 
 import { createEngineState } from "#shared/engine/state";
@@ -24,6 +25,11 @@ export interface FlowUi {
   stepCount: number;
   playing: boolean;
   progress: number;
+}
+
+export interface TraceUi {
+  readonly runId: string;
+  readonly steps: readonly TraceStep[];
 }
 
 export interface HoverUi {
@@ -45,6 +51,11 @@ export interface ExplorerStore {
   drawerOpen: Ref<boolean>;
   hover: Ref<HoverUi>;
   flowUi: Ref<FlowUi>;
+  invocations: ShallowRef<readonly InvocationItem[]>;
+  trace: ShallowRef<TraceUi | null>;
+  // The engine state is deliberately non-reactive; this mirror is what the
+  // flow player template binds to.
+  activeFlow: ShallowRef<Flow | null>;
   engineState: { value: EngineState | null; };
   engine: { value: Engine | null; };
 }
@@ -80,6 +91,9 @@ const store: ExplorerStore = {
     playing: true,
     progress: 0,
   }),
+  invocations: shallowRef<readonly InvocationItem[]>([]),
+  trace: shallowRef<TraceUi | null>(null),
+  activeFlow: shallowRef<Flow | null>(null),
   engineState: { value: null },
   engine: { value: null },
 };
@@ -190,17 +204,21 @@ const syncFlowUi = (flow: Flow | null): void => {
     };
 };
 
-export const startFlow = (flow: Flow): void => {
+export const startFlow = (
+  flow: Flow,
+  options: { keepDrawer?: boolean; paused?: boolean; } = {},
+): void => {
   const state = store.engineState.value;
   if (!state) return;
   state.flow = flow;
   state.flowStep = 0;
   state.flowT = 0;
-  state.flowPlaying = true;
+  state.flowPlaying = options.paused !== true;
   state.flowNodes = new Set(
     flow.steps.flatMap((step) => [step.from, step.to]),
   );
-  closeDrawerState();
+  if (options.keepDrawer !== true) closeDrawerState();
+  store.activeFlow.value = flow;
   store.flowUi.value.progress = 0;
   syncFlowUi(flow);
 };
@@ -208,6 +226,11 @@ export const startFlow = (flow: Flow): void => {
 export const exitFlow = (): void => {
   const state = store.engineState.value;
   if (state) state.flow = null;
+  store.activeFlow.value = null;
+  if (store.trace.value !== null) {
+    store.trace.value = null;
+    closeDrawerState();
+  }
   syncFlowUi(null);
 };
 
@@ -252,11 +275,4 @@ export const flowFinished = (): void => {
 
 export const flowProgress = (progress: number): void => {
   store.flowUi.value.progress = progress;
-};
-
-export const startFlowById = (id: string): void => {
-  const flow = store.pack.value?.flows.find((candidate) =>
-    candidate.id === id
-  );
-  if (flow) startFlow(flow);
 };

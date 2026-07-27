@@ -32,6 +32,8 @@ const summaryHandlers: Record<
     if (sender !== undefined) summary.sender = sender;
     const channel = text(payload, "channel");
     if (channel !== undefined) summary.channel = channel;
+    const message = text(payload, "text");
+    if (message !== undefined) summary.text = message;
   },
   "turn.begin": (summary, payload) => {
     const conversation = text(payload, "conversation");

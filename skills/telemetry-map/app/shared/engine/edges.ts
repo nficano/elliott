@@ -9,7 +9,7 @@ import { nodeHeight } from "../utils/layout";
 import { CANVAS_COLOR, hash01 } from "../utils/palette";
 import { visualNodeFoot } from "./nodes";
 import { proj, qPoint } from "./scene";
-import { effectiveBrightness } from "./state";
+import { effectiveBrightness, isEdgePulsed } from "./state";
 
 export interface EdgeCurve {
   a: Projected;
@@ -142,7 +142,8 @@ const drawAgentJunction = (
 };
 
 const isEdgeHot = (state: EngineState, edge: ExplorerEdge): boolean =>
-  state.selectedEdge === edge
+  isEdgePulsed(state, edge.id)
+  || state.selectedEdge === edge
   || (state.hovered !== null
     && (edge.from === state.hovered.id || edge.to === state.hovered.id))
   || (state.selected !== null
