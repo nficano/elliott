@@ -67,6 +67,12 @@ export interface TurnDetail {
   readonly events: readonly TelemetryEnvelope[];
 }
 
+export interface AppDistRoutes {
+  readonly routes:
+    readonly import("../../../src/runtime/skills/types").RouteBinding[];
+  readonly index: (() => Promise<Response>) | undefined;
+}
+
 export interface MapHealth extends Readonly<Record<string, number>> {
   readonly turns: number;
   readonly events: number;

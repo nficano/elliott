@@ -53,6 +53,12 @@ export default tseslint.config(
       "coverage/**",
       ".repos/**",
       "crates/hot-core/target/**",
+      // The telemetry-map Nuxt app carries its own Vue-aware ESLint config
+      // (skills/telemetry-map/app/eslint.config.js) mirroring these rules.
+      "skills/telemetry-map/app/**",
+      // One-off topology generator predating this config's .mjs coverage; it
+      // fails the project-service parse and is not runtime code.
+      "scripts/gen-topology.mjs",
     ],
   }, // node_modules is ignored by default
   js.configs.recommended,

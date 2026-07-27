@@ -14,6 +14,8 @@ import type {
 } from "../../../src/runtime/skills/types";
 import { runtimeTelemetry } from "../../../src/runtime/telemetry";
 import { Aggregator } from "./aggregator";
+import { appDistRoutes } from "./app-dist";
+import { assetRoutes } from "./assets";
 import { TelemetryMapGateway } from "./gateway";
 import { SqliteTail } from "./sqlite-tail";
 import { streamResponse } from "./sse";
@@ -25,7 +27,9 @@ const HEARTBEAT_EVERY_TICKS = 10;
 const UI_URL = new URL("ui.html", import.meta.url);
 const SEND_TIMEOUT_MS = 180_000;
 
-export const register = (context: SkillContext): SkillRegistration => {
+export const register = async (
+  context: SkillContext,
+): Promise<SkillRegistration> => {
   const gateway = new TelemetryMapGateway();
   const aggregator = new Aggregator({
     environment: context.settings.environment,
@@ -47,9 +51,16 @@ export const register = (context: SkillContext): SkillRegistration => {
     },
     (error) => context.report(error, "telemetry-map:tail"),
   );
+  // When the Nuxt rewrite is built (app/dist), it serves the explorer UI and
+  // the legacy single-file document stays reachable at /legacy; without a
+  // build the legacy document remains the primary UI.
+  const dist = await appDistRoutes(BASE);
   return {
     gateways: [gateway],
-    routes: routes(aggregator, gateway),
+    routes: [
+      ...routes(aggregator, gateway, dist.index ?? uiResponse),
+      ...dist.routes,
+    ],
     services: [service(aggregator, tail)],
   };
 };
@@ -76,36 +87,6 @@ const topologyResponse = async (): Promise<Response> =>
     status: HTTP_OK,
     headers: { "content-type": "application/json" },
   });
-
-const fontResponse = async (file: string): Promise<Response> => {
-  try {
-    const bytes = await readFile(new URL(`fonts/${file}`, import.meta.url));
-    return new Response(bytes, {
-      status: HTTP_OK,
-      headers: {
-        "content-type": "font/woff2",
-        "cache-control": "public, max-age=604800",
-      },
-    });
-  } catch {
-    return new Response("font missing", { status: HTTP_NOT_FOUND });
-  }
-};
-
-const iconResponse = async (file: string): Promise<Response> => {
-  try {
-    const bytes = await readFile(new URL(`icons/${file}`, import.meta.url));
-    return new Response(bytes, {
-      status: HTTP_OK,
-      headers: {
-        "content-type": "image/svg+xml; charset=utf-8",
-        "cache-control": "public, max-age=604800",
-      },
-    });
-  } catch {
-    return new Response("icon missing", { status: HTTP_NOT_FOUND });
-  }
-};
 
 const turnResponse = (aggregator: Aggregator, request: Request): Response => {
   const id = new URL(request.url).searchParams.get("id");
@@ -189,8 +170,10 @@ const routeE = (
 const routes = (
   aggregator: Aggregator,
   gateway: TelemetryMapGateway,
+  ui: () => Promise<Response>,
 ): readonly RouteBinding[] => [
-  route("GET", BASE, () => uiResponse()),
+  route("GET", BASE, () => ui()),
+  route("GET", `${BASE}/legacy`, () => uiResponse()),
   route("GET", `${BASE}/topology`, () => topologyResponse()),
   route(
     "GET",
@@ -207,28 +190,7 @@ const routes = (
     `${BASE}/turn`,
     (request) => Promise.resolve(turnResponse(aggregator, request)),
   ),
-  route(
-    "GET",
-    `${BASE}/font/display`,
-    () => fontResponse("generation_1970_light.woff2"),
-  ),
-  route("GET", `${BASE}/font/body`, () => fontResponse("inter-variable.woff2")),
-  route("GET", `${BASE}/icon/browser`, () => iconResponse("browser.svg")),
-  route("GET", `${BASE}/icon/gmail`, () => iconResponse("gmail.svg")),
-  route(
-    "GET",
-    `${BASE}/icon/home-assistant`,
-    () => iconResponse("home-assistant.svg"),
-  ),
-  route("GET", `${BASE}/icon/imessage`, () => iconResponse("imessage.svg")),
-  route("GET", `${BASE}/icon/litellm`, () => iconResponse("litellm.svg")),
-  route("GET", `${BASE}/icon/ollama`, () => iconResponse("ollama.svg")),
-  route(
-    "GET",
-    `${BASE}/icon/postgresql`,
-    () => iconResponse("postgresql.svg"),
-  ),
-  route("GET", `${BASE}/icon/vault`, () => iconResponse("vault.svg")),
+  ...assetRoutes(BASE),
   routeE(
     "POST",
     `${BASE}/send`,

@@ -3,6 +3,7 @@
 .repos
 .elliott-runtime
 node_modules
+**/node_modules
 .venv
 __pycache__
 coverage
@@ -11,3 +12,8 @@ test
 *.log
 .env
 BLOCKERS.md
+skills/telemetry-map/app/.nuxt
+skills/telemetry-map/app/.output
+skills/telemetry-map/app/storybook-static
+skills/telemetry-map/app/test-results
+skills/telemetry-map/app/playwright-report

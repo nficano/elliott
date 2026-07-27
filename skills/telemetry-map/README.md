@@ -11,6 +11,24 @@ server and runs one background service. It makes **no** outbound calls
 (`egress: none`), never writes to the database (it tails `sessions.sqlite`
 read-only), and never reads secret values.
 
+## Two UIs, one extension
+
+The explorer UI exists twice, verified byte-for-byte equivalent in behavior by
+the Playwright parity suite (`app/e2e/parity.pw.ts`, run against both):
+
+- **`app/`** — the primary UI: a Nuxt 4 + TypeScript + Tailwind v4 SPA.
+  Typed engine modules live in `app/shared/`, HUD components in
+  `app/app/components/` (with Storybook stories in `app/stories/`), and the
+  generated build is committed at `app/dist/` so the extension can serve it
+  (one exact-match route per file — see `src/app-dist.ts`).
+- **`src/ui.html`** — the original single-file document, still served at
+  `/legacy` and used as the parity baseline.
+
+Rebuild the app after UI changes: `cd app && bun run generate` (the
+`postgenerate` script refreshes `dist/`). App checks: `bun run lint`,
+`bun run typecheck`, `bun test` (vitest), `bun run e2e` (Playwright parity),
+`bun run storybook`.
+
 ## Reaching it
 
 The extension rides the existing `elliott` container's `Bun.serve` (port 8080,
@@ -24,11 +42,13 @@ Endpoints (all under `/v1/observability/map`):
 
 | Route | Serves |
 | :--- | :--- |
-| `/` | the isometric UI (self-contained HTML/canvas) |
-| `/topology` | the connection graph — same as `docs/telemetry-map-topology.json` |
+| `/` | the explorer UI (Nuxt build when `app/dist` exists, else the legacy document) |
+| `/legacy` | the original self-contained HTML/canvas document |
+| `/topology` | the connection graph — same as `docs/elliott-topology.enriched.json` |
 | `/state` | current snapshot: turns, db table counts + recent rows, recent events |
 | `/stream` | Server-Sent-Events live feed of turn activity |
 | `/turn?id=<runId>` | one turn's full event list (rounds, prompt, tools) |
+| `POST /send` | inject a message; answers captured by the telemetry-map gateway |
 
 ## How it taps the live system
 
