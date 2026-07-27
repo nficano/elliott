@@ -21,8 +21,7 @@ const NEWSDATA_BASE = "https://newsdata.io/api/1";
 const GNEWS_BASE = "https://gnews.io/api/v4";
 const USER_AGENT = "elliott-news-brief/1.0";
 const FETCH_TIMEOUT_MS = 15_000;
-const MS_PER_SECOND = 1000;
-const REDDIT_LIMIT = 25;
+const REDDIT_LIMIT = 50;
 const GUARDIAN_PAGE_SIZE = 20;
 
 export const buildSources = (settings: object): readonly NewsSource[] => {
@@ -130,39 +129,37 @@ const fetchJson = async (
   return response.json();
 };
 
+// Reddit hard-403s the anonymous .json API from datacenter egress, but the
+// Atom .rss feed for the same multireddit still serves 200 with no auth, so we
+// read that and parse it with the shared feed parser. RSS carries no upvote
+// score; the scorer's recency/burst/corroboration signals do the ranking.
 const redditSource = (config: RedditSourceConfig): NewsSource => ({
   name: "reddit",
   intervalSeconds: config.intervalSeconds,
   fetch: async () => {
-    const path = config.multireddit.split("/").filter(Boolean).join("/");
-    const payload = await fetchJson(
-      `${REDDIT_BASE}/${path}.json?limit=${REDDIT_LIMIT}`,
-      { "user-agent": USER_AGENT },
-    );
-    const data = isJsonRecord(payload)
-      ? nestedRecord(payload, "data")
-      : undefined;
-    return data === undefined
-      ? []
-      : recordArray(data, "children").flatMap(redditStory);
+    const path = config.multireddit
+      .split("?", 1)[0]
+      ?.split("/")
+      .filter(Boolean)
+      .join("/") ?? "";
+    try {
+      const response = await fetch(
+        `${REDDIT_BASE}/${path}/.rss?limit=${REDDIT_LIMIT}`,
+        {
+          headers: { "user-agent": USER_AGENT },
+          signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+        },
+      );
+      if (!response.ok) return [];
+      return parseFeed(await response.text(), "reddit").map((story) => ({
+        ...story,
+        source: "reddit",
+      }));
+    } catch {
+      return [];
+    }
   },
 });
-
-const redditStory = (
-  child: Readonly<Record<string, unknown>>,
-): readonly Story[] => {
-  const data = nestedRecord(child, "data");
-  if (data === undefined) return [];
-  const created = typeof data["created_utc"] === "number"
-    ? data["created_utc"]
-    : 0;
-  return toStory("reddit", {
-    title: stringValue(data["title"]),
-    url: stringValue(data["url"])
-      || `${REDDIT_BASE}${stringValue(data["permalink"])}`,
-    at: created > 0 ? new Date(created * MS_PER_SECOND).toISOString() : "",
-  });
-};
 
 const guardianSource = (config: GuardianSourceConfig): NewsSource => ({
   name: "guardian",
