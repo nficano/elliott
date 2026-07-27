@@ -80,6 +80,53 @@ tools:
     user: elliott
     hosts: []
 
+skills:
+  news_brief:
+    enabled: true
+    alerts: true
+    keywords:
+      - breaking
+      - killed
+      - dead
+      - attack
+      - explosion
+      - shooting
+      - war
+      - election
+      - resign
+      - indicted
+      - court
+      - ruling
+      - strike
+      - outage
+      - recall
+      - evacuate
+    reddit:
+      enabled: true
+      multireddit: user/nficano/m/breakingnewsalerts
+    rss:
+      enabled: true
+  youtube_dvr:
+    enabled: true
+    # Handles recorded directly via the YouTube Data API. Ported from
+    # oslo's youtube_channels; per-channel day limits are dropped since the
+    # DVR only appends videos that actually land in the poll window.
+    channels:
+      - "@briantylercohen"
+      - "@2lazy2tryYT"
+      - "@destiny"
+      - "@adammockler"
+      - "@ponderingpolitics"
+      - "@PBoyle"
+      - "@TimDillonShow"
+      - "@Coffeezilla"
+      - "@coffeezillaextras"
+      - "@SilverCymbal"
+      - "@SecularTalk"
+    # In-process source providers for shows the Data API doesn't surface.
+    providers:
+      - { name: pakman, days: [monday, tuesday, wednesday, thursday, friday] }
+
 gateways:
   cloudflared:
     # ready_url points at the local cloudflared metrics /ready endpoint;
