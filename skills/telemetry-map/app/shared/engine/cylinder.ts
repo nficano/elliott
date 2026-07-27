@@ -103,11 +103,14 @@ const drawBarrel = (
   const l = bottom[front[0] ?? 0];
   const r = bottom[front.at(-1) ?? 0];
   if (!l || !r) return;
-  // Sheen mirrors the prism side-shading range, biased toward the key light.
+  // Lit band matches the top face so the barrel reads as the same frosted
+  // panel material as the other nodes, with a gentle falloff toward the
+  // silhouette edges for roundness.
+  const lit = spec.topLight ?? 0.32;
   const grad = ctx.createLinearGradient(l.x, 0, r.x, 0);
-  grad.addColorStop(0, shade(spec.color, -0.34, spec.alpha));
-  grad.addColorStop(0.38, shade(spec.color, -0.05, spec.alpha));
-  grad.addColorStop(1, shade(spec.color, -0.3, spec.alpha));
+  grad.addColorStop(0, shade(spec.color, lit - 0.2, spec.alpha));
+  grad.addColorStop(0.42, shade(spec.color, lit, spec.alpha));
+  grad.addColorStop(1, shade(spec.color, lit - 0.14, spec.alpha));
   ctx.fillStyle = grad;
   ctx.beginPath();
   tracePolyline(scene, bottom, front);
