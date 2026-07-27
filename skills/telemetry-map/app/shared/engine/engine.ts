@@ -234,9 +234,11 @@ export class Engine {
     const w = scene.view.w;
     const h = scene.view.h;
     const z = Math.min((w - mL - mR) / (maxX - minX), (h - mT - mB) / (maxY - minY));
+    // The stair-stepped Stack view spreads wider than the old aligned
+    // stack, so it takes a gentler boost to stay fully inside the margins.
     const fitBoost = w < 900
-      ? (state.viewMode === "layers" ? 1.1 : 1.16)
-      : (state.viewMode === "layers" ? 1.3 : 1.68);
+      ? (state.viewMode === "layers" ? 1 : 1.16)
+      : (state.viewMode === "layers" ? 1.12 : 1.68);
     cam.tZoom = Math.min(1.7, Math.max(0.22, z * fitBoost));
     const cx = (minX + maxX) / 2 - w / 2;
     const cy = (minY + maxY) / 2 - h / 2;

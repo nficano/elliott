@@ -15,6 +15,8 @@ export const MIN_NODE_CLEARANCE = 1.15;
 export const GROUND_GRID_STEP = 6.6;
 const BOARD_PAD = 2.8;
 const LAYER_SPACING_Y = 7.6;
+// Each layer steps diagonally like a staircase (top layer at the back).
+const LAYER_STAIR_STEP = 2.6;
 const MIN_DOMAIN_BOARD = 3;
 
 export const nodeFoot = (): number => UNIFORM_NODE_FOOT;
@@ -230,12 +232,13 @@ export const layoutLayers = (
   const count = stacked.length;
   const maxW = Math.max(...stacked.map((b) => b.w));
   const maxD = Math.max(...stacked.map((b) => b.d));
+  const stairMid = ((count - 1) / 2) * LAYER_STAIR_STEP;
   for (const [j, board] of stacked.entries()) {
     board.w = maxW;
     board.d = maxD;
     board.y = (count - 1 - j) * LAYER_SPACING_Y;
-    board.x = 0;
-    board.z = 0;
+    board.x = j * LAYER_STAIR_STEP - stairMid;
+    board.z = j * LAYER_STAIR_STEP - stairMid;
   }
   return boards;
 };

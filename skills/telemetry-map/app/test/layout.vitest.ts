@@ -109,7 +109,7 @@ describe("layoutDeploy", () => {
 });
 
 describe("layoutLayers", () => {
-  it("stacks aligned boards top-down with a shared footprint", () => {
+  it("stacks boards top-down with a shared footprint, stepped like stairs", () => {
     const pack = freshPack();
     const boards = layoutLayers(pack, [...pack.nodes]);
     expect(boards.length).toBeGreaterThan(1);
@@ -123,10 +123,17 @@ describe("layoutLayers", () => {
     for (let i = 1; i < sorted.length; i += 1) {
       expect(sorted[i - 1]!.y).toBeGreaterThan(sorted[i]!.y);
     }
-    for (const board of boards) {
-      expect(board.x).toBe(0);
-      expect(board.z).toBe(0);
+    // Staircase: each lower layer steps by the same diagonal offset, and the
+    // flight is centered around the origin.
+    const stepX = sorted[1]!.x - sorted[0]!.x;
+    expect(stepX).toBeGreaterThan(0);
+    for (let i = 1; i < sorted.length; i += 1) {
+      expect(sorted[i]!.x - sorted[i - 1]!.x).toBeCloseTo(stepX, 6);
+      expect(sorted[i]!.z - sorted[i - 1]!.z).toBeCloseTo(stepX, 6);
     }
+    const meanX = sorted.reduce((sum, board) => sum + board.x, 0)
+      / sorted.length;
+    expect(meanX).toBeCloseTo(0, 6);
   });
 });
 

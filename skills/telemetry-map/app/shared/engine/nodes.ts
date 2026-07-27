@@ -23,7 +23,9 @@ const DATABASE_KINDS = new Set([
 ]);
 const DATABASE_NODE_IDS = new Set(["container.postgres"]);
 const HERO_NODE_IDS = new Set(["runtime.agentLoop"]);
-export const NODE_GLYPH_MARGIN = 0.22;
+// The accent divider sits well above the tile label (label z ≈ foot·0.23)
+// so it never crowds the text.
+const ACCENT_Z = 0.05;
 
 export const isDatabaseNode = (node: ExplorerNode): boolean =>
   node.visual.shapeClass === "database"
@@ -40,47 +42,6 @@ export const isHeroNode = (node: ExplorerNode): boolean =>
 
 export const visualNodeFoot = (node: ExplorerNode): number =>
   UNIFORM_NODE_FOOT * (isHeroNode(node) ? 1.13 : 1);
-
-// ---- top-face brand glyphs -------------------------------------------------
-
-const NODE_TOP_GLYPHS = new Map<string, HTMLCanvasElement>();
-
-export const registerNodeGlyph = (
-  id: string,
-  svg: string,
-  px = 256,
-): void => {
-  const img = new Image();
-  img.addEventListener("load", () => {
-    const canvas = document.createElement("canvas");
-    canvas.width = px;
-    canvas.height = px;
-    canvas.getContext("2d")?.drawImage(img, 0, 0, px, px);
-    NODE_TOP_GLYPHS.set(id, canvas);
-  });
-  img.src = `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
-};
-
-export const registerNodeGlyphAsset = async (
-  base: string,
-  ids: readonly string[],
-  file: string,
-  recolor = false,
-): Promise<void> => {
-  try {
-    const response = await fetch(`${base}/icon/${file}`);
-    if (!response.ok) return;
-    let svg = await response.text();
-    if (recolor) {
-      svg = svg
-        .replaceAll("currentColor", CANVAS_COLOR.paper)
-        .replaceAll(/#000(?:000)?/gi, CANVAS_COLOR.paper);
-    }
-    for (const id of ids) registerNodeGlyph(id, svg);
-  } catch {
-    // Icons are decoration; a failed fetch must not break the scene.
-  }
-};
 
 export const drawNodeShadow = (
   scene: Scene,
@@ -107,35 +68,6 @@ export const drawNodeShadow = (
   ctx.restore();
 };
 
-const drawGlyph = (scene: Scene, node: ExplorerNode, alpha: number): void => {
-  const glyph = NODE_TOP_GLYPHS.get(node.id);
-  if (!glyph || alpha <= 0.01) return;
-  const { ctx, dpr } = scene;
-  const foot = visualNodeFoot(node);
-  const top = node.rs.y + nodeHeight();
-  const s = 1 - 2 * NODE_GLYPH_MARGIN;
-  const hw = ((foot * SYSTEM_FOOTPRINT_WIDTH) / 2) * s;
-  const hd = ((foot * 0.72) / 2) * s;
-  const { x, z } = { x: node.rs.x, z: node.rs.z };
-  const o = proj(scene, [x - hw, top, z - hd]);
-  const ex = proj(scene, [x + hw, top, z - hd]);
-  const ez = proj(scene, [x - hw, top, z + hd]);
-  ctx.save();
-  ctx.globalAlpha = alpha;
-  ctx.imageSmoothingQuality = "high";
-  ctx.filter = "grayscale(1) brightness(2.35)";
-  ctx.setTransform(
-    (dpr * (ex.x - o.x)) / glyph.width,
-    (dpr * (ex.y - o.y)) / glyph.width,
-    (dpr * (ez.x - o.x)) / glyph.height,
-    (dpr * (ez.y - o.y)) / glyph.height,
-    dpr * o.x,
-    dpr * o.y,
-  );
-  ctx.drawImage(glyph, 0, 0);
-  ctx.restore();
-};
-
 const drawAccent = (
   scene: Scene,
   node: ExplorerNode,
@@ -146,8 +78,8 @@ const drawAccent = (
   const top = node.rs.y + nodeHeight() + 0.018;
   const accent = domainColor(node);
   const emphasized = paint.hot || isHeroNode(node);
-  const p1 = proj(scene, [node.rs.x - foot * 0.22, top, node.rs.z + foot * 0.18]);
-  const p2 = proj(scene, [node.rs.x + foot * 0.22, top, node.rs.z + foot * 0.18]);
+  const p1 = proj(scene, [node.rs.x - foot * 0.22, top, node.rs.z + foot * ACCENT_Z]);
+  const p2 = proj(scene, [node.rs.x + foot * 0.22, top, node.rs.z + foot * ACCENT_Z]);
   ctx.save();
   ctx.globalAlpha = paint.alpha * (emphasized ? 0.95 : 0.66);
   ctx.strokeStyle = accent;
@@ -274,7 +206,6 @@ export const drawNodeShape = (
   ctx.stroke();
   ctx.restore();
   drawLifecycleMarker(scene, node, height);
-  drawGlyph(scene, node, paint.alpha);
   drawAccent(scene, node, paint);
   drawTileLabel(scene, node, paint);
 };

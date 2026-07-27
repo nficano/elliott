@@ -1,6 +1,5 @@
 import type { Scene } from "./scene";
 
-import { CANVAS_COLOR, shade } from "../utils/palette";
 import { proj } from "./scene";
 
 export const DECK_FONT = "\"Inter\", ui-sans-serif, system-ui, sans-serif";
@@ -49,45 +48,5 @@ export const isoText = (scene: Scene, spec: FlatTextSpec): void => {
   ctx.textAlign = spec.align ?? "left";
   ctx.textBaseline = "middle";
   ctx.fillText(spec.text, 0, 0);
-  ctx.restore();
-};
-
-export interface FlatPillSpec {
-  text: string;
-  wx: number;
-  wy: number;
-  wz: number;
-  w: number;
-  h: number;
-  color: string;
-}
-
-// A count pill lying flat on the deck next to the board title.
-export const isoPill = (scene: Scene, spec: FlatPillSpec): void => {
-  const { ctx, dpr } = scene;
-  const o = proj(scene, [spec.wx, spec.wy, spec.wz]);
-  const px = proj(scene, [spec.wx + 1, spec.wy, spec.wz]);
-  const pz = proj(scene, [spec.wx, spec.wy, spec.wz + 1]);
-  ctx.save();
-  ctx.setTransform(
-    dpr * (px.x - o.x),
-    dpr * (px.y - o.y),
-    dpr * (pz.x - o.x),
-    dpr * (pz.y - o.y),
-    dpr * o.x,
-    dpr * o.y,
-  );
-  ctx.beginPath();
-  ctx.roundRect(-spec.w / 2, -spec.h / 2, spec.w, spec.h, spec.h / 2);
-  ctx.fillStyle = CANVAS_COLOR.tile;
-  ctx.fill();
-  ctx.strokeStyle = shade(spec.color, -0.12, 0.52);
-  ctx.lineWidth = 0.045;
-  ctx.stroke();
-  ctx.font = `650 .3px ${DECK_FONT}`;
-  ctx.fillStyle = CANVAS_COLOR.ink;
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText(spec.text, 0, 0.015);
   ctx.restore();
 };

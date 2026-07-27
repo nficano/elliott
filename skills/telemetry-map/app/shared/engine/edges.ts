@@ -9,7 +9,6 @@ import { nodeHeight } from "../utils/layout";
 import { CANVAS_COLOR, hash01 } from "../utils/palette";
 import { visualNodeFoot } from "./nodes";
 import { proj, qPoint } from "./scene";
-import { drawSprite, labelSprite } from "./sprites";
 import { effectiveBrightness } from "./state";
 
 export interface EdgeCurve {
@@ -194,14 +193,6 @@ export const drawEdge = (
     drawArrowhead(scene, curve, { color: style.color, alpha, hot });
   }
   drawAgentJunction(scene, state, edge, { curve, hot });
-  if (hot && state.labels) {
-    qPoint(curve.a, curve.c, curve.b, 0.5, scratch);
-    drawSprite(scene, labelSprite(edge.kind, "node"), [
-      scratch.x,
-      scratch.y - 10,
-      0.45,
-    ]);
-  }
 };
 
 // ---- particles -------------------------------------------------------------

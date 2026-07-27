@@ -4,7 +4,7 @@ import type { EngineState } from "./state";
 
 import { GROUND_GRID_STEP } from "../utils/layout";
 import { CANVAS_COLOR, shade } from "../utils/palette";
-import { isoPill, isoText, measureWorld } from "./flat-text";
+import { isoText, measureWorld } from "./flat-text";
 import { drawBoardShadow } from "./lighting";
 import { prism } from "./prism";
 import { facePath, proj, roundedRectCorners } from "./scene";
@@ -29,15 +29,6 @@ const drawDeckTitle = (scene: Scene, board: Board): void => {
     align: "left",
     font: `650 ${size}px "Inter", ui-sans-serif, system-ui, sans-serif`,
     tracking: ".1em",
-  });
-  isoPill(scene, {
-    text: String(board.count),
-    wx: x0 + fullW * size + 0.72,
-    wy: board.y + 0.025,
-    wz: z0,
-    w: 0.88,
-    h: 0.54,
-    color,
   });
 };
 

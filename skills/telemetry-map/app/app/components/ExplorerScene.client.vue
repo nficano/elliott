@@ -11,10 +11,7 @@
 <script setup lang="ts">
 import { Engine } from "#shared/engine/engine";
 import { GestureController } from "#shared/engine/gestures";
-import { registerNodeGlyphAsset } from "#shared/engine/nodes";
-import { registerNodeGlyph } from "#shared/engine/nodes";
 import { bindFontReload } from "#shared/engine/sprites";
-import { MAP_BASE } from "#shared/utils/base";
 
 import {
   clearSelection,
@@ -27,7 +24,6 @@ import {
   selectNode,
   useExplorer,
 } from "~/composables/useExplorer";
-import { SLACK_GLYPH_SVG } from "~/utils/slack-glyph";
 
 const explorer = useExplorer();
 const canvasRef = ref<HTMLCanvasElement | null>(null);
@@ -75,23 +71,6 @@ const setHover = (
   };
   canvas.style.cursor = hoverCursor(Boolean(node ?? edge));
   if ((node ?? edge) && changed) scheduleTooltip(node, edge);
-};
-
-const registerGlyphs = (): void => {
-  registerNodeGlyph("gateway.slack", SLACK_GLYPH_SVG);
-  const assets: [string[], string, boolean?][] = [
-    [["tool.browser", "container.browser"], "browser"],
-    [["tool.gmail"], "gmail"],
-    [["tool.homeassistant", "mcp.homeassistant"], "home-assistant"],
-    [["tool.imessage"], "imessage"],
-    [["provider.litellm"], "litellm"],
-    [["provider.ollama"], "ollama", true],
-    [["container.postgres"], "postgresql"],
-    [["secret.vault"], "vault", true],
-  ];
-  for (const [ids, file, recolor] of assets) {
-    void registerNodeGlyphAsset(MAP_BASE, ids, file, recolor ?? false);
-  }
 };
 
 const isFormField = (target: EventTarget | null): target is HTMLElement =>
@@ -169,7 +148,6 @@ onMounted(() => {
   const canvas = canvasRef.value;
   const state = explorer.engineState.value;
   if (!canvas || !state) return;
-  registerGlyphs();
   bindFontReload();
   engine = new Engine(canvas, state, {
     onFlowAdvance: () => flowAdvance(1),
