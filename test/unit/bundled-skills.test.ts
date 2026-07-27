@@ -20,6 +20,8 @@ const IMPLEMENTED = [
   "gateway-slack",
   "gateway-webhook",
   "mcp-client",
+  "news-brief",
+  "pakman-latest-episode",
   "scheduler",
   "search-brave",
   "search-duckduckgo",
@@ -28,6 +30,7 @@ const IMPLEMENTED = [
   "terminal",
   "web-firecrawl",
   "web-parallel",
+  "youtube-dvr",
 ];
 
 describe("Elliott bundled component packages", () => {

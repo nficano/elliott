@@ -1,0 +1,22 @@
+apiVersion: elliott/v1
+kind: tool
+profile: tool-standard
+metadata: { namespace: core, name: pakman-latest-episode, version: 1.0.0 }
+spec:
+  document: TOOL.md
+  protocols: [content.extractor]
+  capabilities:
+    - { capability: network.connect, resources: [www.davidpakman.com, davidpakman.com] }
+    - { capability: secret.use, resources: [secret://pakman/credentials] }
+  egress: { class: declared, hosts: [www.davidpakman.com, davidpakman.com] }
+  isolation: container
+  outputTrust: untrusted
+  topology:
+    node: { id: tool.pakman, kind: tool, domain: external-integrations, trustZone: egress, dataClassification: untrusted-external, criticality: supporting }
+    dispatch: tool
+    gate: "secret:pakman"
+    egressTargets: [ David Pakman member site ]
+    edges:
+      - { from: self, to: tool.youtube-dvr, kind: data, protocol: "in-process (source provider resolve)", label: latest full-episode URL }
+  exports:
+    - { ref: tool/pakman-latest-episode, implementation: src/index.ts }

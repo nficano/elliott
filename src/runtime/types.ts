@@ -1,4 +1,11 @@
 /* eslint-disable max-lines */
+import type { BundledPackage } from "../catalog/types";
+import type { SnapshotStore } from "../core/snapshot/snapshot";
+import type { EvolutionControlPlaneBinding } from "../learning/evolution/cli";
+import type { EvolutionConfig } from "../learning/evolution/config";
+import type { SessionEvolutionStore } from "../memory/session-store/evolution";
+import type { SessionRunEvidence } from "../memory/types";
+
 export interface SecretResolver {
   env(name: string): string | undefined;
   vault(path: string, field: string): Promise<string>;
@@ -69,6 +76,75 @@ export interface HomeAssistantSettings {
 
 export interface CloudflaredSettings {
   readonly readyUrl: string;
+}
+
+export interface NewsBriefRedditSource {
+  readonly multireddit: string;
+  readonly intervalSeconds: number;
+}
+
+export interface NewsBriefGuardianSource {
+  readonly apiKey: string;
+  readonly sections: readonly string[];
+  readonly intervalSeconds: number;
+}
+
+export interface NewsBriefRssFeed {
+  readonly name: string;
+  readonly url: string;
+}
+
+export interface NewsBriefRssSource {
+  readonly feeds: readonly NewsBriefRssFeed[];
+  readonly intervalSeconds: number;
+}
+
+export interface NewsBriefApiSource {
+  readonly apiKey: string;
+  readonly intervalSeconds: number;
+}
+
+export interface NewsBriefSettings {
+  readonly keywords: readonly string[];
+  readonly threshold: number;
+  readonly briefSize: number;
+  readonly alerts: boolean;
+  readonly reddit?: NewsBriefRedditSource;
+  readonly guardian?: NewsBriefGuardianSource;
+  readonly rss?: NewsBriefRssSource;
+  readonly newsdata?: NewsBriefApiSource;
+  readonly gnews?: NewsBriefApiSource;
+}
+
+export interface PakmanSettings {
+  readonly username: string;
+  readonly password: string;
+}
+
+export interface YouTubeOAuthSettings {
+  readonly clientId: string;
+  readonly clientSecret: string;
+  readonly refreshToken: string;
+}
+
+export interface YouTubeDvrProviderRef {
+  readonly name: string;
+  readonly days: readonly string[];
+}
+
+export interface YouTubeDvrSettings {
+  readonly oauth: YouTubeOAuthSettings;
+  readonly channels: readonly string[];
+  readonly providers: readonly YouTubeDvrProviderRef[];
+  readonly timezone: string;
+  readonly windowStartHour: number;
+  readonly windowEndHour: number;
+  readonly lookbackSeconds: number;
+  readonly minDurationSeconds: number;
+  readonly pollIntervalSeconds: number;
+  readonly playlistTitleTemplate: string;
+  readonly playlistPrivacy: string;
+  readonly tool: boolean;
 }
 
 export interface RuntimeEvolutionSettings {
@@ -178,6 +254,9 @@ export interface RuntimeSettings {
   readonly mcp: readonly McpEndpointSettings[];
   readonly glitchtipDsn?: string;
   readonly postgresDsn?: string;
+  readonly newsBrief?: NewsBriefSettings;
+  readonly pakman?: PakmanSettings;
+  readonly youtubeDvr?: YouTubeDvrSettings;
   readonly evolution?: EvolutionConfig;
   readonly evolutionRuntime?: RuntimeEvolutionSettings;
 }
@@ -365,9 +444,3 @@ export interface RuntimeStartedEvent {
   readonly gateways: readonly string[];
   readonly services: readonly string[];
 }
-import type { BundledPackage } from "../catalog/types";
-import type { SnapshotStore } from "../core/snapshot/snapshot";
-import type { EvolutionControlPlaneBinding } from "../learning/evolution/cli";
-import type { EvolutionConfig } from "../learning/evolution/config";
-import type { SessionEvolutionStore } from "../memory/session-store/evolution";
-import type { SessionRunEvidence } from "../memory/types";

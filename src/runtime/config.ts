@@ -17,6 +17,11 @@ import {
   stringAt,
 } from "./settings";
 import {
+  optionalNewsBrief,
+  optionalPakman,
+  optionalYouTubeDvr,
+} from "./settings-skills";
+import {
   optionalCloudflared,
   optionalFiles,
   optionalHomeAssistant,
@@ -211,6 +216,9 @@ const optionalSettings = (
     "dsn",
   ]),
   ...optionalStringProperty("postgresDsn", resolved, ["store", "dsn"]),
+  ...optionalNewsBrief(resolved, secrets),
+  ...optionalPakman(secrets),
+  ...optionalYouTubeDvr(resolved, secrets),
 });
 
 const loadYaml = async (file: string): Promise<unknown> => {

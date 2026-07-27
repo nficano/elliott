@@ -292,6 +292,54 @@ export const BUNDLED_CATALOG: readonly BundledComponentDescriptor[] = Object
       senderAllowlistRequired: false,
       untrustedOutput: false,
     }),
+    descriptor({
+      name: "news-brief",
+      kind: "extension",
+      protocols: ["content.extractor"],
+      egress: egressClass("declared", [
+        "www.reddit.com",
+        "content.guardianapis.com",
+        "feeds.bbci.co.uk",
+        "feeds.apnews.com",
+        "feeds.reuters.com",
+        "newsdata.io",
+        "gnews.io",
+      ]),
+      isolation: "container",
+      secretRefs: [
+        "secret://news-brief/guardian/api-key",
+        "secret://news-brief/newsdata/api-key",
+        "secret://news-brief/gnews/api-key",
+      ],
+      senderAllowlistRequired: false,
+      untrustedOutput: true,
+    }),
+    descriptor({
+      name: "pakman-latest-episode",
+      kind: "tool",
+      protocols: ["content.extractor"],
+      egress: egressClass("declared", [
+        "www.davidpakman.com",
+        "davidpakman.com",
+      ]),
+      isolation: "container",
+      secretRefs: ["secret://pakman/credentials"],
+      senderAllowlistRequired: false,
+      untrustedOutput: true,
+    }),
+    descriptor({
+      name: "youtube-dvr",
+      kind: "extension",
+      protocols: ["tool.executor"],
+      egress: egressClass("declared", [
+        "youtube.googleapis.com",
+        "oauth2.googleapis.com",
+      ]),
+      isolation: "container",
+      secretRefs: ["secret://youtube/oauth"],
+      senderAllowlistRequired: false,
+      untrustedOutput: true,
+    }),
   ]);
 
 export type * from "./types";
