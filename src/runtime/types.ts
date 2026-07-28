@@ -6,6 +6,17 @@ import type { EvolutionConfig } from "../learning/evolution/config";
 import type { SessionEvolutionStore } from "../memory/session-store/evolution";
 import type { SessionRunEvidence } from "../memory/types";
 
+// Where the framework built-ins load from vs. where the agent's config,
+// definition, persona, custom skills, and durable state live. In a single-root
+// checkout (the elliott repo itself) both point at the same directory; in the
+// tide-pods deployable frameworkRoot is the installed elliott package and
+// agentRoot is the pod repo.
+export interface RuntimeRoots {
+  readonly frameworkRoot: string;
+  readonly agentRoot: string;
+  readonly agentName: string;
+}
+
 export interface SecretResolver {
   env(name: string): string | undefined;
   vault(path: string, field: string): Promise<string>;

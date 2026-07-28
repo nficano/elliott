@@ -38,18 +38,12 @@ import type {
 } from "./skills/types";
 import { ensureRuntimeSnapshot } from "./snapshot";
 import { runtimeTelemetry, telemetryTurnObserver } from "./telemetry";
-import type { InboundMessage, RuntimeHealth, RuntimeSettings } from "./types";
-
-// Where the framework built-ins load from vs. where the agent's config,
-// definition, persona, custom skills, and durable state live. In a single-root
-// checkout (the elliott repo itself) both point at the same directory; in the
-// tide-pods deployable frameworkRoot is the installed elliott package and
-// agentRoot is the pod repo.
-export interface RuntimeRoots {
-  readonly frameworkRoot: string;
-  readonly agentRoot: string;
-  readonly agentName: string;
-}
+import type {
+  InboundMessage,
+  RuntimeHealth,
+  RuntimeRoots,
+  RuntimeSettings,
+} from "./types";
 
 const resolveRoots = (roots: string | RuntimeRoots): RuntimeRoots =>
   typeof roots === "string"
@@ -97,7 +91,10 @@ export class ElliottRuntime {
   // Snapshot, evolution bindings, then externally reachable routes.
   // eslint-disable-next-line max-lines-per-function, max-statements, complexity
   async start(): Promise<void> {
-    const settings = await loadRuntimeSettings(this.#agentRoot, this.#agentName);
+    const settings = await loadRuntimeSettings(
+      this.#agentRoot,
+      this.#agentName,
+    );
     this.#settings = settings;
     await mkdir(settings.stateDirectory, { recursive: true });
     this.#evidenceStore = new SessionStore(
