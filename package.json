@@ -25,7 +25,9 @@
     "./observability": "./src/observability/index.ts",
     "./config": "./src/config/index.ts",
     "./catalog": "./src/catalog/index.ts",
-    "./agent": "./src/agent/index.ts"
+    "./agent": "./src/agent/index.ts",
+    "./skills": "./src/runtime/skills/index.ts",
+    "./runtime": "./src/runtime/types.ts"
   },
   "scripts": {
     "prepare": "./scripts/prepare-effect.sh",

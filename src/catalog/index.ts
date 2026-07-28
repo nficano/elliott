@@ -3,7 +3,7 @@ import { digest } from "../core/brands";
 import { egressClass } from "../placement/egress";
 import type { BundledComponentDescriptor } from "./types";
 
-export { loadBundledPackages } from "./bundled";
+export { loadAgentSkillPackages, loadBundledPackages } from "./bundled";
 export {
   assertBrokeredDestination,
   assertWorkspacePath,

@@ -1,7 +1,10 @@
 /* eslint-disable max-lines */
 import { mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
-import { loadBundledPackages } from "../catalog/bundled";
+import {
+  loadAgentSkillPackages,
+  loadBundledPackages,
+} from "../catalog/bundled";
 import type { BundledPackage } from "../catalog/types";
 import type { AgentKernel } from "../kernel";
 import type { EvolutionControlPlaneBinding } from "../learning/evolution/cli";
@@ -83,7 +86,12 @@ export class ElliottRuntime {
       settings.release,
     );
     await this.#kernel.start();
-    this.#packages = await loadBundledPackages(this.#root);
+    this.#packages = [
+      ...await loadBundledPackages(this.#root),
+      // The agent's own custom skills load through the same package seam;
+      // duplicate tool names across the two roots fail fast in collectTools.
+      ...await loadAgentSkillPackages(this.#root, "elliott"),
+    ];
     const skills = await loadSkillRegistrations(
       this.#packages,
       this.#skillContext(settings),

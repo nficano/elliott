@@ -1,4 +1,4 @@
-import { readdir, readFile } from "node:fs/promises";
+import { access, readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { parse } from "yaml";
 import type { ComponentKind } from "../core/types";
@@ -15,10 +15,31 @@ const DOCUMENTS: ReadonlySet<string> = new Set([
   "EVALUATOR.md",
 ]);
 
-export const loadBundledPackages = async (
+export const loadBundledPackages = (
   root: string,
+): Promise<readonly BundledPackage[]> =>
+  loadPackagesFrom(path.join(root, "skills"));
+
+// Agent-level custom skills: same package format and loader as the bundled
+// framework skills, but scoped to one agent under agents/<name>/skills/.
+// An agent without a skills directory simply has none. See
+// docs/agent-skills.md.
+export const loadAgentSkillPackages = async (
+  root: string,
+  agent: string,
 ): Promise<readonly BundledPackage[]> => {
-  const directory = path.join(root, "skills");
+  const directory = path.join(root, "agents", agent, "skills");
+  try {
+    await access(directory);
+  } catch {
+    return [];
+  }
+  return loadPackagesFrom(directory);
+};
+
+const loadPackagesFrom = async (
+  directory: string,
+): Promise<readonly BundledPackage[]> => {
   const entries = await readdir(directory, { withFileTypes: true });
   const packages = await Promise.all(
     entries.filter((entry) => entry.isDirectory()).map((entry) =>
