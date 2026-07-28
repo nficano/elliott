@@ -20,7 +20,7 @@ tide-pods/
   package.json               # depends on elliott (link:../elliott locally;
                              # pinned git dep for CI/deploy)
   agents/
-    elliott/
+    oslo/
       agent.yaml             # agent definition (persona, components, mcp)
       skills/
         <name>/
@@ -44,7 +44,7 @@ straight from node_modules, so agent skills import framework types as
 - `RuntimeApp.start` composes framework + agent packages; duplicate tool
   names fail fast in `collectTools`.
 - First custom skill lives in tide-pods:
-  `agents/elliott/skills/homelab-directory` (static directory of homelab
+  `agents/oslo/skills/homelab-directory` (static directory of homelab
   services). Its smoke test in that repo drives elliott's real loader
   through the package dependency — proving the consumption path.
 
@@ -65,7 +65,7 @@ renders the same `.env`).
 
 ## Phase 3 — migrate the personal skills out of the framework (planned)
 
-Move from `skills/` to `tide-pods/agents/elliott/skills/`: pihole,
+Move from `skills/` to `tide-pods/agents/oslo/skills/`: pihole,
 traefik, news-brief, pakman-latest-episode, youtube-dvr, subscription-usage
 (telemetry-map debatable — observability may stay framework). Their settings
 loaders (`settings-skills.ts`, pihole/traefik in `settings-tools.ts`) move
@@ -83,6 +83,6 @@ no listing: living in the agent's repo IS the opt-in.
 ## Rules going forward
 
 - New generic capability → elliott `skills/` + `BUNDLED_CATALOG`.
-- New personal/homelab integration → `tide-pods/agents/elliott/skills/`.
+- New personal/homelab integration → `tide-pods/agents/oslo/skills/`.
 - An agent skill may do anything a bundled skill can (tools, routes,
   services, gateways) and reads the same `SkillContext`.
