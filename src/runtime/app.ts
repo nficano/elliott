@@ -40,8 +40,26 @@ import { ensureRuntimeSnapshot } from "./snapshot";
 import { runtimeTelemetry, telemetryTurnObserver } from "./telemetry";
 import type { InboundMessage, RuntimeHealth, RuntimeSettings } from "./types";
 
+// Where the framework built-ins load from vs. where the agent's config,
+// definition, persona, custom skills, and durable state live. In a single-root
+// checkout (the elliott repo itself) both point at the same directory; in the
+// tide-pods deployable frameworkRoot is the installed elliott package and
+// agentRoot is the pod repo.
+export interface RuntimeRoots {
+  readonly frameworkRoot: string;
+  readonly agentRoot: string;
+  readonly agentName: string;
+}
+
+const resolveRoots = (roots: string | RuntimeRoots): RuntimeRoots =>
+  typeof roots === "string"
+    ? { frameworkRoot: roots, agentRoot: roots, agentName: "elliott" }
+    : roots;
+
 export class ElliottRuntime {
-  readonly #root: string;
+  readonly #frameworkRoot: string;
+  readonly #agentRoot: string;
+  readonly #agentName: string;
   readonly #kernel: AgentKernel;
   #evolutionControlPlane: EvolutionControlPlaneBinding | undefined;
   #snapshotId: string | undefined;
@@ -62,11 +80,16 @@ export class ElliottRuntime {
   readonly #conversationSnapshots = new RuntimeConversationSnapshots();
 
   constructor(
-    root: string,
+    roots: string | RuntimeRoots,
     evolutionControlPlane?: EvolutionControlPlaneBinding,
   ) {
-    this.#root = root;
-    this.#kernel = makeRuntimeKernel(root);
+    const { frameworkRoot, agentRoot, agentName } = resolveRoots(roots);
+    this.#frameworkRoot = frameworkRoot;
+    this.#agentRoot = agentRoot;
+    this.#agentName = agentName;
+    // Kernel snapshots, evolution state, and durable evidence all belong to
+    // the agent, so the kernel is rooted at the agent checkout.
+    this.#kernel = makeRuntimeKernel(agentRoot);
     this.#evolutionControlPlane = evolutionControlPlane;
   }
 
@@ -74,7 +97,7 @@ export class ElliottRuntime {
   // Snapshot, evolution bindings, then externally reachable routes.
   // eslint-disable-next-line max-lines-per-function, max-statements, complexity
   async start(): Promise<void> {
-    const settings = await loadRuntimeSettings(this.#root);
+    const settings = await loadRuntimeSettings(this.#agentRoot, this.#agentName);
     this.#settings = settings;
     await mkdir(settings.stateDirectory, { recursive: true });
     this.#evidenceStore = new SessionStore(
@@ -87,10 +110,10 @@ export class ElliottRuntime {
     );
     await this.#kernel.start();
     this.#packages = [
-      ...await loadBundledPackages(this.#root),
+      ...await loadBundledPackages(this.#frameworkRoot),
       // The agent's own custom skills load through the same package seam;
       // duplicate tool names across the two roots fail fast in collectTools.
-      ...await loadAgentSkillPackages(this.#root, "elliott"),
+      ...await loadAgentSkillPackages(this.#agentRoot, this.#agentName),
     ];
     const skills = await loadSkillRegistrations(
       this.#packages,
@@ -104,12 +127,12 @@ export class ElliottRuntime {
       store: this.#kernel.snapshots,
       settings,
       packages: this.#packages,
-      root: this.#root,
+      root: this.#agentRoot,
     });
     this.#snapshotId = snapshot.id;
     const evolution = this.#evolutionControlPlane === undefined
       ? await makeRuntimeEvolutionIntegration(
-        this.#root,
+        this.#agentRoot,
         settings,
         this.#kernel,
         () => this.#snapshotId,
@@ -196,7 +219,7 @@ export class ElliottRuntime {
   #skillContext(settings: RuntimeSettings): SkillContext {
     return {
       settings,
-      stateDirectory: path.join(this.#root, ".elliott-runtime"),
+      stateDirectory: path.join(this.#agentRoot, ".elliott-runtime"),
       report: (error, mechanism) => this.#capture(error, mechanism),
       deliver: (text) => this.#deliver(text),
     };

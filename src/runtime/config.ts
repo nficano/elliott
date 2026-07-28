@@ -68,11 +68,12 @@ export const envBackedSecretResolver: SecretResolver = {
 
 export const loadRuntimeSettings = async (
   root: string,
+  agentName = "elliott",
   resolver: SecretResolver = envBackedSecretResolver,
 ): Promise<RuntimeSettings> => {
   const config = await loadYaml(path.join(root, "config/elliott.yaml"));
   const secrets = await loadSecrets(root, resolver);
-  const agent = await loadYaml(path.join(root, "agents/elliott.yaml"));
+  const agent = await loadAgentDefinition(root, agentName);
   const evolution = await loadEvolutionConfig(root);
   const resolved = await resolveTree(config, resolver);
   return {
@@ -226,6 +227,22 @@ const optionalSettings = (
   ...optionalPakman(secrets),
   ...optionalYouTubeDvr(resolved, secrets),
 });
+
+// The agent definition lives at agents/<name>/agent.yaml (the tide-pods pod
+// layout); older single-root checkouts keep the flat agents/<name>.yaml. Try
+// the nested form first, fall back to flat.
+const loadAgentDefinition = async (
+  root: string,
+  agentName: string,
+): Promise<unknown> => {
+  const nested = path.join(root, "agents", agentName, "agent.yaml");
+  try {
+    await access(nested);
+    return await loadYaml(nested);
+  } catch {
+    return loadYaml(path.join(root, "agents", `${agentName}.yaml`));
+  }
+};
 
 const loadYaml = async (file: string): Promise<unknown> => {
   const raw = await readFile(file, "utf8");
