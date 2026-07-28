@@ -28,7 +28,7 @@ spec:
     - core/scheduler/scheduler
   mcp:
     - id: h12o
-      url: https://mcp.h12o.io/mcp
+      url: https://mcp.octet.stream/mcp
       transport: streamable-http
     - id: home-assistant
       url: http://172.16.10.235:8123/mcp_server/sse

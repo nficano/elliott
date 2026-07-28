@@ -291,7 +291,7 @@ export const BUNDLED_CATALOG: readonly BundledComponentDescriptor[] = Object
         "console.anthropic.com",
         "chatgpt.com",
         "auth.openai.com",
-        "api.litellm.h12o.io",
+        "api.litellm.octet.stream",
       ]),
       isolation: "container",
       secretRefs: ["secret://tools/subscription-usage/accounts"],

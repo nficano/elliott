@@ -109,7 +109,7 @@
 
     {
       "id": "provider.litellm",
-      "name": "LiteLLM gateway (api.litellm.h12o.io/v1) — reached directly by RuntimeModelClient; canonical LiteLlmProvider class is never instantiated",
+      "name": "LiteLLM gateway (api.litellm.octet.stream/v1) — reached directly by RuntimeModelClient; canonical LiteLlmProvider class is never instantiated",
       "kind": "provider",
       "runtime": "live",
       "source": "config/elliott.yaml:16 (base_url); src/runtime/config.ts:178 (llmBaseUrl); src/runtime/model/client.ts:28",
@@ -216,7 +216,7 @@
     },
     {
       "id": "mcp.h12o",
-      "name": "h12o MCP server (mcp.h12o.io/mcp)",
+      "name": "h12o MCP server (mcp.octet.stream/mcp)",
       "kind": "mcp-endpoint",
       "runtime": "live",
       "source": "agents/elliott.yaml mcp[0] (id h12o, transport streamable-http)"

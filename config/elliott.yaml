@@ -13,7 +13,7 @@ browser:
   allowed_domains: []
 
 llm:
-  base_url: https://api.litellm.h12o.io/v1
+  base_url: https://api.litellm.octet.stream/v1
   api_key: ${VAULT:secret/services/oslo#litellm_key}
   max_parallel: 12
   models:
@@ -39,7 +39,7 @@ observability:
     environment: prod
 
 notify:
-  webhook_url: https://api.h12o.io/api/notify
+  webhook_url: https://api.octet.stream/api/notify
   default_channels: [slack]
 
 channels:
@@ -99,16 +99,16 @@ tools:
     codex_accounts:
       - { name: personal, secret: codex_oauth_personal }
     litellm:
-      base_url: https://api.litellm.h12o.io
+      base_url: https://api.litellm.octet.stream
   traefik:
     # proxy-01 LXC. Traefik polls Elliott's dynamic-config route via its
     # HTTP provider (forest: compose/traefik/data/traefik.yml providers.http
     # -> http://172.16.20.21:18082/v1/traefik/dynamic). Entrypoint and
     # resolver names match proxy-01's static config (https / letsencrypt,
-    # Cloudflare DNS-01 wildcard for *.h12o.io). The dashboard API sits
+    # Cloudflare DNS-01 wildcard for *.octet.stream). The dashboard API sits
     # behind Authentik, so live router status degrades to a note.
     enabled: true
-    api_url: https://traefik.h12o.io
+    api_url: https://traefik.octet.stream
     cert_resolver: letsencrypt
     entry_point: https
 

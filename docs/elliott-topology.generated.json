@@ -102,7 +102,7 @@
     },
     {
       "id": "provider.litellm",
-      "name": "LiteLLM gateway (api.litellm.h12o.io/v1)",
+      "name": "LiteLLM gateway (api.litellm.octet.stream/v1)",
       "kind": "provider",
       "runtime": "live",
       "domain": "model-inference",
@@ -581,7 +581,7 @@
       "domain": "mcp-federation",
       "source": "agents/elliott.yaml (mcp[])",
       "egressTargets": [
-        "https://mcp.h12o.io/mcp"
+        "https://mcp.octet.stream/mcp"
       ]
     },
     {

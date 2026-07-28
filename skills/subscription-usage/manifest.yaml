@@ -16,7 +16,7 @@ spec:
       - console.anthropic.com
       - chatgpt.com
       - auth.openai.com
-      - api.litellm.h12o.io
+      - api.litellm.octet.stream
   isolation: container
   outputTrust: untrusted
   topology:
