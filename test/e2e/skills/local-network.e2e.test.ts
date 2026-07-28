@@ -19,13 +19,13 @@ import {
 //   bun test test/e2e/skills/local-network.e2e.test.ts
 //
 // The Pi-hole roundtrip creates and deletes a clearly-labeled probe record
-// (elliott-e2e-probe.h12o.io -> 127.0.0.99) and restores the original state.
+// (elliott-e2e-probe.octet.stream -> 127.0.0.99) and restores the original state.
 
 const PIHOLE_URL = Bun.env["ELLIOTT_E2E_PIHOLE_URL"];
 const PIHOLE_PASSWORD = Bun.env["ELLIOTT_E2E_PIHOLE_PASSWORD"];
 const ELLIOTT_URL = Bun.env["ELLIOTT_E2E_BASE_URL"];
 
-const PROBE_DOMAIN = "elliott-e2e-probe.h12o.io";
+const PROBE_DOMAIN = "elliott-e2e-probe.octet.stream";
 const PROBE_IP = "127.0.0.99";
 
 const piholeContext = async (): Promise<SkillContext> => {

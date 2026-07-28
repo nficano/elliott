@@ -227,7 +227,7 @@ describe("traefik skill logic (Tier 1)", () => {
 
     await set.execute({
       name: "grafana",
-      hostname: "grafana.h12o.io",
+      hostname: "grafana.octet.stream",
       service_url: "http://127.0.0.1:3000",
     });
     const response = await dynamic!.handle(
@@ -248,7 +248,7 @@ describe("traefik skill logic (Tier 1)", () => {
       };
     };
     const router = config.http.routers["elliott-grafana"];
-    expect(router?.rule).toBe("Host(`grafana.h12o.io`)");
+    expect(router?.rule).toBe("Host(`grafana.octet.stream`)");
     expect(router?.entryPoints).toEqual(["websecure"]);
     expect(router?.tls).toEqual({ certResolver: "letsencrypt" });
     expect(
@@ -266,7 +266,7 @@ describe("traefik skill logic (Tier 1)", () => {
 
     await set.execute({
       name: "nas",
-      hostname: "nas.h12o.io",
+      hostname: "nas.octet.stream",
       service_url: "http://127.0.0.1:5000",
     });
     const removed = JSON.parse(await remove.execute({ name: "nas" }));
@@ -311,7 +311,7 @@ describe("traefik skill logic (Tier 1)", () => {
 
     await toolByName(first, "traefik_route_set").execute({
       name: "vault",
-      hostname: "vault.h12o.io",
+      hostname: "vault.octet.stream",
       service_url: "http://127.0.0.1:8200",
     });
 
@@ -323,7 +323,7 @@ describe("traefik skill logic (Tier 1)", () => {
     );
     expect(listed.routes).toEqual({
       vault: {
-        hostname: "vault.h12o.io",
+        hostname: "vault.octet.stream",
         serviceUrl: "http://127.0.0.1:8200/",
       },
     });

@@ -565,7 +565,7 @@
     },
     {
       "id": "provider.litellm",
-      "name": "LiteLLM gateway (api.litellm.h12o.io/v1) — reached directly by RuntimeModelClient; canonical LiteLlmProvider class is never instantiated",
+      "name": "LiteLLM gateway (api.litellm.octet.stream/v1) — reached directly by RuntimeModelClient; canonical LiteLlmProvider class is never instantiated",
       "kind": "provider",
       "runtime": "live",
       "source": "config/elliott.yaml:16 (base_url); src/runtime/config.ts:178 (llmBaseUrl); src/runtime/model/client.ts:28",
@@ -587,7 +587,7 @@
         "scalability": "external LiteLLM gateway fronting Anthropic + local tiers (max_parallel 12)",
         "failureMode": "HTTP errors surface as 'LiteLLM <status>' to the client"
       },
-      "interface": "OpenAI-compatible POST /v1/chat/completions at https://api.litellm.h12o.io/v1 (elliott.yaml:16). Models: anthropic/claude-haiku-4-5 (fast/default), claude-sonnet-5 (standard), claude-opus-4-8 (deep), tier-local (utility/trivial), tier-local-embed (embed).",
+      "interface": "OpenAI-compatible POST /v1/chat/completions at https://api.litellm.octet.stream/v1 (elliott.yaml:16). Models: anthropic/claude-haiku-4-5 (fast/default), claude-sonnet-5 (standard), claude-opus-4-8 (deep), tier-local (utility/trivial), tier-local-embed (embed).",
       "characteristics": [
         "Reached directly by RuntimeModelClient via fetch; the canonical LiteLlmProvider class is never instantiated.",
         "Only one model id is ever sent -- the resolved settings.model (default fast/haiku); the other profiles are configured but unused on the turn path.",
@@ -928,7 +928,7 @@
     },
     {
       "id": "mcp.h12o",
-      "name": "h12o MCP server (mcp.h12o.io/mcp)",
+      "name": "h12o MCP server (mcp.octet.stream/mcp)",
       "kind": "mcp-endpoint",
       "runtime": "live",
       "source": "agents/elliott.yaml mcp[0] (id h12o, transport streamable-http)",
@@ -944,7 +944,7 @@
         "scalability": "streamable-http per call",
         "failureMode": "HTTP non-2xx throws MCP <id> HTTP <status>; JSON-RPC error unwrapped to an Error"
       },
-      "interface": "h12o MCP server https://mcp.h12o.io/mcp (agents/elliott.yaml mcp[0]), transport streamable-http. JSON-RPC 2.0 over POST with an mcp-session-id captured from the initialize response.",
+      "interface": "h12o MCP server https://mcp.octet.stream/mcp (agents/elliott.yaml mcp[0]), transport streamable-http. JSON-RPC 2.0 over POST with an mcp-session-id captured from the initialize response.",
       "characteristics": [
         "streamable-http wire: POST JSON-RPC; response may be application/json or text/event-stream (parsed for the JSON-RPC frame); 202/204 treated as empty (http.ts:56-73).",
         "Session continuity via the mcp-session-id response header echoed on subsequent posts (http.ts:22,53).",

@@ -280,7 +280,7 @@
 
     {
       "id": "provider.litellm",
-      "name": "LiteLLM gateway (api.litellm.h12o.io)",
+      "name": "LiteLLM gateway (api.litellm.octet.stream)",
       "kind": "provider",
       "source": "src/runtime/config.ts (llmBaseUrl); src/providers/litellm/index.ts",
       "render": {
@@ -423,7 +423,7 @@
     },
     {
       "id": "mcp.h12o",
-      "name": "h12o MCP server (mcp.h12o.io)",
+      "name": "h12o MCP server (mcp.octet.stream)",
       "kind": "mcp-endpoint",
       "source": "agents/elliott.yaml (mcp[0])",
       "render": {

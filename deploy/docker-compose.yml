@@ -142,7 +142,7 @@ services:
     environment:
       ELLIOTT_PROXY_PORT: "9090"
       ELLIOTT_PROXY_TOKEN: ${ELLIOTT_MODEL_PROXY_TOKEN_DSPY:?rendered from Vault}
-      ELLIOTT_PROXY_UPSTREAM: ${ELLIOTT_MODEL_PROXY_UPSTREAM:-https://litellm.h12o.io}
+      ELLIOTT_PROXY_UPSTREAM: ${ELLIOTT_MODEL_PROXY_UPSTREAM:-https://litellm.octet.stream}
       ELLIOTT_PROXY_UPSTREAM_KEY: ${litellm_key:?rendered from Vault}
       ELLIOTT_PROXY_ALLOWED_MODELS: "tier-standard"
     read_only: true
@@ -170,7 +170,7 @@ services:
     environment:
       ELLIOTT_PROXY_PORT: "9090"
       ELLIOTT_PROXY_TOKEN: ${ELLIOTT_MODEL_PROXY_TOKEN_DARWINIAN:?rendered from Vault}
-      ELLIOTT_PROXY_UPSTREAM: ${ELLIOTT_MODEL_PROXY_UPSTREAM:-https://litellm.h12o.io}
+      ELLIOTT_PROXY_UPSTREAM: ${ELLIOTT_MODEL_PROXY_UPSTREAM:-https://litellm.octet.stream}
       ELLIOTT_PROXY_UPSTREAM_KEY: ${litellm_key:?rendered from Vault}
       ELLIOTT_PROXY_ALLOWED_MODELS: "tier-standard"
     read_only: true
