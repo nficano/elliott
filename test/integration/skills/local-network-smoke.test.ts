@@ -301,13 +301,13 @@ describe("traefik skill logic (Tier 1)", () => {
       (route) => route.path === "/v1/traefik/dynamic",
     );
 
-    // No managed routes yet: Traefik's HTTP provider still needs valid JSON.
+    // No managed routes: must serialize to {} — Traefik's parser rejects
+    // empty routers/services maps as "standalone elements".
     const empty = await (await dynamic!.handle(
       new Request("http://localhost/v1/traefik/dynamic"),
       makeGatewayEvents().events,
-    )).json() as { http: { routers: object; services: object; }; };
-    expect(empty.http.routers).toEqual({});
-    expect(empty.http.services).toEqual({});
+    )).json();
+    expect(empty).toEqual({});
 
     await toolByName(first, "traefik_route_set").execute({
       name: "vault",

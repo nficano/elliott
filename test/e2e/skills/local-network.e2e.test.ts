@@ -83,10 +83,15 @@ describe("traefik e2e (Tier 2, gated)", () => {
       const config = await response.json() as {
         http?: { routers?: object; services?: object; };
       };
-      // Traefik's HTTP provider rejects malformed documents wholesale; an
-      // object with routers/services (possibly empty) is the contract.
-      expect(typeof config.http?.routers).toBe("object");
-      expect(typeof config.http?.services).toBe("object");
+      // Traefik's HTTP provider rejects malformed documents wholesale. The
+      // contract: {} when no routes are managed, otherwise http.routers and
+      // http.services objects (empty maps are parser errors in Traefik).
+      if (config.http === undefined) {
+        expect(config).toEqual({});
+      } else {
+        expect(typeof config.http.routers).toBe("object");
+        expect(typeof config.http.services).toBe("object");
+      }
     },
   );
 

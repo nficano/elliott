@@ -149,30 +149,34 @@ const dynamicConfigRoute = (
     Response.json(dynamicConfig(settings, await store.read())),
 });
 
+// Traefik's parser rejects empty routers/services maps ("routers cannot be
+// a standalone element"), so an empty table serializes to {} — the provider
+// treats that as "no dynamic config" instead of a decode error.
 const dynamicConfig = (
   settings: TraefikSettings,
   table: RouteTable,
-): Readonly<Record<string, unknown>> => ({
-  http: {
-    routers: Object.fromEntries(
-      Object.entries(table).map(([name, route]) => [
-        `${ROUTER_PREFIX}${name}`,
-        {
-          rule: `Host(\`${route.hostname}\`)`,
-          service: `${ROUTER_PREFIX}${name}`,
-          entryPoints: [settings.entryPoint],
-          tls: { certResolver: settings.certResolver },
-        },
-      ]),
-    ),
-    services: Object.fromEntries(
-      Object.entries(table).map(([name, route]) => [
-        `${ROUTER_PREFIX}${name}`,
-        { loadBalancer: { servers: [{ url: route.serviceUrl }] } },
-      ]),
-    ),
-  },
-});
+): Readonly<Record<string, unknown>> =>
+  Object.keys(table).length === 0 ? {} : ({
+    http: {
+      routers: Object.fromEntries(
+        Object.entries(table).map(([name, route]) => [
+          `${ROUTER_PREFIX}${name}`,
+          {
+            rule: `Host(\`${route.hostname}\`)`,
+            service: `${ROUTER_PREFIX}${name}`,
+            entryPoints: [settings.entryPoint],
+            tls: { certResolver: settings.certResolver },
+          },
+        ]),
+      ),
+      services: Object.fromEntries(
+        Object.entries(table).map(([name, route]) => [
+          `${ROUTER_PREFIX}${name}`,
+          { loadBalancer: { servers: [{ url: route.serviceUrl }] } },
+        ]),
+      ),
+    },
+  });
 
 // Best-effort read of the (read-only) Traefik API so the list tool can show
 // whether the proxy actually applied each route. Unreachable is not an error.
