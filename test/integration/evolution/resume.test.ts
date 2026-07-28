@@ -31,7 +31,7 @@ describe("paused evolution resumption", () => {
       baselineDigest: hashBytes(baseline),
       mutationPath: "skills/review/SKILL.md",
       allowedMutationPaths: ["skills/review/SKILL.md"],
-      frozenPaths: ["skills/review/component.yaml"],
+      frozenPaths: ["skills/review/manifest.yaml"],
     });
     let storedRun = EvolutionRun.make({
       ...base,

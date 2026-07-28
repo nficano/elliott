@@ -52,7 +52,7 @@ describe("Elliott bundled component packages", () => {
     for (const item of packages) {
       expect(item.profile.length).toBeGreaterThan(0);
       expect(item.protocols.length).toBeGreaterThan(0);
-      await access(path.join(item.directory, "component.yaml"));
+      await access(path.join(item.directory, "manifest.yaml"));
       await access(path.join(item.directory, item.document));
     }
   });

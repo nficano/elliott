@@ -410,7 +410,7 @@ describe("runtime evolution integration", () => {
       baselineDigest: hashBytes(baseline),
       mutationPath: "src/parser.ts",
       allowedMutationPaths: ["src/parser.ts"],
-      frozenPaths: ["component.yaml", "evals/parser.test.ts"],
+      frozenPaths: ["manifest.yaml", "evals/parser.test.ts"],
     });
     const run = EvolutionRun.make({ ...baseRun, target });
     const validated = await Effect.runPromise(
@@ -443,7 +443,7 @@ describe("runtime evolution integration", () => {
       baselineDigest: hashBytes(baseline),
       mutationPath: "skills/example/SKILL.md",
       allowedMutationPaths: ["skills/example/SKILL.md"],
-      frozenPaths: ["skills/example/component.yaml"],
+      frozenPaths: ["skills/example/manifest.yaml"],
     });
     const run = EvolutionRun.make({ ...baseRun, target });
     const candidate = EvolutionCandidate.make({
@@ -484,7 +484,7 @@ describe("runtime evolution integration", () => {
       baselineDigest: hashBytes(baseline),
       mutationPath: "skills/example/SKILL.md",
       allowedMutationPaths: ["skills/example/SKILL.md"],
-      frozenPaths: ["skills/example/component.yaml"],
+      frozenPaths: ["skills/example/manifest.yaml"],
     });
     const run = EvolutionRun.make({ ...baseRun, target });
     const candidate = EvolutionCandidate.make({
@@ -534,7 +534,7 @@ describe("runtime evolution integration", () => {
       baselineDigest: hashBytes(baseline),
       mutationPath: "skills/example/SKILL.md",
       allowedMutationPaths: ["skills/example/SKILL.md"],
-      frozenPaths: ["skills/example/component.yaml"],
+      frozenPaths: ["skills/example/manifest.yaml"],
     });
     const run = EvolutionRun.make({ ...baseRun, target });
     const validated = await Effect.runPromise(

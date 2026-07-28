@@ -122,7 +122,7 @@ describe("M2 manifests and discovery", () => {
     });
     expect(result.files).toHaveLength(3);
     expect(
-      await readFile(path.join(result.directory, "component.yaml"), "utf8"),
+      await readFile(path.join(result.directory, "manifest.yaml"), "utf8"),
     )
       .toContain("profile: tool-standard");
     const conformance = await readFile(result.files[2] ?? "", "utf8");

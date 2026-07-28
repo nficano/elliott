@@ -394,7 +394,7 @@
       "id": "tool.browser",
       "name": "browser (Chromium via CDP companion)",
       "kind": "tool",
-      "source": "skills/browser/component.yaml",
+      "source": "skills/browser/manifest.yaml",
       "render": {
         "tier": "T3-sinks",
         "y": 1.4,

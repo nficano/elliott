@@ -113,7 +113,7 @@ describe("evolution target and continuous controls", () => {
     expect(
       validateCodeCandidate({
         target: { ...makeTarget(), targetClass: "code" },
-        changedPaths: ["/workspace/component.yaml"],
+        changedPaths: ["/workspace/manifest.yaml"],
         patch: "+safe",
         scheduled: true,
         focusedTestPassed: true,

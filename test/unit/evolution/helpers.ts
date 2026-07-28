@@ -24,7 +24,7 @@ export const makeTarget = () =>
     riskClass: "C1",
     mutationPath: "/workspace/SKILL.md",
     allowedMutationPaths: ["/workspace/SKILL.md"],
-    frozenPaths: ["/workspace/component.yaml"],
+    frozenPaths: ["/workspace/manifest.yaml"],
   });
 
 export const makeRun = () =>

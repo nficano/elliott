@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://elliott.dev/schemas/component.json",
-  "title": "Elliott Component (component.yaml)",
+  "title": "Elliott Component (manifest.yaml)",
   "description": "Manifest for an elliott/v1 component (tool, gateway, extension, mcp-endpoint, scheduler, …).",
   "type": "object",
   "additionalProperties": false,

@@ -200,7 +200,7 @@ describe("evolution full workflow", () => {
       riskClass: "C1",
       mutationPath: "/workspace/SKILL.md",
       allowedMutationPaths: ["/workspace/SKILL.md"],
-      frozenPaths: ["/workspace/component.yaml"],
+      frozenPaths: ["/workspace/manifest.yaml"],
     });
     const scoped = await Effect.runPromise(orchestrator.scope({
       principalId: "EvolutionProposalAuthor",

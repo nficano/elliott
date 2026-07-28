@@ -33,7 +33,7 @@ const validateBounds = (value: unknown, depth = 0): void => {
 
 export const parseSecurityOverlay = (raw: string): ParsedOverlay => {
   if (Buffer.byteLength(raw) > MAX_FILE_BYTES) {
-    throw new ManifestValidationError("maximum component.yaml size exceeded");
+    throw new ManifestValidationError("maximum manifest.yaml size exceeded");
   }
   const document = parseDocument(raw, {
     customTags: [],
@@ -51,7 +51,7 @@ export const parseSecurityOverlay = (raw: string): ParsedOverlay => {
   }
   const value: unknown = document.toJS({ maxAliasCount: MAX_ALIASES });
   if (!isRecord(value)) {
-    throw new ManifestValidationError("component.yaml must contain a mapping");
+    throw new ManifestValidationError("manifest.yaml must contain a mapping");
   }
   validateBounds(value);
   return Object.freeze({ raw, digest: hashBytes(raw), value });

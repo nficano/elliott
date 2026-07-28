@@ -8,7 +8,7 @@ import type { RuntimeSettings, RuntimeSnapshotInput } from "./types";
 
 const packageView = async (item: BundledPackage) => {
   const files = [
-    "component.yaml",
+    "manifest.yaml",
     item.document,
     ...item.exports.map((entry) => entry.implementation),
   ];

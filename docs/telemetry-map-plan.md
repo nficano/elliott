@@ -200,7 +200,7 @@ secret`), `label`, `animatable` (bool), `wire` (e.g. `http`, `sqlite`, `jsonrpc`
 
 ```
 skills/telemetry-map/
-├── component.yaml        # kind: extension, profile: extension-standard, egress: none
+├── manifest.yaml        # kind: extension, profile: extension-standard, egress: none
 ├── EXTENSION.md          # model-visible doc (required by the bundled loader)
 └── src/
     ├── index.ts          # register(context) → { routes:[...], services:[...] }
@@ -279,7 +279,7 @@ RuntimeAgent.turn ── round 0 ──► RuntimeModelClient.complete
 ## 6. Security & privacy
 
 The map is a troubleshooting lens, so it deliberately follows Elliott's posture:
-- **`egress: none`** in `component.yaml` — the extension makes no outbound network
+- **`egress: none`** in `manifest.yaml` — the extension makes no outbound network
   calls; it only reads local state and serves HTTP on the existing port.
 - **Read‑only DB** — the SQLite tail opens with `{ readonly: true }`; it never writes.
 - **No secrets, ever** — `secret-source.vault` appears as a *node* with field
@@ -336,10 +336,10 @@ them), so the JSON doubles as a navigable index of the codebase wiring.
 Write `docs/telemetry-map-plan.md` and `docs/telemetry-map-topology.json`.
 
 ### 8.2 Phase 1 — the extension skeleton (Tier A, zero core edits)
-1. `skills/telemetry-map/component.yaml` (`kind: extension`, `profile:
+1. `skills/telemetry-map/manifest.yaml` (`kind: extension`, `profile:
    extension-standard`, `document: EXTENSION.md`, `egress:{class:none}`,
    `isolation: container`, `exports:[{ref:extension/telemetry-map,
-   implementation:src/index.ts}]`), mirroring `skills/cloudflared/component.yaml`.
+   implementation:src/index.ts}]`), mirroring `skills/cloudflared/manifest.yaml`.
 2. `EXTENSION.md` (required doc).
 3. `src/index.ts` `register()` → routes (UI, topology, state, stream) + service.
 4. `src/sqlite-tail.ts` read‑only tail of `sessions.sqlite`; `src/aggregator.ts`

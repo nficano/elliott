@@ -1,5 +1,5 @@
 {
-  "note": "Hand-authored spine for scripts/gen-topology.mjs: the connection-graph nodes that are NOT bundled skills (runtime core, providers, memory/db, learning, observability internals, containers, secret source) plus the fixed internal + cross-cutting edges among them. Skill nodes and their uniform edges are generated from each skill's component.yaml spec.topology block; MCP endpoint nodes from agents/elliott.yaml. Edit this only when the runtime's own wiring changes (rare), not when adding a module.",
+  "note": "Hand-authored spine for scripts/gen-topology.mjs: the connection-graph nodes that are NOT bundled skills (runtime core, providers, memory/db, learning, observability internals, containers, secret source) plus the fixed internal + cross-cutting edges among them. Skill nodes and their uniform edges are generated from each skill's manifest.yaml spec.topology block; MCP endpoint nodes from agents/elliott.yaml. Edit this only when the runtime's own wiring changes (rare), not when adding a module.",
   "nodes": [
     {
       "id": "secret.vault",

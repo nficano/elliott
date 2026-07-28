@@ -4,13 +4,13 @@
       "path": ".",
     },
     {
-      "path": "../elliott-agents",
+      "path": "../tide-pods",
     },
   ],
   "settings": {
-    "// Elliott YAML schemas": "Explicit associations below take priority over the JSON Schema Store catalog, which otherwise mismatches skills/*/component.yaml to the unrelated 'Cloud-Pipelines / Pipeline component' schema.",
+    "// Elliott YAML schemas": "Explicit associations below take priority over the JSON Schema Store catalog, which otherwise mismatches skills/*/manifest.yaml to the unrelated 'Cloud-Pipelines / Pipeline component' schema.",
     "yaml.schemas": {
-      "./schemas/elliott-component.json": "**/skills/*/component.yaml",
+      "./schemas/elliott-component.json": "**/skills/*/manifest.yaml",
       "./schemas/elliott-agent.json": "**/agents/*.yaml"
     },
     "files.exclude": {

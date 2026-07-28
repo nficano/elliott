@@ -50,7 +50,7 @@ const loadPackagesFrom = async (
 };
 
 const loadPackage = async (directory: string): Promise<BundledPackage> => {
-  const raw = await readFile(path.join(directory, "component.yaml"), "utf8");
+  const raw = await readFile(path.join(directory, "manifest.yaml"), "utf8");
   const value: unknown = parse(raw);
   if (!isJsonRecord(value)) throw new Error(`${directory} has no manifest`);
   const metadata = value["metadata"];

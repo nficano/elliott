@@ -12,11 +12,11 @@ specific to that agent: its definition (persona, model profile, component
 opt-ins), its configuration, and its **custom skills**. The agent repo is
 the deployable — it depends on the elliott framework and boots it.
 
-Canonical agent repo: `~/code/elliott-agents` (github.com/nficano/elliott-agents),
+Canonical agent repo: `~/code/tide-pods` (github.com/nficano/tide-pods),
 one directory per agent:
 
 ```
-elliott-agents/
+tide-pods/
   package.json               # depends on elliott (link:../elliott locally;
                              # pinned git dep for CI/deploy)
   agents/
@@ -24,7 +24,7 @@ elliott-agents/
       agent.yaml             # agent definition (persona, components, mcp)
       skills/
         <name>/
-          component.yaml     # same package format as framework skills
+          manifest.yaml      # same package format as framework skills
           TOOL.md | EXTENSION.md | …
           src/index.ts       # register(context) → { tools, routes, … }
 ```
@@ -40,10 +40,10 @@ straight from node_modules, so agent skills import framework types as
   `<root>/agents/<agent>/skills/` with the same package loader as `skills/`.
   Missing directory ⇒ empty list. `root` here is *whichever checkout holds
   the agent* — the elliott repo keeps none, so in today's deploy this is a
-  no-op; the elliott-agents repo passes its own root.
+  no-op; the tide-pods repo passes its own root.
 - `RuntimeApp.start` composes framework + agent packages; duplicate tool
   names fail fast in `collectTools`.
-- First custom skill lives in elliott-agents:
+- First custom skill lives in tide-pods:
   `agents/elliott/skills/homelab-directory` (static directory of homelab
   services). Its smoke test in that repo drives elliott's real loader
   through the package dependency — proving the consumption path.
@@ -56,16 +56,16 @@ The real inversion. Requires splitting `RuntimeApp`'s single `root` into:
   `elliott` package.
 - **agentRoot** — where `config/elliott.yaml` (rename: `config/agent.yaml`),
   `agents/<name>/agent.yaml`, the persona, secrets mapping, and the agent's
-  `skills/` come from: the elliott-agents checkout.
+  `skills/` come from: the tide-pods checkout.
 
-Then elliott-agents grows `src/main.ts` (`import { ElliottRuntime } from
+Then tide-pods grows `src/main.ts` (`import { ElliottRuntime } from
 "elliott/..."`), its own Dockerfile, and the CI deploy job moves there;
 the elliott repo's deploy retires. Secrets flow is unchanged (Vault AppRole
 renders the same `.env`).
 
 ## Phase 3 — migrate the personal skills out of the framework (planned)
 
-Move from `skills/` to `elliott-agents/agents/elliott/skills/`: pihole,
+Move from `skills/` to `tide-pods/agents/elliott/skills/`: pihole,
 traefik, news-brief, pakman-latest-episode, youtube-dvr, subscription-usage
 (telemetry-map debatable — observability may stay framework). Their settings
 loaders (`settings-skills.ts`, pihole/traefik in `settings-tools.ts`) move
@@ -83,6 +83,6 @@ no listing: living in the agent's repo IS the opt-in.
 ## Rules going forward
 
 - New generic capability → elliott `skills/` + `BUNDLED_CATALOG`.
-- New personal/homelab integration → `elliott-agents/agents/elliott/skills/`.
+- New personal/homelab integration → `tide-pods/agents/elliott/skills/`.
 - An agent skill may do anything a bundled skill can (tools, routes,
   services, gateways) and reads the same `SkillContext`.

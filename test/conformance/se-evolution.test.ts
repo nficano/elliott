@@ -58,7 +58,7 @@ describe("SE evolution conformance", () => {
   it("SE4 contains candidate writes and rejects active paths", () => {
     const results = validateMutationPaths({
       target: makeTarget(),
-      changedPaths: ["/active/component.yaml"],
+      changedPaths: ["/active/manifest.yaml"],
     });
     expect(results.every((result) => result.passed)).toBe(false);
   });

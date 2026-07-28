@@ -1,5 +1,5 @@
 // Manifest parsing — TDD §9, §16c. Markdown and YAML are foundational
-// component formats; absent component.yaml = zero executable authority (§9a).
+// component formats; absent manifest.yaml = zero executable authority (§9a).
 
 export { loadAgentSkill } from "./agentskills";
 export { scaffoldComponent } from "./scaffold";

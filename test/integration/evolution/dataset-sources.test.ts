@@ -27,7 +27,7 @@ const target = () =>
     riskClass: "C1",
     mutationPath: "skills/review/SKILL.md",
     allowedMutationPaths: ["skills/review/SKILL.md"],
-    frozenPaths: ["skills/review/component.yaml"],
+    frozenPaths: ["skills/review/manifest.yaml"],
   });
 
 const goldenCases = () =>

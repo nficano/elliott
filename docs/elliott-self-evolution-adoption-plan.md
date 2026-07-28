@@ -422,7 +422,7 @@ Scope:
 Frozen:
 
 - Component ref and kind.
-- `component.yaml`.
+- `manifest.yaml`.
 - Capability overlay.
 - `allowed-tools`.
 - Frontmatter fields that affect discovery or authority.
@@ -1012,17 +1012,17 @@ src/learning/
 │
 skills/
 ├── evaluator-dspy/
-│   ├── component.yaml
+│   ├── manifest.yaml
 │   ├── EVALUATOR.md
 │   ├── schemas/
 │   └── src/
 ├── evaluator-darwinian/
-│   ├── component.yaml
+│   ├── manifest.yaml
 │   ├── EVALUATOR.md
 │   ├── schemas/
 │   └── src/
 └── evaluator-agent-benchmarks/
-    ├── component.yaml
+    ├── manifest.yaml
     ├── EVALUATOR.md
     ├── schemas/
     └── src/

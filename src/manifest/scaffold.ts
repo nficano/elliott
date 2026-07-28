@@ -152,7 +152,7 @@ export const scaffoldComponent = async (
   const tests = path.join(directory, "tests");
   await mkdir(tests, { recursive: true });
   const markdownPath = path.join(directory, markdownName(request.kind));
-  const overlayPath = path.join(directory, "component.yaml");
+  const overlayPath = path.join(directory, "manifest.yaml");
   const testPath = path.join(tests, "conformance.test.ts");
   const files = [markdownPath, overlayPath, testPath];
   await Promise.all([

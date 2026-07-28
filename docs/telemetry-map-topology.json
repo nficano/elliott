@@ -294,7 +294,7 @@
       "kind": "tool",
       "layer": "tools",
       "title": "browser (Chromium via CDP companion)",
-      "source": "skills/browser/component.yaml",
+      "source": "skills/browser/manifest.yaml",
       "iso": { "col": 1, "row": 6 },
       "taps": ["telemetry:tool.progress", "health:services"]
     },

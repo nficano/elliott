@@ -2,7 +2,7 @@
 
 Elliott's production runtime on Spruce is operational. Every bundled component
 in `skills/` now ships an executable module (declared via `exports` in its
-`component.yaml`) and registers directly with the runtime. Nothing in the TDD
+`manifest.yaml`) and registers directly with the runtime. Nothing in the TDD
 §14 catalog is descriptor-only anymore. The remaining items are provisioning
 and activation decisions, not missing code:
 

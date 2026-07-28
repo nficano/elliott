@@ -2,12 +2,12 @@
 
 This directory is the first-party component catalog shipped by Elliott. Each
 directory is a complete Elliott component package following the standard
-layout (TDD §16b): `component.yaml` declares its authority and runtime
+layout (TDD §16b): `manifest.yaml` declares its authority and runtime
 posture, the kind-specific Markdown document describes its model-visible
 behavior, and `src/` carries the executable implementation where one exists.
 
 The runtime discovers these packages directly. A package that exports an
-executable declares it in `component.yaml`:
+executable declares it in `manifest.yaml`:
 
 ```yaml
 spec:

@@ -39,7 +39,7 @@ const makeAgentRoot = async (): Promise<string> => {
   const root = await mkdtemp(path.join(tmpdir(), "elliott-agent-root-"));
   const skill = path.join(root, "agents", "tester", "skills", "fixture-skill");
   await mkdir(path.join(skill, "src"), { recursive: true });
-  await writeFile(path.join(skill, "component.yaml"), FIXTURE_MANIFEST);
+  await writeFile(path.join(skill, "manifest.yaml"), FIXTURE_MANIFEST);
   await writeFile(path.join(skill, "TOOL.md"), "# Fixture\n");
   await writeFile(path.join(skill, "src", "index.ts"), FIXTURE_MODULE);
   return root;

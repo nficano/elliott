@@ -834,10 +834,10 @@ allow-once | deny-once | allow-session | propose-policy
 
 ## 9. Component Manifests & Agent Skills Compatibility
 
-Agent Skills remain natively portable through unmodified `SKILL.md` files. Elliott uses a strict security overlay (`component.yaml`) for authority.
+Agent Skills remain natively portable through unmodified `SKILL.md` files. Elliott uses a strict security overlay (`manifest.yaml`) for authority.
 
 - A pure Agent Skill needs only `SKILL.md`.
-- A missing `component.yaml` means zero executable authority.
+- A missing `manifest.yaml` means zero executable authority.
 - `allowed-tools` in SKILL.md remains an interoperability hint, not an Elliott grant.
 - Files under `scripts/` are inert unless explicitly exported; every executable export has runtime input/output schemas and declares capability requests.
 - Project skills require a workspace trust decision; skill text cannot set prompt precedence.
@@ -847,16 +847,16 @@ Agent Skills remain natively portable through unmodified `SKILL.md` files. Ellio
 
 The overlay model already gives the easiest possible entry point (a pure `SKILL.md` runs with zero executable authority). The gap Revision 4 closes is the next step up, where Revision 2–3 required authors to enumerate capabilities by hand, which produces either frustration or copy-pasted over-requests (the exact A1 pressure §1 warns about).
 
-**Capability templates.** `component.yaml` may declare a `profile` that expands to a kernel-vetted, versioned capability set:
+**Capability templates.** `manifest.yaml` may declare a `profile` that expands to a kernel-vetted, versioned capability set:
 
 ```yaml
-# component.yaml — the whole file, for most tools
+# manifest.yaml — the whole file, for most tools
 profile: tool-standard # read own package dir, tmp scratch, brokered fetch to declared hosts
 ```
 
 Built-in templates ship for the common shapes: `tool-standard`, `tool-local-only` (no network capability at all), `resource-reader`, `prompt-source-zero-authority`. A template expands at validation time into ordinary `requestedCapabilities`, so everything downstream (intersection, usage delta, `grants.explain`, review tooling) sees concrete capabilities and the template is pure authoring sugar. Authors add or remove individual capabilities alongside the template; removals always win. Template definitions are org-pinnable, and template _version_ is part of the manifest digest, so a template change cannot silently widen an already-reviewed component.
 
-**Scaffolding.** `elliott new skill` / `elliott new tool` emits `SKILL.md`, a minimal `component.yaml` on `tool-standard`, and a conformance test stub that exercises G1/G3 locally before publication.
+**Scaffolding.** `elliott new skill` / `elliott new tool` emits `SKILL.md`, a minimal `manifest.yaml` on `tool-standard`, and a conformance test stub that exercises G1/G3 locally before publication.
 
 **Dev mode is a UX mode, not a security mode.** A workspace flagged `dev: true` changes nothing in any intersection or floor. It changes feedback: deferred-grant JIT prompts auto-surface inline instead of queuing, every capability denial prints its `grants.explain` output, and the usage-delta report runs on every reload instead of per release. The correct authoring loop is fast _visibility_ into denials, not fewer denials.
 
@@ -865,7 +865,7 @@ Built-in templates ship for the common shapes: `tool-standard`, `tool-local-only
 The strict overlay for a skill that exports one executable, restored from Revision 1 and updated to the current manifest schema (§2) and template system (§9a):
 
 ```yaml
-# component.yaml
+# manifest.yaml
 apiVersion: elliott/v1
 kind: skill
 profile: tool-local-only # template: no network capability at all
@@ -1121,7 +1121,7 @@ Every component's network access is expressed as one **egress class**, ordered a
 Some extensions are only honest as a dedicated container: a browser is a full Chromium, cloudflared is a daemon, a vector database is a server. The manifest may therefore declare companions, and the placement layer (§2b) owns their lifecycle:
 
 ```yaml
-# component.yaml (excerpt) — browser extension
+# manifest.yaml (excerpt) — browser extension
 profile: extension-standard
 companions:
   - name: chromium
@@ -1354,7 +1354,7 @@ Everything under `~/.cache` is reconstructable and can be deleted at any time; t
 
 ```text
 <component-name>/
-├── component.yaml       # security overlay; absent = zero executable authority
+├── manifest.yaml       # security overlay; absent = zero executable authority
 ├── <KIND>.md            # standard document, prompt-visible per kind rules
 ├── schemas/  src/  tests/  evals/  references/  assets/  migrations/
 ```

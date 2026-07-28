@@ -30,7 +30,7 @@ const codeFixture = () => {
     baselineDigest: hashBytes(baseline),
     mutationPath: "src/value.ts",
     allowedMutationPaths: ["src/value.ts"],
-    frozenPaths: ["component.yaml"],
+    frozenPaths: ["manifest.yaml"],
   });
   const run = EvolutionRun.make({ ...base, target, engineKind: "darwinian" });
   const candidate = EvolutionCandidate.make({

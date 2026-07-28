@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 // Generate docs/elliott-topology.json from declarative sources:
 //   - docs/topology.spine.json          (non-skill nodes + fixed runtime/cross-cutting edges)
-//   - skills/<name>/component.yaml       (each module's spec.topology block -> its node + edges)
+//   - skills/<name>/manifest.yaml       (each module's spec.topology block -> its node + edges)
 //   - agents/elliott.yaml                (mcp[] -> mcp endpoint nodes + client edges)
 //   - config/elliott.yaml                (resolves config: gates to live/config-gated)
 //
@@ -116,7 +116,7 @@ async function build() {
   for (const dir of skillDirs) {
     let manifest;
     try {
-      manifest = await readYaml(`skills/${dir}/component.yaml`);
+      manifest = await readYaml(`skills/${dir}/manifest.yaml`);
     } catch {
       continue;
     }
@@ -235,7 +235,7 @@ const out = {
   version: "1.2.0-generated",
   title: "Elliott Runtime — Connection Graph (generated)",
   generatedFrom:
-    "scripts/gen-topology.mjs: docs/topology.spine.json + skills/*/component.yaml spec.topology + agents/elliott.yaml mcp[] + config/elliott.yaml gates",
+    "scripts/gen-topology.mjs: docs/topology.spine.json + skills/*/manifest.yaml spec.topology + agents/elliott.yaml mcp[] + config/elliott.yaml gates",
   note:
     "Auto-generated structural connection graph. Nodes/uniform-edges derive from each module's manifest; the runtime spine is hand-authored. `runtime` here is a static approximation (secret-gated => config-gated); the live telemetry-map extension resolves actual liveness.",
   nodeKinds: [...NODE_KINDS],

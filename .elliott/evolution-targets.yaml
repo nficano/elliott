@@ -5,21 +5,21 @@ targets:
     baselinePath: skills/code-review/SKILL.md
     allowedMutationPaths: [skills/code-review/SKILL.md]
     frozenPaths:
-      - skills/code-review/component.yaml
+      - skills/code-review/manifest.yaml
   - componentRef: core/skill/research
     targetClass: skill
     riskClass: C1
     baselinePath: skills/research/SKILL.md
     allowedMutationPaths: [skills/research/SKILL.md]
     frozenPaths:
-      - skills/research/component.yaml
+      - skills/research/manifest.yaml
   - componentRef: core/skill/debugging
     targetClass: skill
     riskClass: C1
     baselinePath: skills/debugging/SKILL.md
     allowedMutationPaths: [skills/debugging/SKILL.md]
     frozenPaths:
-      - skills/debugging/component.yaml
+      - skills/debugging/manifest.yaml
   - componentRef: core/prompt/elliott-interaction-profile
     targetClass: prompt-segment
     riskClass: C2
@@ -40,7 +40,7 @@ targets:
       - synthetic:3
     allowedMutationPaths: [skills/search-duckduckgo/src/parser.ts]
     frozenPaths:
-      - skills/search-duckduckgo/component.yaml
+      - skills/search-duckduckgo/manifest.yaml
       - skills/search-duckduckgo/src/index.ts
       - skills/search-duckduckgo/src/types.ts
       - skills/search-duckduckgo/evals/evolution.yaml
@@ -68,7 +68,7 @@ targets:
       - synthetic:3
     allowedMutationPaths: [skills/search-duckduckgo/src/index.ts]
     frozenPaths:
-      - skills/search-duckduckgo/component.yaml
+      - skills/search-duckduckgo/manifest.yaml
       - skills/search-duckduckgo/src/parser.ts
       - skills/search-duckduckgo/src/types.ts
       - skills/search-duckduckgo/evals/tool-evolution.yaml
