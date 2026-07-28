@@ -19,6 +19,7 @@ import type {
   SlackJson,
 } from "../../skills/gateway-slack/src/types";
 import { isJsonRecord, nestedRecord } from "../../src/providers/http";
+import { optionalSlack } from "../../src/runtime/settings";
 
 const success = (method: string): SlackJson => {
   if (method === "chat.startStream") return { ok: true, ts: "stream-ts" };
@@ -220,6 +221,123 @@ describe("Slack agent integration", () => {
     ]);
     const stopped = calls.find((call) => call.method === "chat.stopStream");
     expect(stopped?.body["blocks"]).toBeArray();
+  });
+
+  it("answers top-level channel messages in the channel when thread replies are disabled", async () => {
+    const calls: { readonly method: string; readonly body: SlackJson; }[] = [];
+    const client: SlackApiClient = {
+      request: async (method, body = {}) => {
+        calls.push({ method, body });
+        if (method === "chat.startStream") {
+          throw new Error("streams are unavailable in channels");
+        }
+        return success(method);
+      },
+    };
+    const response = new SlackAgentResponse({
+      client,
+      message: {
+        id: "C777:500.001",
+        gateway: "gateway-slack",
+        channel: "C777",
+        thread: "500.001",
+        threadRoot: true,
+        sender: "U123",
+        text: "restart the dns container",
+      },
+      report: () => undefined,
+      replyInThread: false,
+    });
+    await response.start();
+    await response.complete("Done.");
+
+    expect(calls.map((call) => call.method)).toEqual([
+      "chat.startStream",
+      "chat.postMessage",
+    ]);
+    for (const call of calls) {
+      expect(call.body["thread_ts"]).toBeUndefined();
+    }
+  });
+
+  it("keeps replying inside an existing thread when thread replies are disabled", async () => {
+    const calls: { readonly method: string; readonly body: SlackJson; }[] = [];
+    const client: SlackApiClient = {
+      request: async (method, body = {}) => {
+        calls.push({ method, body });
+        return success(method);
+      },
+    };
+    const response = new SlackAgentResponse({
+      client,
+      message: {
+        id: "C777:500.002",
+        gateway: "gateway-slack",
+        channel: "C777",
+        thread: "500.001",
+        threadRoot: false,
+        sender: "U123",
+        text: "and the dhcp one too",
+      },
+      report: () => undefined,
+      replyInThread: false,
+    });
+    await response.start();
+    await response.complete("Done.");
+
+    const started = calls.find((call) => call.method === "chat.startStream");
+    expect(started?.body["thread_ts"]).toBe("500.001");
+  });
+
+  it("keeps threading DMs even when thread replies are disabled", async () => {
+    const calls: { readonly method: string; readonly body: SlackJson; }[] = [];
+    const client: SlackApiClient = {
+      request: async (method, body = {}) => {
+        calls.push({ method, body });
+        return success(method);
+      },
+    };
+    const response = new SlackAgentResponse({
+      client,
+      message: {
+        id: "D123:600.001",
+        gateway: "gateway-slack",
+        channel: "D123",
+        thread: "600.001",
+        threadRoot: true,
+        sender: "U123",
+        text: "Research the launch",
+      },
+      report: () => undefined,
+      replyInThread: false,
+    });
+    await response.start();
+
+    expect(calls.map((call) => call.method)).toEqual([
+      "assistant.threads.setTitle",
+      "assistant.threads.setStatus",
+      "chat.startStream",
+    ]);
+    const started = calls.find((call) => call.method === "chat.startStream");
+    expect(started?.body["thread_ts"]).toBe("600.001");
+  });
+
+  it("parses the reply_in_thread channel setting", () => {
+    const base = {
+      enabled: true,
+      app_token: "xapp-1",
+      bot_token: "xoxb-1",
+      owner_id: "U123",
+      default_channel: "#general",
+    };
+    expect(
+      optionalSlack({
+        channels: { slack: { ...base, reply_in_thread: false } },
+      }).slack?.replyInThread,
+    ).toBe(false);
+    expect(
+      optionalSlack({ channels: { slack: base } }).slack?.replyInThread,
+    ).toBeUndefined();
   });
 
   it("onboards only an empty DM and sets contextual prompts", async () => {

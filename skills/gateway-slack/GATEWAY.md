@@ -11,6 +11,13 @@ For each turn, set a thread title and loading status, stream the response, show
 tool calls as task updates, collect feedback, and clear status on every exit.
 Do not persist Slack content; retrieve workspace knowledge in real time.
 
+Replies thread on the source message by default. When
+`channels.slack.reply_in_thread` is `false`, answer top-level channel messages
+in the channel itself and skip the assistant thread title/status calls, which
+require a thread. DMs and messages already inside a thread always keep
+threading: the assistant surface depends on it, and a thread conversation must
+stay where it started.
+
 ## Formatting replies
 
 Ordinary replies go through the bridge as a Block Kit `markdown` block, so write

@@ -37,26 +37,29 @@ export class SlackAgentResponse implements GatewayResponse {
   }
 
   async start(): Promise<void> {
-    if (this.#options.message.threadRoot === true) {
-      await this.#request("assistant.threads.setTitle", {
+    const thread = this.#thread();
+    if (thread !== undefined) {
+      if (this.#options.message.threadRoot === true) {
+        await this.#request("assistant.threads.setTitle", {
+          channel_id: this.#options.message.channel,
+          thread_ts: thread,
+          title: threadTitle(this.#options.message.text),
+        });
+      }
+      await this.#request("assistant.threads.setStatus", {
         channel_id: this.#options.message.channel,
-        thread_ts: this.#thread(),
-        title: threadTitle(this.#options.message.text),
+        thread_ts: thread,
+        status: "Thinking…",
+        loading_messages: [
+          "Understanding your request…",
+          "Checking the connected tools…",
+          "Working through the details…",
+        ],
       });
     }
-    await this.#request("assistant.threads.setStatus", {
-      channel_id: this.#options.message.channel,
-      thread_ts: this.#thread(),
-      status: "Thinking…",
-      loading_messages: [
-        "Understanding your request…",
-        "Checking the connected tools…",
-        "Working through the details…",
-      ],
-    });
     const started = await this.#request("chat.startStream", {
       channel: this.#options.message.channel,
-      thread_ts: this.#thread(),
+      ...(thread !== undefined && { thread_ts: thread }),
       task_display_mode: "plan",
       chunks: [{ type: "plan_update", title: "Working on your request" }],
     });
@@ -223,9 +226,10 @@ export class SlackAgentResponse implements GatewayResponse {
   }
 
   async #postFallback(text: string): Promise<void> {
+    const thread = this.#thread();
     await postMessage(this.#options.client, {
       channel: this.#options.message.channel,
-      thread_ts: this.#thread(),
+      ...(thread !== undefined && { thread_ts: thread }),
       text,
       blocks: agentMessageBlocks(text),
       unfurl_links: false,
@@ -234,14 +238,25 @@ export class SlackAgentResponse implements GatewayResponse {
   }
 
   async #clearStatus(): Promise<void> {
+    const thread = this.#thread();
+    if (thread === undefined) return;
     await this.#request("assistant.threads.setStatus", {
       channel_id: this.#options.message.channel,
-      thread_ts: this.#thread(),
+      thread_ts: thread,
       status: "",
     });
   }
 
-  #thread(): string {
+  // With reply_in_thread disabled, answers to top-level channel messages go
+  // to the channel itself. DMs and messages already inside a thread keep
+  // threading: the assistant surface requires it, and a thread conversation
+  // must stay where it started.
+  #thread(): string | undefined {
+    const inChannel = !this.#options.message.channel.startsWith("D");
+    if (
+      this.#options.replyInThread === false && inChannel
+      && this.#options.message.threadRoot === true
+    ) return undefined;
     return this.#options.message.thread ?? this.#options.message.id;
   }
 }

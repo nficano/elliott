@@ -51,6 +51,10 @@ channels:
     # user_token: ${VAULT:secret/services/oslo#slack_user_token}
     owner_id: "U0BJU9L5QMP"
     default_channel: "#the-end"
+    # Answer top-level channel messages in the channel instead of a thread.
+    # DMs and messages already inside a thread always keep threading.
+    # Defaults to true (threaded replies) when omitted.
+    # reply_in_thread: false
   bluebubbles:
     enabled: false
     server_url: http://host.docker.internal:1234

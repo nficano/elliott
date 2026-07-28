@@ -68,6 +68,11 @@ export const optionalSlack = (
         "slack",
         "default_channel",
       ]),
+      ...optionalBooleanProperty("replyInThread", value, [
+        "channels",
+        "slack",
+        "reply_in_thread",
+      ]),
     },
   };
 };
@@ -148,6 +153,18 @@ export const optionalStringProperty = <Key extends string>(
 ): { readonly [Property in Key]?: string; } => {
   const result = optionalStringAt(value, pathSegments);
   return optionalValue(key, result);
+};
+
+export const optionalBooleanProperty = <Key extends string>(
+  key: Key,
+  value: unknown,
+  pathSegments: readonly string[],
+): { readonly [Property in Key]?: boolean; } => {
+  const result = valueAt(value, pathSegments);
+  if (typeof result !== "boolean") return {};
+  return Object.fromEntries([[key, result]]) as {
+    readonly [Property in Key]?: boolean;
+  };
 };
 
 export const optionalValue = <Key extends string>(

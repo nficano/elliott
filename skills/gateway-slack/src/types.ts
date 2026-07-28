@@ -46,6 +46,7 @@ export interface SlackAgentResponseOptions {
   readonly client: SlackApiClient;
   readonly message: InboundMessage;
   readonly report: (error: unknown, mechanism: string) => void;
+  readonly replyInThread?: boolean;
 }
 
 export interface SlackAppHomeOptions {

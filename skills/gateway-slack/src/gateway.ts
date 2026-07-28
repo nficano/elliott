@@ -100,6 +100,8 @@ export class SlackGateway {
       client: this.#dependencies.clients.bot,
       message,
       report: this.#dependencies.report,
+      ...(this.#settings.replyInThread !== undefined
+        && { replyInThread: this.#settings.replyInThread }),
     });
     await response.start();
     return response;

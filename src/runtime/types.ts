@@ -35,6 +35,7 @@ export interface SlackSettings {
   readonly userToken?: string;
   readonly ownerId: string;
   readonly defaultChannel: string;
+  readonly replyInThread?: boolean;
 }
 
 export interface BrowserSettings {
