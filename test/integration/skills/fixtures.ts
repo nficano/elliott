@@ -72,6 +72,12 @@ export const smokeSettings = (stateDirectory: string): RuntimeSettings => ({
   },
   homeAssistant: { baseUrl: "http://127.0.0.1:1", token: "x" },
   cloudflared: { readyUrl: "http://127.0.0.1:1/ready" },
+  pihole: { baseUrl: "http://127.0.0.1:1", password: "x" },
+  traefik: {
+    apiUrl: "http://127.0.0.1:1",
+    certResolver: "letsencrypt",
+    entryPoint: "websecure",
+  },
   webhookSecret: "x",
   mcp: [],
   newsBrief: { keywords: ["ai"], threshold: 1, briefSize: 3, alerts: false },

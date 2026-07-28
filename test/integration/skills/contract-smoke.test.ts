@@ -17,7 +17,7 @@ import { makeSmokeContext, repoRoot } from "./fixtures";
 // review rather than letting it drift silently. See
 // docs/skill-e2e-smoke-strategy.md.
 
-const EXPECTED = { tools: 31, gateways: 2, routes: 35, services: 4 } as const;
+const EXPECTED = { tools: 37, gateways: 2, routes: 36, services: 4 } as const;
 
 describe("skill contract smoke (Tier 0)", () => {
   it("registers every implemented skill with no register-time failures", async () => {

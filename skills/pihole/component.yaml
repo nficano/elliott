@@ -1,0 +1,20 @@
+apiVersion: elliott/v1
+kind: tool
+profile: tool-standard
+metadata: { namespace: core, name: pihole, version: 1.0.0 }
+spec:
+  document: TOOL.md
+  protocols: [tool.executor]
+  capabilities:
+    - { capability: network.connect, resources: [declared://pihole] }
+    - { capability: secret.use, resources: [secret://tools/pihole/password] }
+  egress: { class: lan, hosts: [] }
+  isolation: container
+  outputTrust: untrusted
+  topology:
+    node: { id: tool.pihole, kind: tool, domain: local-network, trustZone: lan, dataClassification: operational-metadata, criticality: supporting }
+    dispatch: tool
+    gate: "secret:pihole"
+    egressTargets: [ Pi-hole FTL API ]
+  exports:
+    - { ref: tool/pihole, implementation: src/index.ts }

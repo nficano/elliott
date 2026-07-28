@@ -78,6 +78,17 @@ export interface CloudflaredSettings {
   readonly readyUrl: string;
 }
 
+export interface PiholeSettings {
+  readonly baseUrl: string;
+  readonly password: string;
+}
+
+export interface TraefikSettings {
+  readonly apiUrl: string;
+  readonly certResolver: string;
+  readonly entryPoint: string;
+}
+
 export interface NewsBriefRedditSource {
   readonly multireddit: string;
   readonly intervalSeconds: number;
@@ -250,6 +261,8 @@ export interface RuntimeSettings {
   readonly smtp?: SmtpSettings;
   readonly homeAssistant?: HomeAssistantSettings;
   readonly cloudflared?: CloudflaredSettings;
+  readonly pihole?: PiholeSettings;
+  readonly traefik?: TraefikSettings;
   readonly webhookSecret?: string;
   readonly mcp: readonly McpEndpointSettings[];
   readonly glitchtipDsn?: string;

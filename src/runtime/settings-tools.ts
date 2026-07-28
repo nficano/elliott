@@ -10,13 +10,17 @@ import type {
   CloudflaredSettings,
   FilesSettings,
   HomeAssistantSettings,
+  PiholeSettings,
   SmtpSettings,
   SshSettings,
   TerminalSettings,
+  TraefikSettings,
 } from "./types";
 
 const DEFAULT_WORKSPACE = ".elliott-runtime/workspace";
 const DEFAULT_SMTPS_PORT = 465;
+const DEFAULT_CERT_RESOLVER = "letsencrypt";
+const DEFAULT_ENTRY_POINT = "websecure";
 
 export const optionalFiles = (
   value: unknown,
@@ -102,6 +106,37 @@ export const optionalHomeAssistant = (
     homeAssistant: {
       baseUrl: stringAt(value, ["channels", "home_assistant", "base_url"]),
       token,
+    },
+  };
+};
+
+export const optionalPihole = (
+  value: unknown,
+  secrets: Readonly<Record<string, string>>,
+): { readonly pihole?: PiholeSettings; } => {
+  if (valueAt(value, ["tools", "pihole", "enabled"]) !== true) return {};
+  const password = secrets["pihole_password"];
+  if (password === undefined) return {};
+  return {
+    pihole: {
+      baseUrl: stringAt(value, ["tools", "pihole", "base_url"]),
+      password,
+    },
+  };
+};
+
+export const optionalTraefik = (
+  value: unknown,
+): { readonly traefik?: TraefikSettings; } => {
+  if (valueAt(value, ["tools", "traefik", "enabled"]) !== true) return {};
+  return {
+    traefik: {
+      apiUrl: stringAt(value, ["tools", "traefik", "api_url"]),
+      certResolver:
+        optionalStringAt(value, ["tools", "traefik", "cert_resolver"])
+          ?? DEFAULT_CERT_RESOLVER,
+      entryPoint: optionalStringAt(value, ["tools", "traefik", "entry_point"])
+        ?? DEFAULT_ENTRY_POINT,
     },
   };
 };

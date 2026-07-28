@@ -79,11 +79,29 @@ tools:
     enabled: false
     user: elliott
     hosts: []
+  pihole:
+    # dns-01 LXC (forest: docs/servers.md). Registers once the
+    # pihole_password secret resolves (see secrets.yaml); until then the
+    # skill is skipped at boot. Currently Pi-hole v5 — the skill detects the
+    # API generation, so upgrading the box to v6 needs no change here.
+    enabled: true
+    base_url: http://172.16.10.205
+  traefik:
+    # proxy-01 LXC. Traefik polls Elliott's dynamic-config route via its
+    # HTTP provider (forest: compose/traefik/data/traefik.yml providers.http
+    # -> http://172.16.20.21:18082/v1/traefik/dynamic). Entrypoint and
+    # resolver names match proxy-01's static config (https / letsencrypt,
+    # Cloudflare DNS-01 wildcard for *.h12o.io). The dashboard API sits
+    # behind Authentik, so live router status degrades to a note.
+    enabled: true
+    api_url: https://traefik.h12o.io
+    cert_resolver: letsencrypt
+    entry_point: https
 
 skills:
   news_brief:
     enabled: true
-    alerts: true
+    alerts: false
     keywords:
       - breaking
       - killed

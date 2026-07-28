@@ -25,9 +25,11 @@ import {
   optionalCloudflared,
   optionalFiles,
   optionalHomeAssistant,
+  optionalPihole,
   optionalSmtp,
   optionalSsh,
   optionalTerminal,
+  optionalTraefik,
 } from "./settings-tools";
 import type {
   RuntimeEvolutionSettings,
@@ -210,6 +212,8 @@ const optionalSettings = (
   ...optionalSmtp(resolved, secrets),
   ...optionalHomeAssistant(resolved, secrets),
   ...optionalCloudflared(resolved),
+  ...optionalPihole(resolved, secrets),
+  ...optionalTraefik(resolved),
   ...optionalStringProperty("glitchtipDsn", resolved, [
     "observability",
     "glitchtip",

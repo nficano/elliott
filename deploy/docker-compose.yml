@@ -20,7 +20,11 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     ports:
-      - "127.0.0.1:18082:8080"
+      # LAN-reachable so Traefik on proxy-01 (172.16.10.200) can poll the
+      # dynamic-config route at /v1/traefik/dynamic. Skill routes are
+      # unauthenticated but LAN-only; webhook + evolution control plane
+      # stay token-gated.
+      - "18082:8080"
     depends_on:
       postgres:
         condition: service_healthy
