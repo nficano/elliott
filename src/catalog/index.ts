@@ -283,6 +283,22 @@ export const BUNDLED_CATALOG: readonly BundledComponentDescriptor[] = Object
       untrustedOutput: true,
     }),
     descriptor({
+      name: "subscription-usage",
+      kind: "tool",
+      protocols: ["tool.executor"],
+      egress: egressClass("declared", [
+        "api.anthropic.com",
+        "console.anthropic.com",
+        "chatgpt.com",
+        "auth.openai.com",
+        "api.litellm.h12o.io",
+      ]),
+      isolation: "container",
+      secretRefs: ["secret://tools/subscription-usage/accounts"],
+      senderAllowlistRequired: false,
+      untrustedOutput: true,
+    }),
+    descriptor({
       name: "traefik",
       kind: "extension",
       protocols: ["tool.executor"],

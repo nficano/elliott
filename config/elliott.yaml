@@ -86,6 +86,20 @@ tools:
     # API generation, so upgrading the box to v6 needs no change here.
     enabled: true
     base_url: http://172.16.10.205
+  subscription_usage:
+    # Subscription rate-limit meters for Claude (Pro/Max) and Codex (ChatGPT)
+    # plans, plus LiteLLM proxy spend. Each account points at a secrets.yaml
+    # key holding the OAuth credential JSON (Claude: the "Claude
+    # Code-credentials" Keychain payload; Codex: ~/.codex/auth.json).
+    # Accounts whose secret is missing are skipped at boot, so seed Vault and
+    # restart to light one up. LiteLLM spend needs litellm_admin_key.
+    enabled: true
+    claude_accounts:
+      - { name: personal, secret: claude_oauth_personal }
+    codex_accounts:
+      - { name: personal, secret: codex_oauth_personal }
+    litellm:
+      base_url: https://api.litellm.h12o.io
   traefik:
     # proxy-01 LXC. Traefik polls Elliott's dynamic-config route via its
     # HTTP provider (forest: compose/traefik/data/traefik.yml providers.http

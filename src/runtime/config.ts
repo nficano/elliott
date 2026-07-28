@@ -28,6 +28,7 @@ import {
   optionalPihole,
   optionalSmtp,
   optionalSsh,
+  optionalSubscriptionUsage,
   optionalTerminal,
   optionalTraefik,
 } from "./settings-tools";
@@ -214,6 +215,7 @@ const optionalSettings = (
   ...optionalCloudflared(resolved),
   ...optionalPihole(resolved, secrets),
   ...optionalTraefik(resolved),
+  ...optionalSubscriptionUsage(resolved, secrets),
   ...optionalStringProperty("glitchtipDsn", resolved, [
     "observability",
     "glitchtip",

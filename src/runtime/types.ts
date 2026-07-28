@@ -89,6 +89,22 @@ export interface TraefikSettings {
   readonly entryPoint: string;
 }
 
+export interface SubscriptionAccountSettings {
+  readonly name: string;
+  readonly credentials: string;
+}
+
+export interface LitellmSpendSettings {
+  readonly baseUrl: string;
+  readonly apiKey: string;
+}
+
+export interface SubscriptionUsageSettings {
+  readonly claudeAccounts: readonly SubscriptionAccountSettings[];
+  readonly codexAccounts: readonly SubscriptionAccountSettings[];
+  readonly litellm?: LitellmSpendSettings;
+}
+
 export interface NewsBriefRedditSource {
   readonly multireddit: string;
   readonly intervalSeconds: number;
@@ -263,6 +279,7 @@ export interface RuntimeSettings {
   readonly cloudflared?: CloudflaredSettings;
   readonly pihole?: PiholeSettings;
   readonly traefik?: TraefikSettings;
+  readonly subscriptionUsage?: SubscriptionUsageSettings;
   readonly webhookSecret?: string;
   readonly mcp: readonly McpEndpointSettings[];
   readonly glitchtipDsn?: string;

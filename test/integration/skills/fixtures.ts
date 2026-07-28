@@ -73,6 +73,30 @@ export const smokeSettings = (stateDirectory: string): RuntimeSettings => ({
   homeAssistant: { baseUrl: "http://127.0.0.1:1", token: "x" },
   cloudflared: { readyUrl: "http://127.0.0.1:1/ready" },
   pihole: { baseUrl: "http://127.0.0.1:1", password: "x" },
+  subscriptionUsage: {
+    claudeAccounts: [{
+      name: "personal",
+      credentials: JSON.stringify({
+        claudeAiOauth: {
+          accessToken: "at-claude",
+          refreshToken: "rt-claude",
+          expiresAt: 4_102_444_800_000,
+        },
+      }),
+    }],
+    codexAccounts: [{
+      name: "personal",
+      credentials: JSON.stringify({
+        tokens: {
+          access_token: "at-codex",
+          refresh_token: "rt-codex",
+          account_id: "acct-1",
+        },
+        last_refresh: "2026-01-01T00:00:00Z",
+      }),
+    }],
+    litellm: { baseUrl: "http://127.0.0.1:1", apiKey: "sk-litellm" },
+  },
   traefik: {
     apiUrl: "http://127.0.0.1:1",
     certResolver: "letsencrypt",

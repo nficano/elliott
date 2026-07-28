@@ -1,4 +1,5 @@
 import path from "node:path";
+import { isJsonRecord } from "../providers/http";
 import {
   optionalNumberAt,
   optionalStringAt,
@@ -10,9 +11,12 @@ import type {
   CloudflaredSettings,
   FilesSettings,
   HomeAssistantSettings,
+  LitellmSpendSettings,
   PiholeSettings,
   SmtpSettings,
   SshSettings,
+  SubscriptionAccountSettings,
+  SubscriptionUsageSettings,
   TerminalSettings,
   TraefikSettings,
 } from "./types";
@@ -139,6 +143,64 @@ export const optionalTraefik = (
         ?? DEFAULT_ENTRY_POINT,
     },
   };
+};
+
+export const optionalSubscriptionUsage = (
+  value: unknown,
+  secrets: Readonly<Record<string, string>>,
+): { readonly subscriptionUsage?: SubscriptionUsageSettings; } => {
+  const base = ["tools", "subscription_usage"];
+  if (valueAt(value, [...base, "enabled"]) !== true) return {};
+  const claudeAccounts = usageAccounts(
+    valueAt(value, [...base, "claude_accounts"]),
+    secrets,
+  );
+  const codexAccounts = usageAccounts(
+    valueAt(value, [...base, "codex_accounts"]),
+    secrets,
+  );
+  const litellm = litellmSpend(value, [...base, "litellm"], secrets);
+  if (
+    claudeAccounts.length === 0 && codexAccounts.length === 0
+    && litellm === undefined
+  ) {
+    return {};
+  }
+  return {
+    subscriptionUsage: {
+      claudeAccounts,
+      codexAccounts,
+      ...(litellm !== undefined && { litellm }),
+    },
+  };
+};
+
+// Accounts whose secret has not resolved are skipped, not fatal: the rest of
+// the accounts (and the skill) still register.
+const usageAccounts = (
+  value: unknown,
+  secrets: Readonly<Record<string, string>>,
+): readonly SubscriptionAccountSettings[] => {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    if (!isJsonRecord(item)) return [];
+    const name = item["name"];
+    const secret = item["secret"];
+    if (typeof name !== "string" || typeof secret !== "string") return [];
+    const credentials = secrets[secret];
+    return credentials === undefined ? [] : [{ name, credentials }];
+  });
+};
+
+const litellmSpend = (
+  value: unknown,
+  base: readonly string[],
+  secrets: Readonly<Record<string, string>>,
+): LitellmSpendSettings | undefined => {
+  const baseUrl = optionalStringAt(value, [...base, "base_url"]);
+  const apiKey = secrets["litellm_admin_key"];
+  if (baseUrl === undefined || apiKey === undefined) return undefined;
+  return { baseUrl, apiKey };
 };
 
 export const optionalCloudflared = (

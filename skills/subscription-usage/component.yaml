@@ -1,0 +1,28 @@
+apiVersion: elliott/v1
+kind: tool
+profile: tool-standard
+metadata: { namespace: core, name: subscription-usage, version: 1.0.0 }
+spec:
+  document: TOOL.md
+  protocols: [tool.executor]
+  capabilities:
+    - { capability: network.connect, resources: [declared://subscription-usage] }
+    - { capability: secret.use, resources: [secret://tools/subscription-usage/accounts] }
+    - { capability: fs.write, resources: [state://subscription-usage] }
+  egress:
+    class: declared
+    hosts:
+      - api.anthropic.com
+      - console.anthropic.com
+      - chatgpt.com
+      - auth.openai.com
+      - api.litellm.h12o.io
+  isolation: container
+  outputTrust: untrusted
+  topology:
+    node: { id: tool.subscription-usage, kind: tool, domain: external-integrations, trustZone: egress, dataClassification: operational-metadata, criticality: supporting }
+    dispatch: tool
+    gate: "secret:subscription-usage"
+    egressTargets: [ Anthropic OAuth API, ChatGPT backend API, LiteLLM proxy ]
+  exports:
+    - { ref: tool/subscription-usage, implementation: src/index.ts }
