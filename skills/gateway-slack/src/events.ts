@@ -37,7 +37,7 @@ export const decodeMessage = (
   team: string | undefined,
 ): InboundMessage | undefined => {
   const fields = messageFields(event);
-  if (fields === undefined || !isDirectMessage(event)) return undefined;
+  if (fields === undefined) return undefined;
   const explicitThread = event["thread_ts"];
   const context = decodeContext(event["app_context"]);
   const attachments = decodeAttachments(event["files"]);
@@ -126,9 +126,6 @@ const messageFields = (event: SlackJson) => {
   ) return undefined;
   return { channel, sender, text, timestamp };
 };
-
-const isDirectMessage = (event: SlackJson): boolean =>
-  event["channel_type"] === undefined || event["channel_type"] === "im";
 
 const optionalTeam = (
   value: unknown,

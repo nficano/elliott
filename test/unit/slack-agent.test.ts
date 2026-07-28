@@ -112,6 +112,32 @@ describe("Slack agent integration", () => {
     expect(message?.context).toEqual(decodeContext(context));
   });
 
+  it("decodes channel messages, threading the reply on the source ts", () => {
+    // Elliott shares its Slack app with oslo; Socket Mode delivers each event
+    // to exactly one agent, so a dropped channel message means NO agent
+    // answers it. Channel events must decode like DMs (owner gating lives in
+    // the gateway's allowedMessage, not here).
+    const message = decodeMessage(
+      {
+        type: "message",
+        channel: "C777",
+        channel_type: "channel",
+        user: "U123",
+        text: "restart the dns container",
+        ts: "300.002",
+      },
+      [],
+      "T123",
+    );
+    expect(message).toMatchObject({
+      channel: "C777",
+      thread: "300.002",
+      threadRoot: true,
+      sender: "U123",
+      text: "restart the dns container",
+    });
+  });
+
   it("decodes owner feedback and delete actions only", () => {
     const payload = {
       type: "block_actions",
