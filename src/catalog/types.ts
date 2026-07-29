@@ -42,4 +42,9 @@ export interface BundledPackage {
   readonly provides: readonly FacilityRef[];
   readonly exports: readonly BundledExport[];
   readonly entrypoint?: string;
+  // The manifest's spec.topology block, verbatim. The telemetry-map extension
+  // derives map nodes/edges from it at runtime (same semantics as
+  // scripts/gen-topology.mjs), so a skill that declares one appears on the
+  // map without hand-editing the served topology document.
+  readonly topology?: Readonly<Record<string, unknown>>;
 }

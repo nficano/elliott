@@ -28,6 +28,7 @@ const registration: SkillRegistration = await register({
   settings,
   stateDirectory: await mkdtemp(path.join(tmpdir(), "telemetry-map-e2e-")),
   facilities: standaloneFacilityDirectory(),
+  packages: () => [],
   report: (error, mechanism) => {
     console.error(`[harness] ${mechanism}:`, error);
   },

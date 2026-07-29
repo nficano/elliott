@@ -14,7 +14,10 @@ prompt is included in the live feed only when `ELLIOTT_TELEMETRY_PROMPTS` is not
 Routes (mounted on the runtime server, published at `127.0.0.1:18082`):
 
 - `GET /v1/observability/map` — the isometric UI (self-contained HTML).
-- `GET /v1/observability/map/topology` — the connection graph (nodes/edges).
+- `GET /v1/observability/map/topology` — the connection graph (nodes/edges):
+  the enriched base document merged with every loaded skill's manifest
+  `spec.topology` block, liveness resolved from what actually registered, and
+  consumer→provider edges from persisted facility grants.
 - `GET /v1/observability/map/state` — current snapshot (turns, db stats, events).
 - `GET /v1/observability/map/stream` — Server-Sent-Events live feed.
 - `GET /v1/observability/map/turn?id=<runId>` — one turn's full event detail.

@@ -5,6 +5,7 @@ import {
   HTTP_NOT_FOUND,
   HTTP_OK,
 } from "../../../src/runtime/http";
+import { readStoredGrants } from "../../../src/runtime/skills/facilities";
 import type {
   GatewayEvents,
   RouteBinding,
@@ -16,6 +17,7 @@ import { runtimeTelemetry } from "../../../src/runtime/telemetry";
 import { Aggregator } from "./aggregator";
 import { appDistRoutes } from "./app-dist";
 import { assetRoutes } from "./assets";
+import { mergeTopology } from "./auto-topology";
 import { TelemetryMapGateway } from "./gateway";
 import { mapAliasRoute, publishMap } from "./publish";
 import { SqliteTail } from "./sqlite-tail";
@@ -60,7 +62,12 @@ export const register = async (
   return {
     gateways: [gateway],
     routes: [
-      ...routes(aggregator, gateway, dist.index ?? uiResponse),
+      ...routes({
+        aggregator,
+        gateway,
+        ui: dist.index ?? uiResponse,
+        context,
+      }),
       ...dist.routes,
       mapAliasRoute(),
     ],
@@ -85,11 +92,27 @@ const uiResponse = async (): Promise<Response> => {
   }
 };
 
-const topologyResponse = async (): Promise<Response> =>
-  new Response(await loadTopology(), {
+// The enriched base document plus every auto-registered skill: nodes derived
+// from each loaded package's manifest topology, liveness resolved from what
+// actually registered, and facility grant edges. A merge failure degrades to
+// the base document rather than a broken map.
+const topologyResponse = async (context: SkillContext): Promise<Response> => {
+  const base = await loadTopology();
+  let body = base;
+  try {
+    body = mergeTopology({
+      base,
+      packages: context.packages(),
+      grants: await readStoredGrants(context.stateDirectory),
+    });
+  } catch (error) {
+    context.report(error, "telemetry-map:topology");
+  }
+  return new Response(body, {
     status: HTTP_OK,
     headers: { "content-type": "application/json" },
   });
+};
 
 const turnResponse = (aggregator: Aggregator, request: Request): Response => {
   const id = new URL(request.url).searchParams.get("id");
@@ -170,36 +193,40 @@ const routeE = (
   handle: (request, events) => handler(request, events),
 });
 
-const routes = (
-  aggregator: Aggregator,
-  gateway: TelemetryMapGateway,
-  ui: () => Promise<Response>,
-): readonly RouteBinding[] => [
-  route("GET", BASE, () => ui()),
-  route("GET", `${BASE}/legacy`, () => uiResponse()),
-  route("GET", `${BASE}/topology`, () => topologyResponse()),
-  route(
-    "GET",
-    `${BASE}/state`,
-    () => Promise.resolve(jsonResponse(aggregator.snapshot())),
-  ),
-  route(
-    "GET",
-    `${BASE}/stream`,
-    () => Promise.resolve(streamResponse(aggregator)),
-  ),
-  route(
-    "GET",
-    `${BASE}/turn`,
-    (request) => Promise.resolve(turnResponse(aggregator, request)),
-  ),
-  ...assetRoutes(BASE),
-  routeE(
-    "POST",
-    `${BASE}/send`,
-    (request, events) => sendResponse(request, events, gateway),
-  ),
-];
+const routes = (input: {
+  readonly aggregator: Aggregator;
+  readonly gateway: TelemetryMapGateway;
+  readonly ui: () => Promise<Response>;
+  readonly context: SkillContext;
+}): readonly RouteBinding[] => {
+  const { aggregator, gateway, ui, context } = input;
+  return [
+    route("GET", BASE, () => ui()),
+    route("GET", `${BASE}/legacy`, () => uiResponse()),
+    route("GET", `${BASE}/topology`, () => topologyResponse(context)),
+    route(
+      "GET",
+      `${BASE}/state`,
+      () => Promise.resolve(jsonResponse(aggregator.snapshot())),
+    ),
+    route(
+      "GET",
+      `${BASE}/stream`,
+      () => Promise.resolve(streamResponse(aggregator)),
+    ),
+    route(
+      "GET",
+      `${BASE}/turn`,
+      (request) => Promise.resolve(turnResponse(aggregator, request)),
+    ),
+    ...assetRoutes(BASE),
+    routeE(
+      "POST",
+      `${BASE}/send`,
+      (request, events) => sendResponse(request, events, gateway),
+    ),
+  ];
+};
 
 const service = (
   aggregator: Aggregator,

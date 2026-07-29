@@ -1,3 +1,9 @@
+import type {
+  JsonRecord,
+  RouteBinding,
+  SkillPackageView,
+  StoredGrant,
+} from "../../../src/runtime/skills/types";
 import type { TelemetryEnvelope } from "../../../src/runtime/types";
 
 export interface DbTableStat {
@@ -69,8 +75,7 @@ export interface TurnDetail {
 }
 
 export interface AppDistRoutes {
-  readonly routes:
-    readonly import("../../../src/runtime/skills/types").RouteBinding[];
+  readonly routes: readonly RouteBinding[];
   readonly index: (() => Promise<Response>) | undefined;
 }
 
@@ -79,4 +84,49 @@ export interface MapHealth extends Readonly<Record<string, number>> {
   readonly events: number;
   readonly clients: number;
   readonly dbTables: number;
+}
+
+export interface AutoEdge {
+  readonly from: string;
+  readonly to: string;
+  readonly kind: string;
+  readonly protocol: string;
+  readonly label: string;
+}
+
+export interface ManifestTopology {
+  readonly node: JsonRecord;
+  readonly nodeId: string;
+  readonly dispatch?: string;
+  readonly edges: readonly JsonRecord[];
+  readonly egressTargets: readonly string[];
+}
+
+export interface Candidate {
+  readonly view: SkillPackageView;
+  readonly topology: ManifestTopology;
+}
+
+export interface MergeInput {
+  readonly base: string;
+  readonly packages: readonly SkillPackageView[];
+  readonly grants: readonly StoredGrant[];
+}
+
+export interface ParsedDocument {
+  readonly raw: JsonRecord;
+  readonly nodes: readonly unknown[];
+  readonly edges: readonly unknown[];
+  readonly domains: readonly unknown[];
+}
+
+export interface MergeState {
+  readonly nodesOut: unknown[];
+  readonly edgesOut: unknown[];
+  readonly nodeIds: Set<string>;
+  readonly summary: {
+    readonly nodes: string[];
+    readonly edges: string[];
+    readonly liveness: Record<string, string>;
+  };
 }

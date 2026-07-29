@@ -32,7 +32,7 @@
     "./package.json": "./package.json"
   },
   "scripts": {
-    "prepare": "./scripts/prepare-effect.sh",
+    "prepare": "./scripts/prepare-effect.sh && ./scripts/setup-hooks.sh",
     "start": "bun src/runtime/main.ts",
     "dev": "ELLIOTT_ENV=dev bun src/runtime/main.ts",
     "deploy:spruce": "./scripts/deploy-spruce.sh",
@@ -46,9 +46,11 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
+    "lint:strict": "eslint . --max-warnings 0",
     "format": "dprint fmt",
     "format:check": "dprint check",
-    "test": "bun test"
+    "test": "bun test",
+    "test:coverage": "bun scripts/coverage-gate.ts"
   },
   "dependencies": {
     "effect": "^4.0.0-beta.100",

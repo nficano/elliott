@@ -197,6 +197,18 @@ const readGrantsFile = async (file: string): Promise<unknown> => {
   }
 };
 
+// Read-only view of the persisted grants for observers (the telemetry map
+// derives consumer->provider edges from it). Same file and decoding as the
+// directory itself; missing or malformed files read as no grants.
+export const readStoredGrants = async (
+  stateDirectory: string,
+): Promise<readonly StoredGrant[]> =>
+  decodeGrants(
+    await readGrantsFile(
+      path.join(stateDirectory, "facilities", GRANTS_FILE),
+    ),
+  );
+
 const decodeGrants = (value: unknown): readonly StoredGrant[] => {
   if (!isJsonRecord(value) || !Array.isArray(value["grants"])) return [];
   return value["grants"].filter(isStoredGrant);

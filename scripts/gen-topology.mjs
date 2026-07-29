@@ -9,6 +9,10 @@
 //   bun scripts/gen-topology.mjs           # write docs/elliott-topology.generated.json
 //   bun scripts/gen-topology.mjs --check   # generate in-memory, diff vs docs/elliott-topology.json, exit 1 on structural drift
 //   bun scripts/gen-topology.mjs --write   # overwrite docs/elliott-topology.json
+//
+// Runtime counterpart: skills/telemetry-map/src/auto-topology.ts derives the
+// same node/uniform-edge shapes from loaded packages when serving /topology —
+// keep the dispatch->edge semantics here and there in step.
 import { readdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";

@@ -111,10 +111,39 @@ export interface RegisteredFacility {
   readonly binding: FacilityBinding;
 }
 
+// A read-only view of one bundled package after the loader has run: its
+// manifest topology block plus what its register() actually produced. This is
+// what lets the telemetry map auto-register every skill — and it is the same
+// record shape that can later back ComponentDiscovery cards.
+export interface SkillPackageView {
+  readonly name: string;
+  readonly kind: string;
+  readonly directory: string;
+  // Facility ids from manifest spec.provides (e.g. "core/proxy.route").
+  readonly provides: readonly string[];
+  // The manifest's spec.topology block, verbatim.
+  readonly topology?: JsonRecord;
+  // register() completed without throwing.
+  readonly registered: boolean;
+  // How many bindings of each kind the registration returned.
+  readonly bindings: Readonly<Record<BindingKind, number>>;
+}
+
+export type BindingKind =
+  | "tools"
+  | "gateways"
+  | "routes"
+  | "services"
+  | "facilities";
+
 export interface SkillContext {
   readonly settings: RuntimeSettings;
   readonly stateDirectory: string;
   readonly facilities: FacilityDirectory;
+  // Every bundled package with its post-load state. Populated once boot
+  // completes: during register() it is empty; route handlers and services
+  // (which only run after boot) see the full list.
+  packages(): readonly SkillPackageView[];
   report(error: unknown, mechanism: string): void;
   deliver(text: string): Promise<void>;
 }

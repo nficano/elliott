@@ -22,6 +22,7 @@ import { RuntimeErrorReporter } from "./reporter";
 import { runtimeComponentSummary, startRuntimeServer } from "./server";
 import {
   collectGateways,
+  collectPackageViews,
   collectRoutes,
   collectServices,
   collectTools,
@@ -35,6 +36,7 @@ import type {
   RouteBinding,
   ServiceBinding,
   SkillContextSeed,
+  SkillPackageView,
 } from "./skills/types";
 import { ensureRuntimeSnapshot } from "./snapshot";
 import { runtimeTelemetry, telemetryTurnObserver } from "./telemetry";
@@ -61,6 +63,7 @@ export class ElliottRuntime {
   #evidenceStore: SessionStore | undefined;
   #evolutionEvidence: RuntimeEvolutionEvidence | undefined;
   #packages: readonly BundledPackage[] = [];
+  #packageViews: readonly SkillPackageView[] = [];
   #gateways: readonly GatewayBinding[] = [];
   #routes: readonly RouteBinding[] = [];
   #services: readonly ServiceBinding[] = [];
@@ -116,6 +119,7 @@ export class ElliottRuntime {
       this.#packages,
       this.#skillContext(settings),
     );
+    this.#packageViews = collectPackageViews(this.#packages, skills);
     const baseTools = collectTools(skills);
     this.#gateways = collectGateways(skills);
     this.#routes = collectRoutes(skills);
@@ -217,6 +221,10 @@ export class ElliottRuntime {
     return {
       settings,
       stateDirectory: path.join(this.#agentRoot, ".elliott-runtime"),
+      // Lazy on purpose: the views are collected right after registration, so
+      // register()-time callers see an empty list while routes and services
+      // (which only run post-boot) see every package.
+      packages: () => this.#packageViews,
       report: (error, mechanism) => this.#capture(error, mechanism),
       deliver: (text) => this.#deliver(text),
     };

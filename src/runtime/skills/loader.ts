@@ -9,6 +9,7 @@ import type {
   ServiceBinding,
   SkillContext,
   SkillContextSeed,
+  SkillPackageView,
   SkillRegistrar,
   SkillRegistration,
 } from "./types";
@@ -118,3 +119,40 @@ export const collectFacilities = (
   skills: readonly LoadedSkill[],
 ): readonly FacilityBinding[] =>
   skills.flatMap((skill) => skill.registration.facilities ?? []);
+
+const count = (bindings: readonly unknown[] | undefined): number =>
+  bindings === undefined ? 0 : bindings.length;
+
+const bindingCounts = (
+  registration: SkillRegistration | undefined,
+): SkillPackageView["bindings"] => ({
+  tools: count(registration?.tools),
+  gateways: count(registration?.gateways),
+  routes: count(registration?.routes),
+  services: count(registration?.services),
+  facilities: count(registration?.facilities),
+});
+
+// Joins the static catalog with what actually registered, producing the
+// per-package views SkillContext.packages() serves after boot. A package with
+// no LoadedSkill either has no entrypoint or threw during register().
+export const collectPackageViews = (
+  packages: readonly BundledPackage[],
+  skills: readonly LoadedSkill[],
+): readonly SkillPackageView[] => {
+  const registrations = new Map(
+    skills.map((skill) => [skill.name, skill.registration]),
+  );
+  return packages.map((item) => {
+    const registration = registrations.get(item.name);
+    return {
+      name: item.name,
+      kind: item.kind,
+      directory: item.directory,
+      provides: item.provides.map((ref) => ref.facility),
+      ...(item.topology !== undefined && { topology: item.topology }),
+      registered: registration !== undefined,
+      bindings: bindingCounts(registration),
+    };
+  });
+};

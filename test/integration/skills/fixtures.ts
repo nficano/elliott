@@ -151,6 +151,7 @@ export const makeSmokeContext = async (
       settings: { ...smokeSettings(stateDirectory), ...overrides },
       stateDirectory,
       facilities: standaloneFacilityDirectory(),
+      packages: () => [],
       report: (error, mechanism) =>
         reported.push(`${mechanism}: ${String(error)}`),
       deliver: async (text) => {
