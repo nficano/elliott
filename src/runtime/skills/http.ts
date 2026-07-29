@@ -1,3 +1,4 @@
+import { timingSafeEqual } from "node:crypto";
 import { isJsonRecord } from "../../providers/http";
 
 export const MAX_TOOL_OUTPUT_CHARACTERS = 12_000;
@@ -69,6 +70,29 @@ const privateIpv4 = (first: number, second: number): boolean =>
     && second <= PRIVATE_172_HIGH)
   || (first === PRIVATE_192_FIRST_OCTET
     && second === PRIVATE_192_SECOND_OCTET);
+
+// Constant-time string comparison for webhook tokens and signatures, so a
+// route never leaks how much of a secret matched through response timing.
+export const constantTimeEqual = (
+  provided: string,
+  expected: string,
+): boolean => {
+  const providedBuffer = Buffer.from(provided, "utf8");
+  const expectedBuffer = Buffer.from(expected, "utf8");
+  return providedBuffer.length === expectedBuffer.length
+    && timingSafeEqual(providedBuffer, expectedBuffer);
+};
+
+// Shared-token verification for webhook ingress routes: the caller embeds
+// `?token=<secret>` in the URL it registers with the remote service.
+export const verifiedRequestToken = (
+  request: Request,
+  secret: string,
+): boolean => {
+  const provided = new URL(request.url).searchParams.get("token");
+  return provided !== null && provided.length > 0
+    && constantTimeEqual(provided, secret);
+};
 
 export const objectSchema = (
   properties: Readonly<Record<string, unknown>>,

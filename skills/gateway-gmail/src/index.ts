@@ -12,6 +12,12 @@ import type { ToolDefinition } from "../../../src/runtime/types";
 import { makeTokenSource } from "./auth";
 import { makeGmailClient } from "./client";
 import type { GmailClient } from "./types";
+import {
+  gmailNotificationGateway,
+  gmailWatchService,
+  gmailWebhookRoute,
+  makeAnchorStore,
+} from "./webhook";
 
 const SEARCH_BOUNDS = { min: 1, max: 30, fallback: 12 } as const;
 const MAX_ARCHIVE_IDS = 200;
@@ -20,14 +26,32 @@ export const register = (context: SkillContext): SkillRegistration => {
   const settings = context.settings.gmail;
   if (settings === undefined) return {};
   const gmail = makeGmailClient(makeTokenSource(settings));
+  const tools = [
+    searchTool(gmail),
+    threadTool(gmail),
+    archiveTool(gmail),
+    draftReplyTool(gmail),
+    unsubscribeTool(gmail),
+  ];
+  if (settings.webhookSecret === undefined) return { tools };
+  const anchors = makeAnchorStore(context.stateDirectory);
   return {
-    tools: [
-      searchTool(gmail),
-      threadTool(gmail),
-      archiveTool(gmail),
-      draftReplyTool(gmail),
-      unsubscribeTool(gmail),
+    tools,
+    routes: [
+      gmailWebhookRoute(
+        { secret: settings.webhookSecret, gmail, anchors },
+        context,
+      ),
     ],
+    gateways: [gmailNotificationGateway(context)],
+    ...(settings.pubsubTopic !== undefined && {
+      services: [
+        gmailWatchService(
+          { gmail, pubsubTopic: settings.pubsubTopic, anchors },
+          context,
+        ),
+      ],
+    }),
   };
 };
 

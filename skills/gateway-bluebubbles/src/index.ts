@@ -13,10 +13,12 @@ import type {
   ToolDefinition,
 } from "../../../src/runtime/types";
 import { compactMessage, createBlueBubblesClient } from "./client";
+import {
+  bluebubblesReplyGateway,
+  bluebubblesWebhookRoute,
+  webhookEnabled,
+} from "./webhook";
 
-const MESSAGE_CHUNK_CHARACTERS = 4000;
-const HTTP_ERROR_FLOOR = 400;
-const GUID_SEPARATOR = ";-;";
 const READ_LIMIT_DEFAULT = 20;
 const READ_LIMIT_MAX = 50;
 
@@ -30,7 +32,12 @@ export const register = (context: SkillContext): SkillRegistration => {
   ) {
     tools.push(sendTool(settings));
   }
-  return { tools };
+  if (!webhookEnabled(settings)) return { tools };
+  return {
+    tools,
+    routes: [bluebubblesWebhookRoute(settings, context)],
+    gateways: [bluebubblesReplyGateway(settings)],
+  };
 };
 
 const readTool = (settings: BlueBubblesSettings): ToolDefinition => ({
@@ -83,9 +90,7 @@ const sendTool = (settings: BlueBubblesSettings): ToolDefinition => ({
   execute: async (input) => {
     const recipient = resolveRecipient(input, settings);
     const text = requiredString(input, "text");
-    for (const chunk of chunkText(text)) {
-      await deliverChunk(settings, recipient, chunk);
-    }
+    await createBlueBubblesClient(settings).sendText(recipient, text);
     return JSON.stringify({ ok: true, to: recipient });
   },
 });
@@ -109,60 +114,8 @@ const resolveRecipient = (
   return requested;
 };
 
-const deliverChunk = async (
-  settings: BlueBubblesSettings,
-  recipient: string,
-  chunk: string,
-): Promise<void> => {
-  const url = new URL("/api/v1/message/text", settings.serverUrl);
-  url.searchParams.set("password", settings.password);
-  const response = await fetch(url, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      chatGuid: toChatGuid(recipient),
-      tempGuid: `elliott-${crypto.randomUUID()}`,
-      message: chunk,
-      method: "apple-script",
-    }),
-  });
-  if (!response.ok) {
-    throw new Error(`BlueBubbles returned HTTP ${response.status}`);
-  }
-  const payload: unknown = await response.json().catch(() => ({}));
-  if (
-    isJsonRecord(payload) && typeof payload["status"] === "number"
-    && payload["status"] >= HTTP_ERROR_FLOOR
-  ) {
-    const message = payload["message"];
-    throw new Error(
-      `BlueBubbles send failed: ${
-        typeof message === "string" ? message : "unknown error"
-      }`,
-    );
-  }
-};
-
-const toChatGuid = (recipient: string): string =>
-  recipient.includes(GUID_SEPARATOR)
-    ? recipient
-    : `iMessage${GUID_SEPARATOR}${recipient}`;
-
 const optionalString = (input: unknown, key: string): string | undefined => {
   if (!isJsonRecord(input)) return undefined;
   const value = input[key];
   return typeof value === "string" && value.length > 0 ? value : undefined;
-};
-
-const chunkText = (text: string): readonly string[] => {
-  if (text.length <= MESSAGE_CHUNK_CHARACTERS) return [text];
-  const chunks: string[] = [];
-  for (
-    let offset = 0;
-    offset < text.length;
-    offset += MESSAGE_CHUNK_CHARACTERS
-  ) {
-    chunks.push(text.slice(offset, offset + MESSAGE_CHUNK_CHARACTERS));
-  }
-  return chunks;
 };

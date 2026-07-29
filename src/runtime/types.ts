@@ -48,6 +48,24 @@ export interface GmailSettings {
   readonly clientId: string;
   readonly clientSecret: string;
   readonly refreshToken: string;
+  // Shared token that authenticates Pub/Sub push deliveries to the inbound
+  // webhook route; the route is only registered when this is set.
+  readonly webhookSecret?: string;
+  // Fully-qualified Pub/Sub topic (projects/<id>/topics/<name>) the mailbox
+  // watch publishes to; enables the daily users.watch renewal service.
+  readonly pubsubTopic?: string;
+}
+
+export interface GoogleAccountSettings {
+  readonly name: string;
+  readonly clientId: string;
+  readonly clientSecret: string;
+  readonly refreshToken: string;
+  readonly email?: string;
+}
+
+export interface GoogleSettings {
+  readonly accounts: readonly GoogleAccountSettings[];
 }
 
 export interface BlueBubblesSettings {
@@ -55,6 +73,9 @@ export interface BlueBubblesSettings {
   readonly password: string;
   readonly defaultRecipient?: string;
   readonly allowedRecipients: readonly string[];
+  // Shared token that authenticates BlueBubbles webhook deliveries to the
+  // inbound route; the route is only registered when this is set.
+  readonly webhookSecret?: string;
 }
 
 export interface FilesSettings {
@@ -282,6 +303,7 @@ export interface RuntimeSettings {
   readonly parallelApiKey?: string;
   readonly slack?: SlackSettings;
   readonly gmail?: GmailSettings;
+  readonly google?: GoogleSettings;
   readonly bluebubbles?: BlueBubblesSettings;
   readonly files?: FilesSettings;
   readonly terminal?: TerminalSettings;

@@ -2,6 +2,8 @@ import { isJsonRecord } from "../providers/http";
 import type {
   BlueBubblesSettings,
   GmailSettings,
+  GoogleAccountSettings,
+  GoogleSettings,
   McpEndpointSettings,
   SlackSettings,
 } from "./types";
@@ -77,7 +79,68 @@ export const optionalSlack = (
   };
 };
 
+// Multi-account Google (Gmail + Calendar + Contacts). Accounts are listed in
+// config (`google.accounts`), each naming a `refresh_token_secret` resolved
+// from the secrets dict; the OAuth client is shared (google_client_id/secret,
+// falling back to the legacy gmail_* keys). Accounts whose token has not
+// resolved are skipped, not fatal. If no accounts are configured but the legacy
+// single Gmail secrets exist, one "default" account is synthesized so existing
+// Gmail keeps working unchanged.
+export const optionalGoogle = (
+  value: unknown,
+  secrets: Readonly<Record<string, string>>,
+): { readonly google?: GoogleSettings; } => {
+  const accounts = googleAccounts(value, secrets);
+  if (accounts.length > 0) return { google: { accounts } };
+  const legacy = legacyGmailAccount(secrets);
+  return legacy === undefined ? {} : { google: { accounts: [legacy] } };
+};
+
+const googleAccounts = (
+  value: unknown,
+  secrets: Readonly<Record<string, string>>,
+): readonly GoogleAccountSettings[] => {
+  const list = valueAt(value, ["google", "accounts"]);
+  if (!Array.isArray(list)) return [];
+  const clientId = secrets["google_client_id"] ?? secrets["gmail_client_id"];
+  const clientSecret = secrets["google_client_secret"]
+    ?? secrets["gmail_client_secret"];
+  if (clientId === undefined || clientSecret === undefined) return [];
+  return list.flatMap((item) => {
+    if (!isJsonRecord(item)) return [];
+    const name = item["name"];
+    const refreshTokenSecret = item["refresh_token_secret"];
+    if (typeof name !== "string" || typeof refreshTokenSecret !== "string") {
+      return [];
+    }
+    const refreshToken = secrets[refreshTokenSecret];
+    if (refreshToken === undefined) return [];
+    const email = item["email"];
+    return [{
+      name,
+      clientId,
+      clientSecret,
+      refreshToken,
+      ...(typeof email === "string" && { email }),
+    }];
+  });
+};
+
+const legacyGmailAccount = (
+  secrets: Readonly<Record<string, string>>,
+): GoogleAccountSettings | undefined => {
+  const clientId = secrets["gmail_client_id"];
+  const clientSecret = secrets["gmail_client_secret"];
+  const refreshToken = secrets["gmail_refresh_token"];
+  if (
+    clientId === undefined || clientSecret === undefined
+    || refreshToken === undefined
+  ) return undefined;
+  return { name: "default", clientId, clientSecret, refreshToken };
+};
+
 export const optionalGmail = (
+  value: unknown,
   secrets: Readonly<Record<string, string>>,
 ): { readonly gmail?: GmailSettings; } => {
   const clientId = secrets["gmail_client_id"];
@@ -89,7 +152,18 @@ export const optionalGmail = (
   ) {
     return {};
   }
-  return { gmail: { clientId, clientSecret, refreshToken } };
+  return {
+    gmail: {
+      clientId,
+      clientSecret,
+      refreshToken,
+      ...optionalValue("webhookSecret", secrets["gmail_webhook_secret"]),
+      ...optionalStringProperty("pubsubTopic", value, [
+        "gmail",
+        "pubsub_topic",
+      ]),
+    },
+  };
 };
 
 export const optionalBlueBubbles = (
@@ -116,6 +190,10 @@ export const optionalBlueBubbles = (
         "bluebubbles",
         "allowed_recipients",
       ]),
+      ...optionalValue(
+        "webhookSecret",
+        secrets["bluebubbles_webhook_secret"],
+      ),
     },
   };
 };

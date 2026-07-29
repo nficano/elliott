@@ -1,4 +1,11 @@
+import type { BlueBubblesSettings } from "../../../src/runtime/types";
+
 export type BlueBubblesJson = Readonly<Record<string, unknown>>;
+
+export interface BlueBubblesTransport {
+  readonly settings: BlueBubblesSettings;
+  readonly fetcher: typeof fetch;
+}
 
 export interface BlueBubblesRequest {
   readonly method: "GET" | "POST";
@@ -23,4 +30,7 @@ export interface BlueBubblesClient {
     target: string,
     limit: number,
   ): Promise<ConversationRead | undefined>;
+  // Deliver a text to a recipient (handle or full chat GUID), chunked to the
+  // iMessage-safe size. Recipient policy is the caller's responsibility.
+  sendText(recipient: string, text: string): Promise<void>;
 }

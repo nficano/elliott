@@ -8,6 +8,7 @@ import type {
   BlueBubblesClient,
   BlueBubblesJson,
   BlueBubblesRequest,
+  BlueBubblesTransport,
   ConversationRead,
   ResolvedChat,
 } from "./types";
@@ -15,6 +16,9 @@ import type {
 const CHAT_SCAN_LIMIT = 1000;
 const MIN_SUFFIX_DIGITS = 7;
 const US_LOCAL_DIGITS = 10;
+const MESSAGE_CHUNK_CHARACTERS = 4000;
+const HTTP_ERROR_FLOOR = 400;
+const GUID_SEPARATOR = ";-;";
 
 // A thin BlueBubbles REST client. `fetcher` defaults to global fetch and is
 // injected in tests. Reads are unrestricted by design (any conversation); the
@@ -25,6 +29,7 @@ export const createBlueBubblesClient = (
 ): BlueBubblesClient => {
   const call = (spec: BlueBubblesRequest): Promise<BlueBubblesJson> =>
     request(settings, fetcher, spec);
+  const transport: BlueBubblesTransport = { settings, fetcher };
   return {
     queryRecent: async (limit) =>
       recordArray(
@@ -36,6 +41,11 @@ export const createBlueBubblesClient = (
         "data",
       ),
     readFrom: (target, limit) => readConversation(call, target, limit),
+    sendText: async (recipient, text) => {
+      for (const chunk of chunkText(text)) {
+        await deliverChunk(transport, recipient, chunk);
+      }
+    },
   };
 };
 
@@ -142,6 +152,59 @@ const scanForChat = async (
   };
 };
 
+const deliverChunk = async (
+  transport: BlueBubblesTransport,
+  recipient: string,
+  chunk: string,
+): Promise<void> => {
+  const { settings, fetcher } = transport;
+  const url = new URL("/api/v1/message/text", settings.serverUrl);
+  url.searchParams.set("password", settings.password);
+  const response = await fetcher(url, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      chatGuid: toChatGuid(recipient),
+      tempGuid: `elliott-${crypto.randomUUID()}`,
+      message: chunk,
+      method: "apple-script",
+    }),
+  });
+  if (!response.ok) {
+    throw new Error(`BlueBubbles returned HTTP ${response.status}`);
+  }
+  const payload: unknown = await response.json().catch(() => ({}));
+  if (
+    isJsonRecord(payload) && typeof payload["status"] === "number"
+    && payload["status"] >= HTTP_ERROR_FLOOR
+  ) {
+    const message = payload["message"];
+    throw new Error(
+      `BlueBubbles send failed: ${
+        typeof message === "string" ? message : "unknown error"
+      }`,
+    );
+  }
+};
+
+const toChatGuid = (recipient: string): string =>
+  recipient.includes(GUID_SEPARATOR)
+    ? recipient
+    : `iMessage${GUID_SEPARATOR}${recipient}`;
+
+const chunkText = (text: string): readonly string[] => {
+  if (text.length <= MESSAGE_CHUNK_CHARACTERS) return [text];
+  const chunks: string[] = [];
+  for (
+    let offset = 0;
+    offset < text.length;
+    offset += MESSAGE_CHUNK_CHARACTERS
+  ) {
+    chunks.push(text.slice(offset, offset + MESSAGE_CHUNK_CHARACTERS));
+  }
+  return chunks;
+};
+
 export const compactMessage = (message: BlueBubblesJson): BlueBubblesJson => {
   const fromMe = message["isFromMe"] === true;
   const handle = nestedRecord(message, "handle");
@@ -185,7 +248,7 @@ const chatName = (chat: BlueBubblesJson): string => {
   return stringField(chat, "chatIdentifier") ?? "unknown";
 };
 
-const messageBody = (message: BlueBubblesJson): string => {
+export const messageBody = (message: BlueBubblesJson): string => {
   const text = stringField(message, "text");
   if (text !== undefined && text.length > 0) return text;
   const attachments = recordArray(message, "attachments").length;
@@ -213,7 +276,7 @@ const normalizeIdentifier = (value: string): string =>
 // "+13474062025", and "3474062025" should all resolve to the same chat. Equal
 // normalized forms match; longer numbers match on a shared 7+ digit suffix so a
 // country-code prefix does not defeat the lookup. Emails fall back to equality.
-const identifiersMatch = (left: string, right: string): boolean => {
+export const identifiersMatch = (left: string, right: string): boolean => {
   const a = normalizeIdentifier(left);
   const b = normalizeIdentifier(right);
   if (a.length === 0 || b.length === 0) return false;
