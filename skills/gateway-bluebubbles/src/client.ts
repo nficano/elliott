@@ -85,9 +85,13 @@ const resolveChat = async (
       sort: "lastmessage",
     },
   });
-  const match = recordArray(payload, "data").find((chat) =>
-    chatMatches(chat, target)
-  );
+  // Prefer the conversation whose own identity matches (the 1:1 thread whose
+  // chatIdentifier IS the handle, or a group named for the target) over one
+  // where the target is merely a participant — otherwise "read from Alice"
+  // could surface a group Alice happens to be in.
+  const chats = recordArray(payload, "data");
+  const match = chats.find((chat) => directMatch(chat, target))
+    ?? chats.find((chat) => participantMatch(chat, target));
   return match === undefined ? undefined : {
     guid: stringField(match, "guid") ?? target,
     name: chatName(match),
@@ -109,15 +113,17 @@ export const compactMessage = (message: BlueBubblesJson): BlueBubblesJson => {
   };
 };
 
-const chatMatches = (chat: BlueBubblesJson, target: string): boolean => {
+const directMatch = (chat: BlueBubblesJson, target: string): boolean => {
   const lowerTarget = target.toLowerCase();
   const identifier = stringField(chat, "chatIdentifier") ?? "";
   const display = stringField(chat, "displayName") ?? "";
-  if (
-    display.toLowerCase().includes(lowerTarget)
+  return display.toLowerCase().includes(lowerTarget)
     || identifier.toLowerCase().includes(lowerTarget)
-    || identifiersMatch(identifier, target)
-  ) return true;
+    || identifiersMatch(identifier, target);
+};
+
+const participantMatch = (chat: BlueBubblesJson, target: string): boolean => {
+  const lowerTarget = target.toLowerCase();
   return recordArray(chat, "participants").some((participant) => {
     const address = stringField(participant, "address") ?? "";
     return address.toLowerCase().includes(lowerTarget)

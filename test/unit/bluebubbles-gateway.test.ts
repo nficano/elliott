@@ -112,6 +112,30 @@ describe("BlueBubbles iMessage read", () => {
     expect(await client.resolveChat("3474062025")).toBeDefined();
   });
 
+  it("prefers the direct thread over a group the handle is only a member of", async () => {
+    // The group is sorted first (most recent), but resolving a handle should
+    // land on that handle's own conversation, not a group it participates in.
+    const group = {
+      guid: "any;+;group-guid",
+      chatIdentifier: "any;+;group-guid",
+      displayName: "",
+      participants: [
+        { address: "+13474062025" },
+        { address: "+19995550000" },
+      ],
+    };
+    const fetcher: typeof fetch = (async () =>
+      Response.json({
+        status: 200,
+        data: [group, MOM_CHAT],
+      })) as typeof fetch;
+    const client = createBlueBubblesClient(SETTINGS, fetcher);
+    expect(await client.resolveChat("+13474062025")).toEqual({
+      guid: "any;-;+13474062025",
+      name: "Mom",
+    });
+  });
+
   it("uses a full chat GUID directly without a chat lookup", async () => {
     const log: string[] = [];
     const client = createBlueBubblesClient(SETTINGS, recordingFetcher(log));
