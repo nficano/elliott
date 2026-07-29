@@ -5,6 +5,7 @@ import { decodeRuntimeModelUsage } from "./usage";
 export const decodeCompletionStream = async (
   response: Response,
   onTextDelta: (delta: string) => Promise<void>,
+  onActivity?: () => void,
 ): Promise<ModelTurnResult> => {
   if (response.body === null) {
     throw new Error("LiteLLM returned an empty stream");
@@ -15,7 +16,7 @@ export const decodeCompletionStream = async (
     number,
     { id: string; name: string; arguments: string; }
   >();
-  await readServerEvents(response.body, async (data) => {
+  await readServerEvents(response.body, onActivity, async (data) => {
     if (data === "[DONE]") return;
     const payload = parseEvent(data);
     usage = decodeRuntimeModelUsage(payload) ?? usage;
@@ -42,6 +43,7 @@ export const decodeCompletionStream = async (
 
 const readServerEvents = async (
   body: ReadableStream<Uint8Array>,
+  onActivity: (() => void) | undefined,
   onData: (data: string) => Promise<void>,
 ): Promise<void> => {
   const reader = body.getReader();
@@ -49,6 +51,7 @@ const readServerEvents = async (
   let buffer = "";
   for (;;) {
     const next = await reader.read();
+    onActivity?.();
     buffer += decoder.decode(next.value, { stream: !next.done });
     buffer = buffer.replaceAll("\r\n", "\n");
     const parsed = await consumeEvents(buffer, onData);

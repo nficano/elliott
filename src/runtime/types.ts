@@ -394,6 +394,20 @@ export interface ModelTurnRequest {
   readonly allowTools: boolean;
 }
 
+// Inactivity budget for LiteLLM calls: initial covers time-to-first-byte (a
+// non-streaming completion generates fully before answering); every streamed
+// chunk then resets the shorter inactivity allowance.
+export interface ModelCallTimeouts {
+  readonly initialMilliseconds: number;
+  readonly inactivityMilliseconds: number;
+}
+
+export interface ModelCallWatchdog {
+  readonly signal: AbortSignal;
+  readonly touch: () => void;
+  readonly stop: () => void;
+}
+
 export interface RuntimeModelCompleter {
   readonly complete: (
     request: ModelTurnRequest,
