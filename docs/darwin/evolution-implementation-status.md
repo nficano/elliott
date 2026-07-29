@@ -306,7 +306,7 @@ deterministic property/fuzz corpora.
 | :--- | :--- |
 | DSPy evaluator | `sha256:20dda80b74813bacf606f581c6fc31736d2eb4c3740cae3db7bf785a48a10c04` |
 | Darwinian evaluator | `sha256:462ca94d9682b15ac6fb31a31db705f792f7d51855947f748c11a66da08bac52` |
-| Independent, code-check, and broad-gate evaluator | `sha256:3481a985ade2c8696fd2ad0de1a0224d3cc54ce725dc6e5c19d0ad6fcd6dd34c` |
+| Independent, code-check, and broad-gate evaluator | `sha256:83b8680e5b70759140a9baa26aad11cd5242253695cd3ccb6b5904ad937e4a6c` |
 
 The build lock records source digests, dependency locks, upstream revisions,
 artifact paths, platform, and smoke status. CI rejects source changes that are

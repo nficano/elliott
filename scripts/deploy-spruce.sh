@@ -66,7 +66,7 @@ rsync -az \
   --exclude .git \
   --exclude .repos \
   --exclude node_modules \
-  --exclude crates/hot-core/target \
+  --exclude native/hot-core/target \
   --exclude deploy/.env \
   ./ "$SPRUCE_HOST:$REMOTE_DIR/"
 rsync -az "$TEMP_DIR/.env" "$SPRUCE_HOST:$REMOTE_DIR/deploy/.env"

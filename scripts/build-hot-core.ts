@@ -4,13 +4,13 @@ import path from "node:path";
 const repositoryRoot = path.resolve(import.meta.dirname, "..");
 const manifest = path.join(
   repositoryRoot,
-  "crates",
+  "native",
   "hot-core",
   "Cargo.toml",
 );
 const releaseDirectory = path.join(
   repositoryRoot,
-  "crates",
+  "native",
   "hot-core",
   "target",
   "release",

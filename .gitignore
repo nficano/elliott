@@ -11,5 +11,5 @@ __pycache__/
 .elliott-runtime/
 .artifacts/
 .repos/effect
-crates/hot-core/target/
+native/hot-core/target/
 native/*.node

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "build": {
-    "observedAt": "2026-07-29T21:32:41Z",
+    "observedAt": "2026-07-29T22:16:46Z",
     "platform": "linux/arm64",
     "optimizerRuntimeSourceDigest": "sha256:10bbc4c64a1d65f301af11003f3d75caa88525c79e75513bf36aee8814d8afc0",
     "distribution": "local-oci",
@@ -11,7 +11,7 @@
     "evaluator-dspy": {
       "localReference": "elliott/evaluator-dspy@sha256:20dda80b74813bacf606f581c6fc31736d2eb4c3740cae3db7bf785a48a10c04",
       "ociManifestDigest": "sha256:20dda80b74813bacf606f581c6fc31736d2eb4c3740cae3db7bf785a48a10c04",
-      "sourceDigest": "sha256:3b9691fc5f17b292fd600cf69a757a1d9077de355245f7329e3abacb7f33b69b",
+      "sourceDigest": "sha256:2b8215c56f949c0b786728483464de5a96aa23ebe7ca03432ee7429ebfad27f8",
       "artifact": ".artifacts/evolution-companions/evaluator-dspy.oci.tar",
       "dependency": {
         "name": "dspy",
@@ -23,7 +23,7 @@
     "evaluator-darwinian": {
       "localReference": "elliott/evaluator-darwinian@sha256:462ca94d9682b15ac6fb31a31db705f792f7d51855947f748c11a66da08bac52",
       "ociManifestDigest": "sha256:462ca94d9682b15ac6fb31a31db705f792f7d51855947f748c11a66da08bac52",
-      "sourceDigest": "sha256:9d94a87c35e6c49f281a09e7a85da4f9d6931d9f49bc667f318e11063aaee1e2",
+      "sourceDigest": "sha256:ff0b36e0e0d8fbae5974444d2594fbe5f74baa15e7a3070d482292e1ffec422c",
       "artifact": ".artifacts/evolution-companions/evaluator-darwinian.oci.tar",
       "dependency": {
         "name": "darwinian-evolver",
@@ -35,9 +35,9 @@
       "correspondingSourcePath": "/usr/share/darwinian-evolver/source"
     },
     "evaluator-agent-benchmarks": {
-      "localReference": "elliott/evaluator-agent-benchmarks@sha256:3481a985ade2c8696fd2ad0de1a0224d3cc54ce725dc6e5c19d0ad6fcd6dd34c",
-      "ociManifestDigest": "sha256:3481a985ade2c8696fd2ad0de1a0224d3cc54ce725dc6e5c19d0ad6fcd6dd34c",
-      "sourceDigest": "sha256:51a109a8eb400fb1deb0f1f12207ff4677e16b3940a771e09e0a539593c28256",
+      "localReference": "elliott/evaluator-agent-benchmarks@sha256:83b8680e5b70759140a9baa26aad11cd5242253695cd3ccb6b5904ad937e4a6c",
+      "ociManifestDigest": "sha256:83b8680e5b70759140a9baa26aad11cd5242253695cd3ccb6b5904ad937e4a6c",
+      "sourceDigest": "sha256:f18451c9cdad7824982585145b105ebb8976a1af758d7623f7e486f3714be92c",
       "artifact": ".artifacts/evolution-companions/evaluator-agent-benchmarks.oci.tar",
       "dependencyLock": "companions/evaluators/agent-benchmarks/benchmark/drivers.json",
       "fixtureSmokePassed": true

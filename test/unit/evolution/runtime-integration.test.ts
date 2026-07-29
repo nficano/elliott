@@ -137,7 +137,7 @@ describe("runtime evolution integration", () => {
       }\n`,
     );
     expect(result.target.mutationPath).toBe(
-      "catalog/tool-descriptions/catalog.json",
+      "assets/tool-descriptions.json",
     );
   });
 
@@ -573,8 +573,8 @@ describe("runtime evolution integration", () => {
       ...baseRun.target,
       targetClass: "tool-description",
       baselineDigest: hashBytes(baseline),
-      mutationPath: "catalog/tool-descriptions/catalog.json",
-      allowedMutationPaths: ["catalog/tool-descriptions/catalog.json"],
+      mutationPath: "assets/tool-descriptions.json",
+      allowedMutationPaths: ["assets/tool-descriptions.json"],
       frozenPaths: [],
     });
     const run = EvolutionRun.make({ ...baseRun, target });
@@ -587,7 +587,7 @@ describe("runtime evolution integration", () => {
           candidateDigest: hashBytes(candidateContent),
           materializedContent: candidateContent,
           patch:
-            "--- a/catalog/tool-descriptions/catalog.json\n+++ b/catalog/tool-descriptions/catalog.json\n-old\n+new\n",
+            "--- a/assets/tool-descriptions.json\n+++ b/assets/tool-descriptions.json\n-old\n+new\n",
           constraints: [],
         }),
         baseline,

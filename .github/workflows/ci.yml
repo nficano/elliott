@@ -36,8 +36,8 @@ jobs:
       - run: bun test
       - run: bun run footprint:check
       - run: bun run hot-core:check
-      - run: cargo fmt --manifest-path crates/hot-core/Cargo.toml --all -- --check
-      - run: cargo clippy --manifest-path crates/hot-core/Cargo.toml --workspace --all-targets -- -D warnings
+      - run: cargo fmt --manifest-path native/hot-core/Cargo.toml --all -- --check
+      - run: cargo clippy --manifest-path native/hot-core/Cargo.toml --workspace --all-targets -- -D warnings
 
   # Deploy retired (phase 2): elliott is now a framework consumed as a package.
   # The deployable is the tide-pods pod repo (github.com/nficano/tide-pods),

@@ -14,7 +14,7 @@ spec:
   outputTrust: untrusted
   companions:
     - name: agent-benchmarks
-      image: elliott/evaluator-agent-benchmarks@sha256:3481a985ade2c8696fd2ad0de1a0224d3cc54ce725dc6e5c19d0ad6fcd6dd34c
+      image: elliott/evaluator-agent-benchmarks@sha256:83b8680e5b70759140a9baa26aad11cd5242253695cd3ccb6b5904ad937e4a6c
       endpoint: http://127.0.0.1:9073
       egress: { class: none }
       volumes: []

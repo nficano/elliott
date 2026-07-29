@@ -93,11 +93,11 @@ targets:
   - componentRef: core/tool/description-catalog
     targetClass: tool-description
     riskClass: C2
-    baselinePath: catalog/tool-descriptions/catalog.json
-    mutationPath: catalog/tool-descriptions/catalog.json
+    baselinePath: assets/tool-descriptions.json
+    mutationPath: assets/tool-descriptions.json
     runtimeToolNames: ["*"]
     defaultSources: [synthetic]
-    allowedMutationPaths: [catalog/tool-descriptions/catalog.json]
+    allowedMutationPaths: [assets/tool-descriptions.json]
     frozenPaths:
       - src/runtime/skills
       - src/catalog

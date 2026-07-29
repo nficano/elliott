@@ -7,7 +7,7 @@ import security from "eslint-plugin-security";
 import sonarjs from "eslint-plugin-sonarjs";
 import unicorn from "eslint-plugin-unicorn";
 import tseslint from "typescript-eslint";
-import local from "./eslint-rules/index.js";
+import local from "./.eslint-rules/index.js";
 
 // dprint typescript config — 2-space / double-quote / semicolon style. The
 // ESLint `@effect/dprint` rule formats via the bundled @dprint/typescript
@@ -53,7 +53,7 @@ export default tseslint.config(
       "coverage/**",
       ".repos/**",
       "**/.venv/**",
-      "crates/hot-core/target/**",
+      "native/hot-core/target/**",
       // The telemetry-map Nuxt app carries its own Vue-aware ESLint config
       // (skills/telemetry-map/app/eslint.config.js) mirroring these rules.
       "skills/telemetry-map/app/**",
@@ -84,7 +84,7 @@ export default tseslint.config(
         projectService: {
           allowDefaultProject: [
             "eslint.config.js",
-            "eslint-rules/*.js",
+            ".eslint-rules/*.js",
           ],
         },
         tsconfigRootDir: import.meta.dirname,
@@ -211,7 +211,7 @@ export default tseslint.config(
   },
   {
     ...tseslint.configs.disableTypeChecked,
-    files: ["eslint-rules/**/*.js"],
+    files: [".eslint-rules/**/*.js"],
     rules: {
       ...tseslint.configs.disableTypeChecked.rules,
       complexity: "off",

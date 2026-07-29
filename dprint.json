@@ -12,7 +12,7 @@
     "**/.repos",
     "**/dist",
     "**/coverage",
-    "crates/hot-core/target",
+    "native/hot-core/target",
     "bun.lock",
     "skills/telemetry-map/app"
   ],
