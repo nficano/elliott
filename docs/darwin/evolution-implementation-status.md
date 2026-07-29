@@ -37,7 +37,7 @@ Those are deployment activities, not results that CI can synthesize.
 | Code adapter and sandbox | `targets/code.ts`, `engine/isolation.ts`, `application/code-sandbox.ts`, pre-shortlist `application/code-checker.ts` |
 | GEPA and MIPROv2 boundary | `skills/evaluator-dspy/` |
 | Darwinian boundary | `skills/evaluator-darwinian/` |
-| Independent evaluation and broad benchmark boundary | `skills/evaluator-agent-benchmarks/`, `companions/benchmarks/evaluation_worker.py` |
+| Independent evaluation and broad benchmark boundary | `skills/evaluator-agent-benchmarks/`, `companions/benchmarks/evaluation.ts` |
 | Reproducible companion images | `companions/`, `companions/evolution-images.lock.json` |
 | Proposal and release transaction | `release/`, including post-release regression monitoring and operator-rollback notification |
 | Optional Git projection | `release/git-cli-projection.ts`, using an isolated temporary clone and effect-gating publication intent |
@@ -306,7 +306,7 @@ deterministic property/fuzz corpora.
 | :--- | :--- |
 | DSPy evaluator | `sha256:83644cc6c9bdcf08bd5c8b1f47f76eb2bab4eafefb2f75b7214ce30eb5b26a3e` |
 | Darwinian evaluator | `sha256:c6cfd9830f0b91a8e1879c0d18ae97ea42f08b80a136baa54b146252c02bf297` |
-| Independent, code-check, and broad-gate evaluator | `sha256:f71445244f0a74512cd92f1d9d62355052c3ea82c26e3b0ca7f1c97057cc4245` |
+| Independent, code-check, and broad-gate evaluator | `sha256:d0d0a2c81321378d0c0297ad48ec196c5692d3222172273d75ae588f11ecfc5c` |
 
 The build lock records source digests, dependency locks, upstream revisions,
 artifact paths, platform, and smoke status. CI rejects source changes that are

@@ -216,7 +216,11 @@ class CompanionServer(ThreadingHTTPServer):
 
 
 class Handler(BaseHTTPRequestHandler):
-    server: CompanionServer
+    def _companion(self) -> CompanionServer:
+        server = self.server
+        if not isinstance(server, CompanionServer):
+            raise TypeError("handler is not bound to a CompanionServer")
+        return server
 
     def log_message(self, format: str, *args: object) -> None:
         sys.stderr.write(
@@ -264,17 +268,17 @@ class Handler(BaseHTTPRequestHandler):
         try:
             request = self._read_json()
             if self.path == "/v1/optimize":
-                result = self.server.controller.start(request)
+                result = self._companion().controller.start(request)
             elif self.path == "/v1/pause":
-                result = self.server.controller.pause(
+                result = self._companion().controller.pause(
                     require_string(request.get("runId"), "runId")
                 )
             elif self.path == "/v1/resume":
-                result = self.server.controller.resume(
+                result = self._companion().controller.resume(
                     require_string(request.get("resumeToken"), "resumeToken")
                 )
             elif self.path == "/v1/cancel":
-                self.server.controller.cancel(
+                self._companion().controller.cancel(
                     require_string(request.get("runId"), "runId")
                 )
                 result = {}

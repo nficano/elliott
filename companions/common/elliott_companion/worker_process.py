@@ -7,12 +7,14 @@ import sys
 import traceback
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from .wire import MAX_RESPONSE_BYTES, canonical_json
 
+WorkerFn = Callable[[dict[str, Any]], dict[str, Any]]
 
-def _load_worker(reference: str) -> Callable[[dict[str, Any]], dict[str, Any]]:
+
+def _load_worker(reference: str) -> WorkerFn:
     module_name, separator, function_name = reference.partition(":")
     if not separator or not module_name or not function_name:
         raise ValueError("worker reference must have module:function form")
@@ -20,7 +22,7 @@ def _load_worker(reference: str) -> Callable[[dict[str, Any]], dict[str, Any]]:
     worker = getattr(module, function_name)
     if not callable(worker):
         raise TypeError("worker reference is not callable")
-    return worker
+    return cast(WorkerFn, worker)
 
 
 def _write_atomic(path: Path, value: dict[str, Any]) -> None:

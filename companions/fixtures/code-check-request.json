@@ -2,17 +2,52 @@
   "operation": "checkCandidate",
   "run": {
     "id": "evr_codecheck1",
+    "principalId": "EvolutionEvaluator",
+    "baselineSnapshotId": "snapshot-baseline",
+    "engineRef": "organization/evaluator/darwinian",
+    "engineKind": "darwinian",
+    "configurationDigest": "sha256:configuration",
+    "signalIds": [],
     "target": {
       "targetClass": "code",
-      "baselineDigest": "sha256:baseline"
-    }
+      "componentRef": "core/code-check/smoke",
+      "baselineDigest": "sha256:baseline",
+      "riskClass": "C2",
+      "mutationPath": "src/value.ts",
+      "allowedMutationPaths": ["src/value.ts"],
+      "frozenPaths": []
+    },
+    "budgets": {
+      "maximumCandidates": 2,
+      "maximumTokens": 100,
+      "maximumCostUsd": 1,
+      "maximumDurationMilliseconds": 30000,
+      "maximumConcurrency": 1
+    },
+    "state": {
+      "_tag": "shortlisted",
+      "candidateIds": ["evc_codecheck1"],
+      "sealedAt": "2026-01-01T00:00:00Z"
+    },
+    "createdAt": "2026-01-01T00:00:00Z",
+    "updatedAt": "2026-01-01T00:00:00Z"
   },
   "candidate": {
     "id": "evc_codecheck1",
     "runId": "evr_codecheck1",
     "targetDigest": "sha256:baseline",
     "candidateDigest": "sha256:3d844efb6f2cbb888ed99af04d256dacb2417544fe6572ed47aa937f4312ccca",
-    "materializedContent": "{\"files\":{\"src/value.ts\":\"export const value = 2;\\n\"}}"
+    "patch": "--- a/src/value.ts\n+++ b/src/value.ts\n",
+    "materializedContent": "{\"files\":{\"src/value.ts\":\"export const value = 2;\\n\"}}",
+    "engineTraceDigest": "sha256:trace",
+    "usage": {
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "costUsd": 0,
+      "latencyMilliseconds": 0
+    },
+    "constraints": [],
+    "createdAt": "2026-01-01T00:00:00Z"
   },
   "codeSandbox": {
     "checkoutRef": "candidate://code-check",

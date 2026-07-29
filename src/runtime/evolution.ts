@@ -336,7 +336,11 @@ export const makeRuntimeEvolutionIntegration = async (
     candidateValidator: makeFileEvolutionCandidateValidator(
       runtime.candidateCheckEndpoint === undefined
         ? undefined
-        : makeHttpTrustedCodeChecker(runtime.candidateCheckEndpoint),
+        : makeHttpTrustedCodeChecker(
+          runtime.candidateCheckEndpoint,
+          globalThis.fetch,
+          runtime.evaluatorToken,
+        ),
     ),
   });
   const proposalStore = await FileProposalStore.open({
@@ -348,7 +352,12 @@ export const makeRuntimeEvolutionIntegration = async (
       ? unavailableIndependentEvaluator(
         "ELLIOTT_EVOLUTION_EVALUATOR_URL is not configured",
       )
-      : makeHttpIndependentEvaluator({ endpoint: runtime.evaluatorEndpoint });
+      : makeHttpIndependentEvaluator({
+        endpoint: runtime.evaluatorEndpoint,
+        ...(runtime.evaluatorToken !== undefined && {
+          token: runtime.evaluatorToken,
+        }),
+      });
   const evaluator = withIndependentEvaluatorCache(
     uncachedEvaluator,
     makeFileEvaluationCache(stateRoot),

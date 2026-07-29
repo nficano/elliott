@@ -388,7 +388,11 @@ export const makeRuntimeContinuousEvolutionService = (input: {
         ? unavailableEvolutionBenchmarkRunner(
           "ELLIOTT_EVOLUTION_EVALUATOR_URL is not configured",
         )
-        : makeHttpEvolutionBenchmarkRunner(input.runtime.evaluatorEndpoint);
+        : makeHttpEvolutionBenchmarkRunner(
+          input.runtime.evaluatorEndpoint,
+          globalThis.fetch,
+          input.runtime.evaluatorToken,
+        );
       const benchmarkBudgets = EvolutionBudgets.make({
         maximumCandidates: input.config.budgets.perRun.candidates,
         maximumTokens: input.config.budgets.perRun.tokens,

@@ -3,18 +3,20 @@ import type { Hash } from "node:crypto";
 import { digest } from "../core/brands";
 import { hashValue } from "../core/digest";
 import type { Digest } from "../core/types";
+import { createNativeScanner } from "./native";
 import type {
   CompiledPattern,
   IncrementalDigest,
   IncrementalScanner,
   ScanMatch,
+  ScannerBackend,
 } from "./types";
 
-const prefixTable = (pattern: string): readonly number[] => {
-  const table = Array.from({ length: pattern.length }, () => 0);
+const prefixTable = (characters: readonly string[]): readonly number[] => {
+  const table = Array.from({ length: characters.length }, () => 0);
   let prefix = 0;
-  for (let index = 1; index < pattern.length;) {
-    if (pattern[index] === pattern[prefix]) {
+  for (let index = 1; index < characters.length;) {
+    if (characters[index] === characters[prefix]) {
       prefix += 1;
       table[index] = prefix;
       index += 1;
@@ -33,13 +35,13 @@ const advancePattern = (
   character: string,
 ): number => {
   let next = state;
-  while (next > 0 && character !== compiled.pattern[next]) {
+  while (next > 0 && character !== compiled.characters[next]) {
     next = compiled.table[next - 1] ?? 0;
   }
-  return character === compiled.pattern[next] ? next + 1 : next;
+  return character === compiled.characters[next] ? next + 1 : next;
 };
 
-export class LinearDfaScanner implements IncrementalScanner {
+export class TypeScriptLinearDfaScanner implements IncrementalScanner {
   readonly #compiled: readonly CompiledPattern[];
   readonly #states: number[];
   #offset = 0;
@@ -48,10 +50,14 @@ export class LinearDfaScanner implements IncrementalScanner {
     if (patterns.some((pattern) => pattern.length === 0)) {
       throw new Error("Scanner patterns cannot be empty");
     }
-    this.#compiled = Object.freeze(patterns.map((pattern) => ({
-      pattern,
-      table: prefixTable(pattern),
-    })));
+    this.#compiled = Object.freeze(patterns.map((pattern) => {
+      const characters = Object.freeze([...pattern]);
+      return Object.freeze({
+        pattern,
+        characters,
+        table: prefixTable(characters),
+      });
+    }));
     this.#states = patterns.map(() => 0);
   }
 
@@ -78,7 +84,7 @@ export class LinearDfaScanner implements IncrementalScanner {
         this.#states[index] ?? 0,
         character,
       );
-      if (state === compiled.pattern.length) {
+      if (state === compiled.characters.length) {
         matches.push({
           pattern: compiled.pattern,
           endOffset: this.#offset + 1,
@@ -87,6 +93,25 @@ export class LinearDfaScanner implements IncrementalScanner {
       }
       this.#states[index] = state;
     }
+  }
+}
+
+export class LinearDfaScanner implements IncrementalScanner {
+  readonly #implementation: IncrementalScanner;
+  readonly backend: ScannerBackend;
+
+  constructor(patterns: readonly string[]) {
+    const native = createNativeScanner(patterns);
+    this.#implementation = native ?? new TypeScriptLinearDfaScanner(patterns);
+    this.backend = native === undefined ? "typescript" : "native";
+  }
+
+  push(chunk: string): readonly ScanMatch[] {
+    return this.#implementation.push(chunk);
+  }
+
+  reset(): void {
+    this.#implementation.reset();
   }
 }
 
@@ -111,4 +136,5 @@ export const auditChainLink = (
   payload: unknown,
 ): Digest => hashValue({ previous, payload });
 
+export { createNativeScanner, isNativeScannerAvailable } from "./native";
 export type * from "./types";

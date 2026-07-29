@@ -246,6 +246,7 @@ export interface RuntimeEvolutionSettings {
   readonly dspyEndpoint?: string;
   readonly darwinianEndpoint?: string;
   readonly evaluatorEndpoint?: string;
+  readonly evaluatorToken?: string;
   readonly candidateCheckEndpoint?: string;
   readonly canaryEndpoint?: string;
   readonly authoringRouteDigest?: string;

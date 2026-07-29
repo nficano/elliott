@@ -147,6 +147,10 @@ const runtimeEvolutionSettings = (): {
         environment["ELLIOTT_EVOLUTION_EVALUATOR_URL"],
       ),
       ...optionalValue(
+        "evaluatorToken",
+        environment["ELLIOTT_EVOLUTION_EVALUATOR_TOKEN"],
+      ),
+      ...optionalValue(
         "candidateCheckEndpoint",
         environment["ELLIOTT_EVOLUTION_CANDIDATE_CHECK_URL"],
       ),

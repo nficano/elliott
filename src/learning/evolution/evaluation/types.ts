@@ -58,6 +58,7 @@ export interface EvolutionCaseExecutor {
 
 export interface HttpIndependentEvaluatorConfig {
   readonly endpoint: string;
+  readonly token?: string;
   readonly fetch?: typeof globalThis.fetch;
 }
 

@@ -26,7 +26,12 @@ const post = (
         new URL(input.path, config.endpoint),
         {
           method: "POST",
-          headers: { "content-type": "application/json" },
+          headers: {
+            ...(config.token !== undefined && {
+              authorization: `Bearer ${config.token}`,
+            }),
+            "content-type": "application/json",
+          },
           body: JSON.stringify(input.body),
         },
       );

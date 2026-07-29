@@ -8,3 +8,14 @@ dependencies = [
 
 [tool.uv]
 package = false
+
+# The worker imports elliott_companion from companions/common via PYTHONPATH in
+# the image/check script; point basedpyright at the same layout for local IDE.
+# Use the local uv venv so dspy's real exports (Signature, LM, GEPA, …) resolve.
+[tool.basedpyright]
+extraPaths = ["../common", "../typings"]
+stubPath = "../typings"
+venvPath = "."
+venv = ".venv"
+pythonVersion = "3.12"
+reportMissingModuleSource = "none"

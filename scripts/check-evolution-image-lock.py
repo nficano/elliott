@@ -32,12 +32,30 @@ SOURCE_FILES = {
     ],
     "evaluator-agent-benchmarks": [
         "companions/benchmarks/Dockerfile",
-        "companions/benchmarks/benchmark_worker.py",
-        "companions/benchmarks/benchmark_server.py",
-        "companions/benchmarks/code_check_worker.py",
-        "companions/benchmarks/evaluation_worker.py",
-        "companions/benchmarks/snapshot_executor_driver.py",
+        "companions/benchmarks/benchmark.ts",
+        "companions/benchmarks/benchmark-config.ts",
+        "companions/benchmarks/benchmark-driver.ts",
+        "companions/benchmarks/benchmark-result.ts",
+        "companions/benchmarks/code-check.ts",
+        "companions/benchmarks/evaluation.ts",
+        "companions/benchmarks/evaluation-baseline.ts",
+        "companions/benchmarks/evaluation-benchmarks.ts",
+        "companions/benchmarks/evaluation-compare.ts",
+        "companions/benchmarks/evaluation-executor.ts",
+        "companions/benchmarks/evaluation-metrics.ts",
+        "companions/benchmarks/evaluation-validation.ts",
+        "companions/benchmarks/server.ts",
+        "companions/benchmarks/snapshot-executor-driver.ts",
         "companions/benchmarks/benchmark-drivers.json",
+        "companions/typescript/server.ts",
+        "companions/typescript/smoke.ts",
+        "companions/typescript/wire.ts",
+        "package.json",
+        "bun.lock",
+        *sorted(
+            str(path.relative_to(ROOT))
+            for path in (ROOT / "src").rglob("*.ts")
+        ),
     ],
 }
 MANIFESTS = {

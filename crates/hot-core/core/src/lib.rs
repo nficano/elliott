@@ -13,8 +13,9 @@ pub struct ScanMatch {
 pub struct StreamingScanner {
     automaton: AhoCorasick,
     patterns: Vec<String>,
+    pattern_character_lengths: Vec<usize>,
     tail: String,
-    consumed: usize,
+    consumed_characters: usize,
     maximum_pattern_bytes: usize,
 }
 
@@ -24,35 +25,63 @@ impl StreamingScanner {
             return Err("scanner patterns cannot be empty".to_owned());
         }
         let maximum_pattern_bytes = patterns.iter().map(String::len).max().unwrap_or(0);
+        let pattern_character_lengths = patterns
+            .iter()
+            .map(|pattern| pattern.chars().count())
+            .collect();
         let automaton = AhoCorasick::new(&patterns).map_err(|error| error.to_string())?;
         Ok(Self {
             automaton,
             patterns,
+            pattern_character_lengths,
             tail: String::new(),
-            consumed: 0,
+            consumed_characters: 0,
             maximum_pattern_bytes,
         })
     }
 
     pub fn push(&mut self, chunk: &str) -> Vec<ScanMatch> {
         let tail_bytes = self.tail.len();
+        let tail_characters = self.tail.chars().count();
         let mut window = self.tail.clone();
         window.push_str(chunk);
-        let window_origin = self.consumed.saturating_sub(tail_bytes);
-        let mut matches = Vec::new();
-        for found in self.automaton.find_iter(&window) {
+        let window_origin = self.consumed_characters.saturating_sub(tail_characters);
+        let mut byte_matches = Vec::new();
+        for found in self.automaton.find_overlapping_iter(&window) {
             if found.end() <= tail_bytes {
                 continue;
             }
+            byte_matches.push((found.pattern().as_usize(), found.end()));
+        }
+        byte_matches.sort_by_key(|found| (found.1, found.0));
+        let mut byte_offset = 0;
+        let mut character_offset = 0;
+        let mut matches = Vec::with_capacity(byte_matches.len());
+        for (pattern, end_byte) in byte_matches {
+            while byte_offset < end_byte {
+                let character = window[byte_offset..]
+                    .chars()
+                    .next()
+                    .expect("match byte offset must be within the scan window");
+                byte_offset += character.len_utf8();
+                character_offset += 1;
+            }
+            let end = window_origin + character_offset;
+            let pattern_length = self.pattern_character_lengths[pattern];
             matches.push(ScanMatch {
-                pattern: found.pattern().as_usize(),
-                start: window_origin + found.start(),
-                end: window_origin + found.end(),
+                pattern,
+                start: end.saturating_sub(pattern_length),
+                end,
             });
         }
-        self.consumed += chunk.len();
+        self.consumed_characters += chunk.chars().count();
         self.tail = utf8_tail(&window, self.maximum_pattern_bytes.saturating_sub(1));
         matches
+    }
+
+    pub fn reset(&mut self) {
+        self.tail.clear();
+        self.consumed_characters = 0;
     }
 
     pub fn pattern(&self, index: usize) -> Option<&str> {
@@ -131,6 +160,75 @@ mod tests {
         let mut scanner = StreamingScanner::new(vec!["secret".to_owned()]).unwrap();
         assert!(scanner.push("secr").is_empty());
         assert_eq!(scanner.push("et")[0].start, 0);
+    }
+
+    #[test]
+    fn reports_overlapping_patterns_in_stream_order() {
+        let mut scanner =
+            StreamingScanner::new(vec!["aba".to_owned(), "ba".to_owned(), "a".to_owned()]).unwrap();
+        assert_eq!(
+            scanner.push("ababa"),
+            vec![
+                ScanMatch {
+                    pattern: 2,
+                    start: 0,
+                    end: 1,
+                },
+                ScanMatch {
+                    pattern: 0,
+                    start: 0,
+                    end: 3,
+                },
+                ScanMatch {
+                    pattern: 1,
+                    start: 1,
+                    end: 3,
+                },
+                ScanMatch {
+                    pattern: 2,
+                    start: 2,
+                    end: 3,
+                },
+                ScanMatch {
+                    pattern: 0,
+                    start: 2,
+                    end: 5,
+                },
+                ScanMatch {
+                    pattern: 1,
+                    start: 3,
+                    end: 5,
+                },
+                ScanMatch {
+                    pattern: 2,
+                    start: 4,
+                    end: 5,
+                },
+            ]
+        );
+    }
+
+    #[test]
+    fn uses_unicode_scalar_offsets_and_resets() {
+        let mut scanner = StreamingScanner::new(vec!["💥é".to_owned()]).unwrap();
+        assert!(scanner.push("a💥").is_empty());
+        assert_eq!(
+            scanner.push("é"),
+            vec![ScanMatch {
+                pattern: 0,
+                start: 1,
+                end: 3,
+            }]
+        );
+        scanner.reset();
+        assert_eq!(scanner.push("💥é")[0].end, 2);
+    }
+
+    #[test]
+    fn scans_match_dense_input_without_recounting_prefixes() {
+        let input = "a".repeat(16_384);
+        let mut scanner = StreamingScanner::new(vec!["a".to_owned()]).unwrap();
+        assert_eq!(scanner.push(&input).len(), input.len());
     }
 
     #[test]

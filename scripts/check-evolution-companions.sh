@@ -6,12 +6,13 @@ cd "${repository_root}"
 
 export PYTHONPATH="${repository_root}/companions/common:${repository_root}/companions/dspy:${repository_root}/companions/darwinian:${repository_root}/companions/benchmarks:${repository_root}/companions/tests"
 
+bun test \
+  companions/benchmarks/benchmark.test.ts \
+  companions/typescript/server.test.ts
+
 python3 -m unittest \
   companions/dspy/test_dspy_worker.py \
   companions/darwinian/test_darwinian_worker.py \
-  companions/benchmarks/test_benchmark_worker.py \
-  companions/benchmarks/test_code_check_worker.py \
-  companions/benchmarks/test_evaluation_worker.py \
   companions/tests/test_job_server.py
 
 rg --files companions \

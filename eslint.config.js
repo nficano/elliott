@@ -52,6 +52,7 @@ export default tseslint.config(
       "dist/**",
       "coverage/**",
       ".repos/**",
+      "**/.venv/**",
       "crates/hot-core/target/**",
       // The telemetry-map Nuxt app carries its own Vue-aware ESLint config
       // (skills/telemetry-map/app/eslint.config.js) mirroring these rules.

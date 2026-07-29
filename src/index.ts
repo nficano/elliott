@@ -15,4 +15,15 @@ export {
 export { ComponentRegistry } from "./core/registry/registry";
 export type * from "./core/types";
 export type * from "./core/waist/types";
+export {
+  createNativeScanner,
+  isNativeScannerAvailable,
+  LinearDfaScanner,
+  TypeScriptLinearDfaScanner,
+} from "./hotcore/index";
+export type {
+  IncrementalScanner,
+  ScanMatch,
+  ScannerBackend,
+} from "./hotcore/types";
 export { AgentKernel } from "./kernel";

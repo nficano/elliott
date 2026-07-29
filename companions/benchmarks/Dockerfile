@@ -1,22 +1,36 @@
-FROM python:3.12.11-slim@sha256:47ae396f09c1303b8653019811a8498470603d7ffefc29cb07c88f1f8cb3d19f
+FROM oven/bun:1.3.8-slim@sha256:68fc2eac7f5dcfc2f69a81d1db02786ab08772eda2e4404eae785c038f8d2e41
 
 WORKDIR /opt/elliott
-COPY companions/common/elliott_companion ./elliott_companion
-COPY companions/benchmarks/benchmark_worker.py \
-     companions/benchmarks/benchmark_server.py \
-     companions/benchmarks/code_check_worker.py \
-     companions/benchmarks/evaluation_worker.py \
-     companions/benchmarks/snapshot_executor_driver.py \
+
+COPY package.json bun.lock ./
+RUN bun install --production --frozen-lockfile --ignore-scripts
+
+COPY src ./src
+COPY companions/typescript/wire.ts \
+     companions/typescript/server.ts \
+     companions/typescript/smoke.ts \
+     ./companions/typescript/
+COPY companions/benchmarks/benchmark.ts \
+     companions/benchmarks/benchmark-config.ts \
+     companions/benchmarks/benchmark-driver.ts \
+     companions/benchmarks/benchmark-result.ts \
+     companions/benchmarks/code-check.ts \
+     companions/benchmarks/evaluation.ts \
+     companions/benchmarks/evaluation-baseline.ts \
+     companions/benchmarks/evaluation-benchmarks.ts \
+     companions/benchmarks/evaluation-compare.ts \
+     companions/benchmarks/evaluation-executor.ts \
+     companions/benchmarks/evaluation-metrics.ts \
+     companions/benchmarks/evaluation-validation.ts \
+     companions/benchmarks/server.ts \
+     companions/benchmarks/snapshot-executor-driver.ts \
      companions/benchmarks/benchmark-drivers.json \
-     ./
+     ./companions/benchmarks/
 
-RUN useradd --system --uid 65532 --home /nonexistent --shell /usr/sbin/nologin elliott \
-    && chown -R elliott:elliott /opt/elliott
+RUN chown -R bun:bun /opt/elliott
 
-ENV ELLIOTT_BENCHMARK_DRIVER_CONFIG="/opt/elliott/benchmark-drivers.json" \
-    PYTHONPATH="/opt/elliott" \
-    PYTHONUNBUFFERED="1"
-USER 65532:65532
+ENV ELLIOTT_BENCHMARK_DRIVER_CONFIG="/opt/elliott/companions/benchmarks/benchmark-drivers.json"
+USER bun
 EXPOSE 9073
-ENTRYPOINT ["python", "/opt/elliott/benchmark_server.py"]
+ENTRYPOINT ["bun", "/opt/elliott/companions/benchmarks/server.ts"]
 CMD ["--port", "9073", "--maximum-jobs", "1"]

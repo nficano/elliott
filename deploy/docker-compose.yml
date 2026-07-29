@@ -301,6 +301,7 @@ services:
     restart: unless-stopped
     environment:
       ELLIOTT_COMPANION_FIXTURE: "1"
+      ELLIOTT_COMPANION_TOKEN: ${ELLIOTT_EVOLUTION_EVALUATOR_TOKEN:?rendered from Vault}
     networks: [evolution]
     read_only: true
     tmpfs:
@@ -312,7 +313,7 @@ services:
     mem_limit: 1g
     cpus: 1
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:9073/healthz', timeout=3)"]
+      test: ["CMD", "bun", "-e", "const r=await fetch('http://127.0.0.1:9073/healthz');if(!r.ok)process.exit(1)"]
       interval: 30s
       timeout: 5s
       retries: 5

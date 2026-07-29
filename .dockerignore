@@ -5,9 +5,11 @@
 node_modules
 **/node_modules
 .venv
+**/.venv
 __pycache__
 coverage
 crates/hot-core/target
+native/*.node
 test
 *.log
 .env

@@ -5,8 +5,7 @@ use napi_derive::napi;
 #[napi(object)]
 pub struct NativeScanMatch {
     pub pattern: String,
-    pub start: u32,
-    pub end: u32,
+    pub end_offset: f64,
 }
 
 #[napi]
@@ -32,11 +31,15 @@ impl NativeScanner {
                     .pattern(found.pattern)
                     .map(|pattern| NativeScanMatch {
                         pattern: pattern.to_owned(),
-                        start: found.start as u32,
-                        end: found.end as u32,
+                        end_offset: found.end as f64,
                     })
             })
             .collect()
+    }
+
+    #[napi]
+    pub fn reset(&mut self) {
+        self.inner.reset();
     }
 }
 

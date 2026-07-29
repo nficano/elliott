@@ -10,3 +10,4 @@ __pycache__/
 .artifacts/
 .repos/effect
 crates/hot-core/target/
+native/*.node

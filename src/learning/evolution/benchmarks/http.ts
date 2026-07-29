@@ -7,6 +7,7 @@ import type { EvolutionBenchmarkRunnerShape } from "../types";
 export const makeHttpEvolutionBenchmarkRunner = (
   endpoint: string,
   fetcher: typeof globalThis.fetch = fetch,
+  token?: string,
 ): EvolutionBenchmarkRunnerShape => ({
   invoke: (operation) =>
     Effect.tryPromise({
@@ -15,7 +16,12 @@ export const makeHttpEvolutionBenchmarkRunner = (
           new URL("/v1/run", endpoint),
           {
             method: "POST",
-            headers: { "content-type": "application/json" },
+            headers: {
+              ...(token !== undefined && {
+                authorization: `Bearer ${token}`,
+              }),
+              "content-type": "application/json",
+            },
             body: JSON.stringify(operation),
           },
         );

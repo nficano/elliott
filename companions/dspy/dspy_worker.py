@@ -118,7 +118,8 @@ def _instructions(program: Any) -> str:
     named_predictors = getattr(program, "named_predictors", None)
     if callable(named_predictors):
         values = []
-        for name, predictor in named_predictors():
+        predictors: Any = named_predictors()
+        for name, predictor in predictors:
             predictor_signature = getattr(predictor, "signature", None)
             predictor_instructions = getattr(predictor_signature, "instructions", None)
             if (
@@ -164,7 +165,9 @@ def _usage(lm: Any, elapsed_ms: int) -> dict[str, int | float]:
 def _optimize_with_dspy(
     request: dict[str, Any],
 ) -> tuple[str, dict[str, int | float], dict[str, Any], float]:
-    import dspy
+    # Imported as Any so local basedpyright does not depend on the companion
+    # venv being the active IDE interpreter; runtime still loads real DSPy.
+    dspy: Any = __import__("dspy")
 
     endpoint, token, model = _loopback_proxy()
     maximum_concurrency = min(request["maximumConcurrency"], 32)

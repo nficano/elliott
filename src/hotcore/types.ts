@@ -17,5 +17,8 @@ export interface IncrementalDigest {
 
 export interface CompiledPattern {
   readonly pattern: string;
+  readonly characters: readonly string[];
   readonly table: readonly number[];
 }
+
+export type ScannerBackend = "native" | "typescript";

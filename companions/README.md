@@ -13,6 +13,19 @@ Proposals, approval, promotion, and rollback.
 | `evaluator-darwinian` | Darwinian code evolution | Darwinian Evolver at `7f12365`, its corresponding AGPL source, Bun, and an Elliott-authorized loopback model proxy |
 | `evaluator-agent-benchmarks` | Pre-shortlist code checks, independent sealed-dataset comparison, and Snapshot-bound regression gates | Loopback code-check, case, and benchmark executors provisioned by the placement layer |
 
+The benchmark/evaluation companion and its shared HTTP boundary are TypeScript
+running on Bun. DSPy/GEPA/MIPROv2 and Darwinian Evolver remain Python because
+their algorithm libraries are Python-native; Elliott communicates with them
+over the same versioned REST contracts and never imports them into its process.
+The current boundary uses ordinary request/response HTTP. Add SSE only for
+future progress streams; optimizer control operations do not require
+WebSockets.
+
+Skills may own typed client adapters, capability declarations, schemas, and
+operator workflows. They must not execute untrusted candidate code in the
+Elliott process. Candidate checks and benchmark drivers remain behind the
+isolated executor boundary even when a skill initiates them.
+
 The observed local OCI digests and dependency revisions are recorded in
 [`evolution-images.lock.json`](./evolution-images.lock.json). The Component
 manifests refer to those local digest locks. A deployment must publish the same
@@ -28,8 +41,9 @@ bun run companions:build
 bun run companions:smoke
 ```
 
-`companions:check` runs pure fixture tests, process pause/resume/cancel tests,
-Python compilation, JSON validation, source-digest verification, and
+`companions:check` runs the TypeScript benchmark/evaluator fixture suite,
+Python optimizer fixture tests, process pause/resume/cancel tests, type and
+syntax checks, JSON validation, source-digest verification, and
 manifest-to-image-lock verification.
 
 `companions:build` produces native-platform OCI archives under
@@ -64,6 +78,7 @@ ELLIOTT_EVOLUTION_AGENT_CAPABILITIES=evolution.target.read,evolution.run.read
 ELLIOTT_EVOLUTION_DSPY_URL=<placement-owned DSPy endpoint>
 ELLIOTT_EVOLUTION_DARWINIAN_URL=<placement-owned Darwinian endpoint>
 ELLIOTT_EVOLUTION_EVALUATOR_URL=<independent evaluator endpoint>
+ELLIOTT_EVOLUTION_EVALUATOR_TOKEN=<scoped evaluator bearer token>
 ELLIOTT_EVOLUTION_CANDIDATE_CHECK_URL=<isolated code-check endpoint>
 ELLIOTT_EVOLUTION_CANARY_URL=<Snapshot-bound canary endpoint>
 ELLIOTT_EVOLUTION_AUTHORING_ROUTE_DIGEST=<authoring route policy digest>

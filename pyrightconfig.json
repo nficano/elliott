@@ -1,0 +1,19 @@
+{
+  "include": [
+    "companions/common",
+    "companions/darwinian",
+    "companions/dspy",
+    "companions/benchmarks",
+    "companions/tests"
+  ],
+  "extraPaths": [
+    "companions/common",
+    "companions/darwinian",
+    "companions/dspy",
+    "companions/benchmarks"
+  ],
+  "stubPath": "companions/typings",
+  "reportMissingModuleSource": "none",
+  "reportUninitializedInstanceVariable": "none",
+  "pythonVersion": "3.12"
+}
