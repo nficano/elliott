@@ -33,27 +33,27 @@ targets:
   - componentRef: core/code/duckduckgo-parser
     targetClass: code
     riskClass: C1
-    baselinePath: skills/search-duckduckgo/src/parser.ts
+    baselinePath: skills/search/duckduckgo/src/parser.ts
     runtimeToolName: duckduckgo_search
     defaultSources:
-      - target-specific:skills/search-duckduckgo/evals/evolution.yaml
+      - target-specific:skills/search/duckduckgo/evals/evolution.yaml
       - synthetic:3
-    allowedMutationPaths: [skills/search-duckduckgo/src/parser.ts]
+    allowedMutationPaths: [skills/search/duckduckgo/src/parser.ts]
     frozenPaths:
-      - skills/search-duckduckgo/manifest.yaml
-      - skills/search-duckduckgo/src/index.ts
-      - skills/search-duckduckgo/src/types.ts
-      - skills/search-duckduckgo/evals/evolution.yaml
-      - skills/search-duckduckgo/evals/parser.test.ts
+      - skills/search/duckduckgo/manifest.yaml
+      - skills/search/duckduckgo/src/index.ts
+      - skills/search/duckduckgo/src/types.ts
+      - skills/search/duckduckgo/evals/evolution.yaml
+      - skills/search/duckduckgo/evals/parser.test.ts
       - test/unit/duckduckgo-search.test.ts
     codeSandbox:
       checkoutPaths:
-        - skills/search-duckduckgo/src/parser.ts
-        - skills/search-duckduckgo/src/types.ts
-        - skills/search-duckduckgo/evals/parser.test.ts
-      targetFiles: [skills/search-duckduckgo/src/parser.ts]
+        - skills/search/duckduckgo/src/parser.ts
+        - skills/search/duckduckgo/src/types.ts
+        - skills/search/duckduckgo/evals/parser.test.ts
+      targetFiles: [skills/search/duckduckgo/src/parser.ts]
       testCommands:
-        - [bun, test, skills/search-duckduckgo/evals/parser.test.ts]
+        - [bun, test, skills/search/duckduckgo/evals/parser.test.ts]
       cpuQuota: 1
       memoryMb: 512
       pids: 64
@@ -61,31 +61,31 @@ targets:
   - componentRef: core/code/duckduckgo-tool
     targetClass: code
     riskClass: C2
-    baselinePath: skills/search-duckduckgo/src/index.ts
+    baselinePath: skills/search/duckduckgo/src/index.ts
     runtimeToolName: duckduckgo_search
     defaultSources:
-      - target-specific:skills/search-duckduckgo/evals/tool-evolution.yaml
+      - target-specific:skills/search/duckduckgo/evals/tool-evolution.yaml
       - synthetic:3
-    allowedMutationPaths: [skills/search-duckduckgo/src/index.ts]
+    allowedMutationPaths: [skills/search/duckduckgo/src/index.ts]
     frozenPaths:
-      - skills/search-duckduckgo/manifest.yaml
-      - skills/search-duckduckgo/src/parser.ts
-      - skills/search-duckduckgo/src/types.ts
-      - skills/search-duckduckgo/evals/tool-evolution.yaml
-      - skills/search-duckduckgo/evals/tool.test.ts
+      - skills/search/duckduckgo/manifest.yaml
+      - skills/search/duckduckgo/src/parser.ts
+      - skills/search/duckduckgo/src/types.ts
+      - skills/search/duckduckgo/evals/tool-evolution.yaml
+      - skills/search/duckduckgo/evals/tool.test.ts
       - src/runtime/skills/http.ts
       - src/providers/http.ts
     codeSandbox:
       checkoutPaths:
-        - skills/search-duckduckgo/src/index.ts
-        - skills/search-duckduckgo/src/parser.ts
-        - skills/search-duckduckgo/src/types.ts
-        - skills/search-duckduckgo/evals/tool.test.ts
+        - skills/search/duckduckgo/src/index.ts
+        - skills/search/duckduckgo/src/parser.ts
+        - skills/search/duckduckgo/src/types.ts
+        - skills/search/duckduckgo/evals/tool.test.ts
         - src/runtime/skills/http.ts
         - src/providers/http.ts
-      targetFiles: [skills/search-duckduckgo/src/index.ts]
+      targetFiles: [skills/search/duckduckgo/src/index.ts]
       testCommands:
-        - [bun, test, skills/search-duckduckgo/evals/tool.test.ts]
+        - [bun, test, skills/search/duckduckgo/evals/tool.test.ts]
       cpuQuota: 1
       memoryMb: 512
       pids: 64

@@ -2,22 +2,22 @@ import { describe, expect, it } from "bun:test";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { parse } from "yaml";
-import { suggestedPrompts } from "../../skills/gateway-slack/src/blocks";
-import { SlackWebClient } from "../../skills/gateway-slack/src/client";
+import { suggestedPrompts } from "../../skills/gateway/slack/src/blocks";
+import { SlackWebClient } from "../../skills/gateway/slack/src/client";
 import {
   decodeContext,
   decodeInteraction,
   decodeMessage,
   decodeReactionFeedback,
-} from "../../skills/gateway-slack/src/events";
-import { loadLiveThreadHistory } from "../../skills/gateway-slack/src/history";
-import { handleAppHomeOpened } from "../../skills/gateway-slack/src/onboarding";
-import { SlackAgentResponse } from "../../skills/gateway-slack/src/response";
-import { slackSearchTool } from "../../skills/gateway-slack/src/search";
+} from "../../skills/gateway/slack/src/events";
+import { loadLiveThreadHistory } from "../../skills/gateway/slack/src/history";
+import { handleAppHomeOpened } from "../../skills/gateway/slack/src/onboarding";
+import { SlackAgentResponse } from "../../skills/gateway/slack/src/response";
+import { slackSearchTool } from "../../skills/gateway/slack/src/search";
 import type {
   SlackApiClient,
   SlackJson,
-} from "../../skills/gateway-slack/src/types";
+} from "../../skills/gateway/slack/src/types";
 import { isJsonRecord, nestedRecord } from "../../src/providers/http";
 import { optionalSlack } from "../../src/runtime/settings";
 
@@ -31,7 +31,7 @@ describe("Slack agent integration", () => {
   it("ships an agent_view manifest with every runtime subscription", async () => {
     const file = path.resolve(
       import.meta.dir,
-      "../../skills/gateway-slack/slack-app-manifest.yaml",
+      "../../skills/gateway/slack/slack-app-manifest.yaml",
     );
     const value: unknown = parse(await readFile(file, "utf8"));
     expect(isJsonRecord(value)).toBe(true);

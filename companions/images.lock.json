@@ -1,16 +1,16 @@
 {
   "schemaVersion": 1,
   "build": {
-    "observedAt": "2026-07-29T21:25:23Z",
+    "observedAt": "2026-07-29T21:32:41Z",
     "platform": "linux/arm64",
-    "optimizerRuntimeSourceDigest": "sha256:49d14ad6cff2d7377e9faff39df90d4f14d33620a2411456e76e39d0401364d6",
+    "optimizerRuntimeSourceDigest": "sha256:10bbc4c64a1d65f301af11003f3d75caa88525c79e75513bf36aee8814d8afc0",
     "distribution": "local-oci",
     "publishedRegistry": null
   },
   "images": {
     "evaluator-dspy": {
-      "localReference": "elliott/evaluator-dspy@sha256:5cf9a09cd4da7a0ba92d8358f24f39980cb72af8562c9a0ac6c44773bb9c81f0",
-      "ociManifestDigest": "sha256:5cf9a09cd4da7a0ba92d8358f24f39980cb72af8562c9a0ac6c44773bb9c81f0",
+      "localReference": "elliott/evaluator-dspy@sha256:20dda80b74813bacf606f581c6fc31736d2eb4c3740cae3db7bf785a48a10c04",
+      "ociManifestDigest": "sha256:20dda80b74813bacf606f581c6fc31736d2eb4c3740cae3db7bf785a48a10c04",
       "sourceDigest": "sha256:3b9691fc5f17b292fd600cf69a757a1d9077de355245f7329e3abacb7f33b69b",
       "artifact": ".artifacts/evolution-companions/evaluator-dspy.oci.tar",
       "dependency": {
@@ -21,8 +21,8 @@
       "fixtureSmokePassed": true
     },
     "evaluator-darwinian": {
-      "localReference": "elliott/evaluator-darwinian@sha256:8cc9463fe2abc08af17c9f456ce5b877af4ddf89a607a61faf7be2652b1325cd",
-      "ociManifestDigest": "sha256:8cc9463fe2abc08af17c9f456ce5b877af4ddf89a607a61faf7be2652b1325cd",
+      "localReference": "elliott/evaluator-darwinian@sha256:462ca94d9682b15ac6fb31a31db705f792f7d51855947f748c11a66da08bac52",
+      "ociManifestDigest": "sha256:462ca94d9682b15ac6fb31a31db705f792f7d51855947f748c11a66da08bac52",
       "sourceDigest": "sha256:9d94a87c35e6c49f281a09e7a85da4f9d6931d9f49bc667f318e11063aaee1e2",
       "artifact": ".artifacts/evolution-companions/evaluator-darwinian.oci.tar",
       "dependency": {
@@ -35,9 +35,9 @@
       "correspondingSourcePath": "/usr/share/darwinian-evolver/source"
     },
     "evaluator-agent-benchmarks": {
-      "localReference": "elliott/evaluator-agent-benchmarks@sha256:0af6b78cfffc2a5ced3aef0aea0244cf70b89548b86a15a35295832516ef09ed",
-      "ociManifestDigest": "sha256:0af6b78cfffc2a5ced3aef0aea0244cf70b89548b86a15a35295832516ef09ed",
-      "sourceDigest": "sha256:dbc60c30ddf235f030a9f220ba405dea893c46bc1e44e36b3c37b2aa8b3f52ba",
+      "localReference": "elliott/evaluator-agent-benchmarks@sha256:3481a985ade2c8696fd2ad0de1a0224d3cc54ce725dc6e5c19d0ad6fcd6dd34c",
+      "ociManifestDigest": "sha256:3481a985ade2c8696fd2ad0de1a0224d3cc54ce725dc6e5c19d0ad6fcd6dd34c",
+      "sourceDigest": "sha256:51a109a8eb400fb1deb0f1f12207ff4677e16b3940a771e09e0a539593c28256",
       "artifact": ".artifacts/evolution-companions/evaluator-agent-benchmarks.oci.tar",
       "dependencyLock": "companions/evaluators/agent-benchmarks/benchmark/drivers.json",
       "fixtureSmokePassed": true

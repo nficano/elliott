@@ -202,7 +202,7 @@ describe("runtime evolution dataset sources", () => {
       {
         defaultSources: {
           [codeTarget.componentRef]: [
-            "target-specific:skills/search-duckduckgo/evals/evolution.yaml",
+            "target-specific:skills/search/duckduckgo/evals/evolution.yaml",
             "synthetic:3",
           ],
         },

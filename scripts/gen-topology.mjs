@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 // Generate docs/elliott-topology.json from declarative sources:
 //   - docs/topology.spine.json          (non-skill nodes + fixed runtime/cross-cutting edges)
-//   - skills/<name>/manifest.yaml       (each module's spec.topology block -> its node + edges)
+//   - skills/**/manifest.yaml           (each module's spec.topology block -> its node + edges)
 //   - agents/elliott.yaml                (mcp[] -> mcp endpoint nodes + client edges)
 //   - config/elliott.yaml                (resolves config: gates to live/config-gated)
 //
@@ -32,6 +32,7 @@ const NODE_KINDS = new Set([
   "database",
   "learning",
   "evaluator",
+  "extension",
   "observability",
   "container",
 ]);
@@ -105,6 +106,23 @@ const mcpNodeId = (id) => "mcp." + id.replace(/-/g, "");
 const mcpProtocol = (t) =>
   t === "sse" ? "jsonrpc over sse" : "jsonrpc over streamable-http";
 
+const discoverSkillDirectories = async (relative = "skills") => {
+  const entries = await readdir(path.join(ROOT, relative), {
+    withFileTypes: true,
+  });
+  if (
+    entries.some((entry) => entry.isFile() && entry.name === "manifest.yaml")
+  ) {
+    return [relative];
+  }
+  const nested = await Promise.all(
+    entries
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => discoverSkillDirectories(`${relative}/${entry.name}`)),
+  );
+  return nested.flat().sort();
+};
+
 async function build() {
   const spine = await readJson("docs/topology.spine.json");
   const config = await readYaml("config/elliott.yaml");
@@ -112,15 +130,13 @@ async function build() {
 
   const nodes = [...spine.nodes];
   const edges = spine.edges.map((e) => ({ ...e, origin: "spine" }));
-  const skillDirs =
-    (await readdir(path.join(ROOT, "skills"), { withFileTypes: true }))
-      .filter((d) => d.isDirectory()).map((d) => d.name).sort();
+  const skillDirs = await discoverSkillDirectories();
 
   let contributing = 0;
   for (const dir of skillDirs) {
     let manifest;
     try {
-      manifest = await readYaml(`skills/${dir}/manifest.yaml`);
+      manifest = await readYaml(`${dir}/manifest.yaml`);
     } catch {
       continue;
     }
@@ -131,13 +147,11 @@ async function build() {
     const n = topo.node;
     nodes.push({
       id: n.id,
-      name: `${manifest.metadata.name} (${
-        entry ? "skills/" + dir + "/" + entry : "skills/" + dir
-      })`,
+      name: `${manifest.metadata.name} (${entry ? dir + "/" + entry : dir})`,
       kind: n.kind,
       runtime: resolveRuntime(topo.gate, config),
       domain: n.domain,
-      source: `skills/${dir}` + (entry ? `/${entry}` : ""),
+      source: dir + (entry ? `/${entry}` : ""),
       classifications: {
         ...(n.trustZone && { trustZone: n.trustZone }),
         ...(n.dataClassification
@@ -147,7 +161,7 @@ async function build() {
       ...(topo.egressTargets?.length && { egressTargets: topo.egressTargets }),
     });
     for (const e of uniformEdges(n, topo.dispatch)) {
-      edges.push({ ...e, origin: `skill:${dir}` });
+      edges.push({ ...e, origin: `skill:${manifest.metadata.name}` });
     }
     for (const e of topo.edges ?? []) {
       edges.push({
@@ -156,7 +170,7 @@ async function build() {
         kind: e.kind,
         protocol: e.protocol ?? "in-process",
         label: e.label ?? "",
-        origin: `skill:${dir}`,
+        origin: `skill:${manifest.metadata.name}`,
       });
     }
   }
@@ -239,7 +253,7 @@ const out = {
   version: "1.2.0-generated",
   title: "Elliott Runtime — Connection Graph (generated)",
   generatedFrom:
-    "scripts/gen-topology.mjs: docs/topology.spine.json + skills/*/manifest.yaml spec.topology + agents/elliott.yaml mcp[] + config/elliott.yaml gates",
+    "scripts/gen-topology.mjs: docs/topology.spine.json + skills/**/manifest.yaml spec.topology + agents/elliott.yaml mcp[] + config/elliott.yaml gates",
   note:
     "Auto-generated structural connection graph. Nodes/uniform-edges derive from each module's manifest; the runtime spine is hand-authored. `runtime` here is a static approximation (secret-gated => config-gated); the live telemetry-map extension resolves actual liveness.",
   nodeKinds: [...NODE_KINDS],

@@ -40,13 +40,29 @@ export const loadAgentSkillPackages = async (
 const loadPackagesFrom = async (
   directory: string,
 ): Promise<readonly BundledPackage[]> => {
-  const entries = await readdir(directory, { withFileTypes: true });
-  const packages = await Promise.all(
-    entries.filter((entry) => entry.isDirectory()).map((entry) =>
-      loadPackage(path.join(directory, entry.name))
-    ),
-  );
+  const directories = await discoverPackageDirectories(directory);
+  const packages = await Promise.all(directories.map(loadPackage));
   return packages.sort((left, right) => left.name.localeCompare(right.name));
+};
+
+const discoverPackageDirectories = async (
+  directory: string,
+): Promise<readonly string[]> => {
+  const entries = await readdir(directory, { withFileTypes: true });
+  const nested = await Promise.all(
+    entries
+      .filter((entry) => entry.isDirectory())
+      .map(async (entry): Promise<readonly string[]> => {
+        const child = path.join(directory, entry.name);
+        try {
+          await access(path.join(child, "manifest.yaml"));
+          return [child];
+        } catch {
+          return discoverPackageDirectories(child);
+        }
+      }),
+  );
+  return nested.flat();
 };
 
 const loadPackage = async (directory: string): Promise<BundledPackage> => {

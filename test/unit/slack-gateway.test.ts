@@ -4,22 +4,22 @@ import {
   FEEDBACK_ACTION_ID,
   responseFooterBlocks,
   withResponseFooters,
-} from "../../skills/gateway-slack/src/blocks";
+} from "../../skills/gateway/slack/src/blocks";
 import {
   ALLOWED_SLACK_EMOJI,
   sanitizeSlackDisplayPayload,
   sanitizeSlackEmoji,
   SlackEmojiStreamFilter,
-} from "../../skills/gateway-slack/src/emoji";
+} from "../../skills/gateway/slack/src/emoji";
 import {
   decodeInteraction,
   decodeReactionFeedback,
-} from "../../skills/gateway-slack/src/events";
-import { slackMessageTool } from "../../skills/gateway-slack/src/message";
+} from "../../skills/gateway/slack/src/events";
+import { slackMessageTool } from "../../skills/gateway/slack/src/message";
 import type {
   SlackApiClient,
   SlackJson,
-} from "../../skills/gateway-slack/src/types";
+} from "../../skills/gateway/slack/src/types";
 
 const OWNER = "UOWNER";
 

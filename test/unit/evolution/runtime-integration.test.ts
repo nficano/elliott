@@ -362,13 +362,13 @@ describe("runtime evolution integration", () => {
     expect(result.codeSandbox?.networkEnabled).toBeFalse();
     expect(result.codeSandbox?.repositoryCredentialsMounted).toBeFalse();
     expect(result.codeSandbox?.targetFiles).toEqual([
-      "skills/search-duckduckgo/src/parser.ts",
+      "skills/search/duckduckgo/src/parser.ts",
     ]);
     expect(result.codeSandbox?.testCommands).toEqual([
-      ["bun", "test", "skills/search-duckduckgo/evals/parser.test.ts"],
+      ["bun", "test", "skills/search/duckduckgo/evals/parser.test.ts"],
     ]);
     expect(result.baselineContent).toContain(
-      "\"skills/search-duckduckgo/src/parser.ts\"",
+      "\"skills/search/duckduckgo/src/parser.ts\"",
     );
   });
 
@@ -382,18 +382,18 @@ describe("runtime evolution integration", () => {
     expect(result.target).toMatchObject({
       targetClass: "code",
       riskClass: "C2",
-      mutationPath: "skills/search-duckduckgo/src/index.ts",
-      allowedMutationPaths: ["skills/search-duckduckgo/src/index.ts"],
+      mutationPath: "skills/search/duckduckgo/src/index.ts",
+      allowedMutationPaths: ["skills/search/duckduckgo/src/index.ts"],
     });
     expect(result.codeSandbox).toMatchObject({
       networkEnabled: false,
       repositoryCredentialsMounted: false,
       activeTreeWritable: false,
-      targetFiles: ["skills/search-duckduckgo/src/index.ts"],
+      targetFiles: ["skills/search/duckduckgo/src/index.ts"],
       testCommands: [[
         "bun",
         "test",
-        "skills/search-duckduckgo/evals/tool.test.ts",
+        "skills/search/duckduckgo/evals/tool.test.ts",
       ]],
     });
     expect(result.codeSandbox?.checkoutFiles.map((file) => file.path))

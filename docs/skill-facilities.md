@@ -220,7 +220,7 @@ Design points:
   unblocks Block Kit interactivity); `github` checks
   `x-hub-signature-256`; `stripe` checks `Stripe-Signature` `t=`/`v1=` with
   tolerance; `hmac-sha256` is the generic profile matching
-  `skills/gateway-webhook`'s `x-elliott-signature` scheme; `token-query`
+  `skills/gateway/webhook`'s `x-elliott-signature` scheme; `token-query`
   reuses `verifiedRequestToken` from `src/runtime/skills/http.ts`. All
   comparisons go through `constantTimeEqual`.
 - **Secrets flow in the right direction.** For facility-minted profiles the
@@ -234,7 +234,7 @@ Design points:
   `RouteBinding` receives the raw sender body plus
   `x-elliott-ingress-{slug,profile,timestamp}` headers. Unverifiable payloads
   are dropped before broker ingress and counted, matching the posture in
-  `skills/gateway-webhook/GATEWAY.md` ("drop unverifiable payloads").
+  `skills/gateway/webhook/GATEWAY.md` ("drop unverifiable payloads").
 
 ## Cloudflare provisioning
 
@@ -301,7 +301,7 @@ Properties:
   into* the isolation boundary, the proxy never fetches it.
 - **Internal hop is verified too.** Proxy → runtime forwarding signs the body
   with the existing `webhook_signing_secret` using the
-  `x-elliott-signature` HMAC scheme from `skills/gateway-webhook`, so a
+  `x-elliott-signature` HMAC scheme from `skills/gateway/webhook`, so a
   process that can reach the runtime port cannot inject fake "verified"
   webhooks. Two independent verifications: sender's at the proxy, elliott's
   at the runtime.

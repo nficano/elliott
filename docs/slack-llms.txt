@@ -4,7 +4,7 @@ ELLIOTT SLACK AGENT REFERENCE
 This is the runtime and operator reference for Elliott's first-party Slack
 agent gateway. The source manifest is:
 
-  skills/gateway-slack/slack-app-manifest.yaml
+  skills/gateway/slack/slack-app-manifest.yaml
 
 WORKSPACE SETUP
 ---------------

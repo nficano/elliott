@@ -34,6 +34,10 @@ Agent skills use the exact same package contract as built-ins — one
 straight from node_modules, so agent skills import framework types as
 `elliott/src/runtime/skills/types` with no build step.
 
+Both catalogs may use category directories. Discovery recursively finds
+directories containing `manifest.yaml` and treats each as a package; it does
+not derive component identity from the directory path.
+
 ## Phase 1 — loader seam + first custom skill (this change)
 
 - `loadAgentSkillPackages(root, agent)` in `src/catalog/bundled.ts` scans

@@ -1,6 +1,8 @@
 node_modules/
 dist/
 coverage/
+.playwright-mcp/
+.ruff_cache/
 .DS_Store
 *.log
 .env

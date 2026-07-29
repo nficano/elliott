@@ -305,7 +305,7 @@
       "name": "Slack gateway (Socket Mode) — the only real inbound GatewayBinding; also exposes 2 Slack tools",
       "kind": "gateway",
       "runtime": "live",
-      "source": "skills/gateway-slack/src/index.ts:10 (register); skills/gateway-slack/src/gateway.ts:38 (binding), :213 (onMessage)",
+      "source": "skills/gateway/slack/src/index.ts:10 (register); skills/gateway/slack/src/gateway.ts:38 (binding), :213 (onMessage)",
       "domain": "ingress",
       "classifications": {
         "trustZone": "external-untrusted",
@@ -332,7 +332,7 @@
       "name": "Webhook inbound (POST /v1/gateways/webhook, HMAC) — a RouteBinding dispatched by the HTTP server",
       "kind": "gateway",
       "runtime": "config-gated",
-      "source": "skills/gateway-webhook/src/index.ts:25 (route), :54 (events.onMessage), :82 (verifySignature)",
+      "source": "skills/gateway/webhook/src/index.ts:25 (route), :54 (events.onMessage), :82 (verifySignature)",
       "domain": "ingress",
       "classifications": {
         "trustZone": "external-untrusted",
@@ -725,7 +725,7 @@
       "name": "search/web — brave_search, duckduckgo_search (ungated), firecrawl_search/scrape, parallel_search",
       "kind": "tool",
       "runtime": "live",
-      "source": "skills/search-brave/src/index.ts:22; skills/search-duckduckgo/src/index.ts:18; skills/web-firecrawl/src/index.ts:24,:43; skills/web-parallel/src/index.ts:23",
+      "source": "skills/search/brave/src/index.ts:22; skills/search/duckduckgo/src/index.ts:18; skills/web/firecrawl/src/index.ts:24,:43; skills/web/parallel/src/index.ts:23",
       "domain": "external-integrations",
       "classifications": {
         "trustZone": "egress",
@@ -776,7 +776,7 @@
       "name": "Gmail tools — email_search / email_thread / email_archive / email_draft_reply / email_unsubscribe (Gmail API; NOT a gateway, no inbound)",
       "kind": "tool",
       "runtime": "config-gated",
-      "source": "skills/gateway-gmail/src/index.ts:19 (register); :24-31 (tools)",
+      "source": "skills/gateway/gmail/src/index.ts:19 (register); :24-31 (tools)",
       "domain": "external-integrations",
       "classifications": {
         "trustZone": "egress",
@@ -802,7 +802,7 @@
       "name": "Email send tool — email_send (SMTP, send-only; NOT IMAP, NOT a gateway)",
       "kind": "tool",
       "runtime": "config-gated",
-      "source": "skills/gateway-email/src/index.ts:9 (register); :14 (email_send)",
+      "source": "skills/gateway/email/src/index.ts:9 (register); :14 (email_send)",
       "domain": "external-integrations",
       "classifications": {
         "trustZone": "egress",
@@ -827,7 +827,7 @@
       "name": "iMessage send tool — imessage_send (BlueBubbles HTTP, send-only; NOT a gateway)",
       "kind": "tool",
       "runtime": "config-gated",
-      "source": "skills/gateway-bluebubbles/src/index.ts:16 (register); :28 (imessage_send)",
+      "source": "skills/gateway/bluebubbles/src/index.ts:16 (register); :28 (imessage_send)",
       "domain": "external-integrations",
       "classifications": {
         "trustZone": "egress",
@@ -853,7 +853,7 @@
       "name": "Home Assistant REST tools — ha_state / ha_entities / ha_call_service (NOT a gateway; distinct from mcp.homeassistant)",
       "kind": "tool",
       "runtime": "config-gated",
-      "source": "skills/gateway-home-assistant/src/index.ts:17 (register); :21 (tools)",
+      "source": "skills/gateway/home-assistant/src/index.ts:17 (register); :21 (tools)",
       "domain": "external-integrations",
       "classifications": {
         "trustZone": "egress",
@@ -1489,7 +1489,7 @@
       "kind": "data",
       "protocol": "in-process (GatewayEvents.onMessage)",
       "label": "inbound message → turn",
-      "evidence": "skills/gateway-slack/src/gateway.ts:213 (onMessage) → src/runtime/app.ts:209 (gateway.start(events)) → :246 (#handleInbound)",
+      "evidence": "skills/gateway/slack/src/gateway.ts:213 (onMessage) → src/runtime/app.ts:209 (gateway.start(events)) → :246 (#handleInbound)",
       "contract": {
         "payload": "InboundMessage {id, gateway, channel, thread, sender, text, context/history/attachments}",
         "synchrony": "async",
@@ -1513,7 +1513,7 @@
       "kind": "control",
       "protocol": "in-process (route dispatch, exact method+path)",
       "label": "dispatch POST /v1/gateways/webhook",
-      "evidence": "src/runtime/app.ts:354-357 (route.handle) → skills/gateway-webhook/src/index.ts:25",
+      "evidence": "src/runtime/app.ts:354-357 (route.handle) → skills/gateway/webhook/src/index.ts:25",
       "contract": {
         "payload": "raw Request (POST body + headers)",
         "synchrony": "sync",
@@ -1537,7 +1537,7 @@
       "kind": "data",
       "protocol": "in-process (GatewayEvents.onMessage)",
       "label": "verified webhook payload → turn",
-      "evidence": "skills/gateway-webhook/src/index.ts:54 (events.onMessage) → src/runtime/app.ts:246",
+      "evidence": "skills/gateway/webhook/src/index.ts:54 (events.onMessage) → src/runtime/app.ts:246",
       "contract": {
         "payload": "normalized InboundMessage {id:webhook:<uuid>, gateway:'gateway-webhook', channel, sender, text}",
         "synchrony": "fire-and-forget",

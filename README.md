@@ -169,7 +169,7 @@ SSH, fetch, cloudflared, and scheduling. Each package includes a
 The production entry point is Elliott-native: it discovers those packages,
 connects configured MCP endpoints, exposes their tools to the model, and runs
 the Slack Socket Mode gateway. The Slack package includes an importable
-[`agent_view` manifest](skills/gateway-slack/slack-app-manifest.yaml) with
+[`agent_view` manifest](skills/gateway/slack/slack-app-manifest.yaml) with
 native streaming, task progress, contextual search, onboarding, feedback, and
 thread controls. No second agent framework is vendored or loaded.
 

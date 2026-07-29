@@ -35,9 +35,9 @@ Those are deployment activities, not results that CI can synthesize.
 | Tool-description adapter | `targets/tool-description.ts` |
 | Typed prompt adapter | `targets/prompt-segment.ts`, `prompt-assembly.ts` |
 | Code adapter and sandbox | `targets/code.ts`, `engine/isolation.ts`, `application/code-sandbox.ts`, pre-shortlist `application/code-checker.ts` |
-| GEPA and MIPROv2 boundary | `skills/evaluator-dspy/` |
-| Darwinian boundary | `skills/evaluator-darwinian/` |
-| Independent evaluation and broad benchmark boundary | `skills/evaluator-agent-benchmarks/`, `companions/evaluators/agent-benchmarks/evaluation/` |
+| GEPA and MIPROv2 boundary | `skills/evaluator/dspy/` |
+| Darwinian boundary | `skills/evaluator/darwinian/` |
+| Independent evaluation and broad benchmark boundary | `skills/evaluator/agent-benchmarks/`, `companions/evaluators/agent-benchmarks/evaluation/` |
 | Reproducible companion images | `companions/`, `companions/images.lock.json` |
 | Proposal and release transaction | `release/`, including post-release regression monitoring and operator-rollback notification |
 | Optional Git projection | `release/git-cli-projection.ts`, using an isolated temporary clone and effect-gating publication intent |
@@ -121,7 +121,7 @@ Repeatable `--source` arguments accept repository-contained paths or
 `golden:<path>`, `target-specific:<path>`, `synthetic[:count]`, `session`, and
 `benchmark:<ref>#<task-id,...>`. With no source, a deterministic,
 policy-sized target default is used. The parser target combines curated defect
-reproductions in `skills/search-duckduckgo/evals/evolution.yaml` with
+reproductions in `skills/search/duckduckgo/evals/evolution.yaml` with
 deterministically generated edge cases. Session sources read durable,
 digest-only evidence from `sessions.sqlite`; golden source digests bind the
 actual file bytes. Every route still passes through grouped leakage
@@ -304,9 +304,9 @@ deterministic property/fuzz corpora.
 
 | Image | Observed OCI manifest digest |
 | :--- | :--- |
-| DSPy evaluator | `sha256:5cf9a09cd4da7a0ba92d8358f24f39980cb72af8562c9a0ac6c44773bb9c81f0` |
-| Darwinian evaluator | `sha256:8cc9463fe2abc08af17c9f456ce5b877af4ddf89a607a61faf7be2652b1325cd` |
-| Independent, code-check, and broad-gate evaluator | `sha256:0af6b78cfffc2a5ced3aef0aea0244cf70b89548b86a15a35295832516ef09ed` |
+| DSPy evaluator | `sha256:20dda80b74813bacf606f581c6fc31736d2eb4c3740cae3db7bf785a48a10c04` |
+| Darwinian evaluator | `sha256:462ca94d9682b15ac6fb31a31db705f792f7d51855947f748c11a66da08bac52` |
+| Independent, code-check, and broad-gate evaluator | `sha256:3481a985ade2c8696fd2ad0de1a0224d3cc54ce725dc6e5c19d0ad6fcd6dd34c` |
 
 The build lock records source digests, dependency locks, upstream revisions,
 artifact paths, platform, and smoke status. CI rejects source changes that are

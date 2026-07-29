@@ -17,6 +17,6 @@ spec:
     gate: "secret:pakman"
     egressTargets: [ David Pakman member site ]
     edges:
-      - { from: self, to: tool.youtube-dvr, kind: data, protocol: "in-process (source provider resolve)", label: latest full-episode URL }
+      - { from: self, to: service.youtube-dvr, kind: data, protocol: "in-process (source provider resolve)", label: latest full-episode URL }
   exports:
     - { ref: tool/pakman-latest-episode, implementation: src/index.ts }

@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import { register } from "../../skills/gateway-bluebubbles/src";
+import { register } from "../../skills/gateway/bluebubbles/src";
 import {
   compactMessage,
   createBlueBubblesClient,
-} from "../../skills/gateway-bluebubbles/src/client";
+} from "../../skills/gateway/bluebubbles/src/client";
 import type { SkillContext } from "../../src/runtime/skills/types";
 import type { BlueBubblesSettings } from "../../src/runtime/types";
 

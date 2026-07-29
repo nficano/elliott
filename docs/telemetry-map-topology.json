@@ -65,7 +65,7 @@
       "kind": "gateway",
       "layer": "gateways",
       "title": "Slack (Socket Mode)",
-      "source": "skills/gateway-slack/src/index.ts",
+      "source": "skills/gateway/slack/src/index.ts",
       "iso": { "col": 0, "row": 2 },
       "taps": ["health:gateways.slack"],
       "detail": "Primary gateway; streams task progress and feedback (buttons/reactions)."
@@ -75,7 +75,7 @@
       "kind": "gateway",
       "layer": "gateways",
       "title": "Gmail",
-      "source": "skills/gateway-gmail/src/index.ts",
+      "source": "skills/gateway/gmail/src/index.ts",
       "iso": { "col": 0, "row": 3 },
       "taps": ["health:gateways.gmail"]
     },
@@ -84,7 +84,7 @@
       "kind": "gateway",
       "layer": "gateways",
       "title": "Email (SMTP/IMAP)",
-      "source": "skills/gateway-email/src/index.ts",
+      "source": "skills/gateway/email/src/index.ts",
       "iso": { "col": 0, "row": 4 },
       "taps": ["health:gateways.email"]
     },
@@ -93,7 +93,7 @@
       "kind": "gateway",
       "layer": "gateways",
       "title": "BlueBubbles (iMessage)",
-      "source": "skills/gateway-bluebubbles/src/index.ts",
+      "source": "skills/gateway/bluebubbles/src/index.ts",
       "iso": { "col": 1, "row": 2 },
       "taps": ["health:gateways.bluebubbles"]
     },
@@ -102,7 +102,7 @@
       "kind": "gateway",
       "layer": "gateways",
       "title": "Webhook (inbound HTTP)",
-      "source": "skills/gateway-webhook/src/index.ts:18",
+      "source": "skills/gateway/webhook/src/index.ts:18",
       "iso": { "col": 1, "row": 3 },
       "taps": ["route:/v1/gateways/webhook"],
       "detail": "HMAC-verified inbound route; the closest existing pattern to the map's own routes."
@@ -112,7 +112,7 @@
       "kind": "gateway",
       "layer": "gateways",
       "title": "Home Assistant",
-      "source": "skills/gateway-home-assistant/src/index.ts",
+      "source": "skills/gateway/home-assistant/src/index.ts",
       "iso": { "col": 1, "row": 4 },
       "taps": ["health:gateways.home-assistant"]
     },
@@ -285,7 +285,7 @@
       "kind": "tool",
       "layer": "tools",
       "title": "search-* / web-* (brave, ddg, firecrawl, parallel)",
-      "source": "skills/search-brave, skills/search-duckduckgo, skills/web-firecrawl, skills/web-parallel",
+      "source": "skills/search/brave, skills/search/duckduckgo, skills/web/firecrawl, skills/web/parallel",
       "iso": { "col": 2, "row": 6 },
       "taps": ["telemetry:tool.progress"]
     },
@@ -607,7 +607,7 @@
       "wire": "http",
       "label": "POST /v1/gateways/webhook",
       "animatable": true,
-      "evidence": "skills/gateway-webhook/src/index.ts:25"
+      "evidence": "skills/gateway/webhook/src/index.ts:25"
     },
     {
       "id": "e.gw-ha.rt",

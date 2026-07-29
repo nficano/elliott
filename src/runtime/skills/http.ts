@@ -102,7 +102,7 @@ export const hmacSha256Hex = (secret: string, body: string): string =>
 // The internal-hop scheme shared by webhook ingress: the sender signs the raw
 // body with the shared secret in x-elliott-signature; consumer routes verify
 // it so nothing that can merely reach the runtime port can inject "verified"
-// deliveries. Same scheme as skills/gateway-webhook.
+// deliveries. Same scheme as skills/gateway/webhook.
 export const verifiedSignatureHeader = (
   request: Request,
   body: string,

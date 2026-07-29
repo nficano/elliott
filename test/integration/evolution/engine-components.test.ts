@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import * as Effect from "effect/Effect";
-import { createOptimizationEngineClient as createDarwinianClient } from "../../../skills/evaluator-darwinian/src/index";
-import { createOptimizationEngineClient as createDspyClient } from "../../../skills/evaluator-dspy/src/index";
+import { createOptimizationEngineClient as createDarwinianClient } from "../../../skills/evaluator/darwinian/src/index";
+import { createOptimizationEngineClient as createDspyClient } from "../../../skills/evaluator/dspy/src/index";
 import { hashBytes } from "../../../src/core/digest";
 import { makeFallbackOptimizationEngine } from "../../../src/learning/evolution/engine/fallback";
 import {

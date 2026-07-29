@@ -91,6 +91,14 @@
       "domain": "model-inference",
       "source": "src/providers/ollama/index.ts:13"
     },
+    {
+      "id": "youtube.data-api",
+      "name": "YouTube Data API",
+      "kind": "provider",
+      "runtime": "config-gated",
+      "domain": "external-integrations",
+      "source": "skills/youtube-dvr/manifest.yaml"
+    },
 
     {
       "id": "memory.sessionStore",

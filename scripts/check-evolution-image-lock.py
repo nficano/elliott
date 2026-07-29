@@ -19,6 +19,10 @@ SOURCE_FILES = {
         "companions/optimizers/jobs/controller.ts",
         "companions/optimizers/jobs/support.ts",
         "companions/optimizers/python/worker.py",
+        *sorted(
+            str(path.relative_to(ROOT))
+            for path in (ROOT / "src").rglob("*.ts")
+        ),
     ],
     "evaluator-dspy": [
         "companions/optimizers/dspy/Dockerfile",
@@ -64,9 +68,9 @@ SOURCE_FILES = {
     ],
 }
 MANIFESTS = {
-    "evaluator-dspy": "skills/evaluator-dspy/manifest.yaml",
-    "evaluator-darwinian": "skills/evaluator-darwinian/manifest.yaml",
-    "evaluator-agent-benchmarks": "skills/evaluator-agent-benchmarks/manifest.yaml",
+    "evaluator-dspy": "skills/evaluator/dspy/manifest.yaml",
+    "evaluator-darwinian": "skills/evaluator/darwinian/manifest.yaml",
+    "evaluator-agent-benchmarks": "skills/evaluator/agent-benchmarks/manifest.yaml",
 }
 REQUIRED_BENCHMARKS = {
     "target-syntax",

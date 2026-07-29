@@ -1,6 +1,9 @@
 .git
 .github
 .repos
+.artifacts
+.playwright-mcp
+.ruff_cache
 .elliott-runtime
 node_modules
 **/node_modules
@@ -13,7 +16,7 @@ native/*.node
 test
 *.log
 .env
-BLOCKERS.md
+docs/blockers.md
 skills/telemetry-map/app/.nuxt
 skills/telemetry-map/app/.output
 skills/telemetry-map/app/storybook-static

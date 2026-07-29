@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { parseDuckDuckGoResults } from "../../skills/search-duckduckgo/src";
+import { parseDuckDuckGoResults } from "../../skills/search/duckduckgo/src";
 
 describe("DuckDuckGo HTML search", () => {
   it("extracts result titles, destination URLs, and snippets", () => {

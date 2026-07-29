@@ -297,7 +297,7 @@ describe("GET /v1/observability/map/topology", () => {
     const view: SkillPackageView = {
       name: "gateway-webhook",
       kind: "gateway",
-      directory: "/srv/agent/skills/gateway-webhook",
+      directory: "/srv/agent/skills/gateway/webhook",
       provides: [],
       topology: {
         node: { id: "gateway.webhook", kind: "gateway", domain: "ingress" },

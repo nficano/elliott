@@ -51,6 +51,19 @@ describe("Elliott bundled component packages", () => {
     expect(packageNames).toContain("gateway-slack");
     expect(packageNames).toContain("gateway-home-assistant");
     expect(packageNames).toContain("mcp-client");
+    expect(
+      path.relative(
+        path.join(root, "skills"),
+        packages.find((item) => item.name === "gateway-slack")?.directory ?? "",
+      ),
+    ).toBe(path.join("gateway", "slack"));
+    expect(
+      path.relative(
+        path.join(root, "skills"),
+        packages.find((item) => item.name === "evaluator-dspy")?.directory
+          ?? "",
+      ),
+    ).toBe(path.join("evaluator", "dspy"));
     for (const item of packages) {
       expect(item.profile.length).toBeGreaterThan(0);
       expect(item.protocols.length).toBeGreaterThan(0);
