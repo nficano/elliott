@@ -2,7 +2,7 @@
 
 **Status:** Implementation plan<br>
 **Target:** Elliott framework and its Elliott consumer agent<br>
-**Elliott architecture source:** [Technical Design Document, Revision 6](./elliott-tdd.md)<br>
+**Elliott architecture source:** [Technical Design Document, Revision 6](../elliott-tdd.md)<br>
 **Upstream source:** [Hermes Agent Self-Evolution `PLAN.md` at commit `0a929e3`](https://github.com/NousResearch/hermes-agent-self-evolution/blob/0a929e3aa20e15cf04dc7c28492a7d41a5139125/PLAN.md)<br>
 **Source review date:** 2026-07-23
 
