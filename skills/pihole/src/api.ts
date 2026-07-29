@@ -148,11 +148,32 @@ const v5Call = async (
   if (!response.ok) {
     throw new Error(`Pi-hole returned HTTP ${response.status}`);
   }
-  const payload: unknown = await response.json();
+  const payload = parseV5Payload(await response.text());
   // api.php answers a bare [] when the token is wrong instead of an error.
   const rejected = Array.isArray(payload);
   if (rejected) throw new Error("Pi-hole rejected the API token");
   return payload;
+};
+
+// api.php can emit its default "[]" document *after* the handler's payload
+// ("{...}[]" — observed live on Pi-hole v5.9), which breaks a strict JSON
+// parse. Parse the whole body first, then retry without the stray trailer.
+const V5_STRAY_TRAILER = "[]";
+
+const parseV5Payload = (body: string): unknown => {
+  const text = body.trim();
+  try {
+    return JSON.parse(text);
+  } catch {
+    if (text.endsWith(V5_STRAY_TRAILER)) {
+      try {
+        return JSON.parse(text.slice(0, -V5_STRAY_TRAILER.length));
+      } catch {
+        throw new Error("Pi-hole returned invalid JSON");
+      }
+    }
+    throw new Error("Pi-hole returned invalid JSON");
+  }
 };
 
 const v5Mutate = async (

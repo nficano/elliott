@@ -212,6 +212,30 @@ describe("pihole skill logic (Tier 1, v5 API)", () => {
     // v5 auth token is the double-SHA256 of the stored password ("x").
     expect(add).toContain(`auth=${sha256Hex(sha256Hex("x"))}`);
   });
+
+  it("tolerates api.php's stray [] trailer after the payload", async () => {
+    // Observed live on Pi-hole v5.9: api.php emits its default "[]" document
+    // *after* the handler payload, e.g. `{"data":[...]}[]`.
+    stubFetch([
+      { match: "/api/auth", body: "<!doctype html><title>pi-hole</title>" },
+      {
+        match: "customcname",
+        body: `${JSON.stringify({ data: [] })}[]`,
+      },
+      {
+        match: "customdns",
+        body: `${JSON.stringify({ data: [["nas.lan", "127.0.0.1"]] })}[]`,
+      },
+    ]);
+    const { context } = await makeSmokeContext();
+    const list = toolByName(
+      await loadOneSkill("pihole", context),
+      "pihole_dns_list",
+    );
+
+    const result = JSON.parse(await list.execute({}));
+    expect(result.hosts).toEqual([{ ip: "127.0.0.1", domains: ["nas.lan"] }]);
+  });
 });
 
 describe("traefik skill logic (Tier 1)", () => {
