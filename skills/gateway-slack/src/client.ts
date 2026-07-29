@@ -21,14 +21,39 @@ export class SlackApiError extends Error {
   readonly code: string;
   readonly status: number;
 
-  constructor(method: string, code: string, status: number) {
-    super(`Slack ${method} failed: ${code}`);
+  constructor(method: string, code: string, status: number, context?: string) {
+    super(
+      `Slack ${method} failed: ${code}${
+        context === undefined ? "" : ` [${context}]`
+      }`,
+    );
     this.name = "SlackApiError";
     this.method = method;
     this.code = code;
     this.status = status;
   }
 }
+
+// Identifier-only argument context (never message content) appended to API
+// errors, so a report like invalid_arguments pins down *which* channel/ts
+// shape broke instead of needing a repro.
+const SAFE_CONTEXT_KEYS = [
+  "channel",
+  "channel_id",
+  "ts",
+  "thread_ts",
+  "limit",
+] as const;
+
+const argumentContext = (body: SlackJson): string | undefined => {
+  const parts = SAFE_CONTEXT_KEYS.flatMap((key) => {
+    const value = body[key];
+    return typeof value === "string" || typeof value === "number"
+      ? [`${key}=${value}`]
+      : [];
+  });
+  return parts.length > 0 ? parts.join(" ") : undefined;
+};
 
 export class SlackWebClient implements SlackApiClient {
   readonly #token: string;
@@ -58,7 +83,7 @@ export class SlackWebClient implements SlackApiClient {
         || value["error"] === "ratelimited"
         || value["error"] === "rate_limited";
       if (!limited || attempt === MAX_RATE_LIMIT_RETRIES) {
-        throw apiError(method, response, value);
+        throw apiError({ method, response, value, body });
       }
       await this.#sleep(retryDelay(response));
     }
@@ -111,16 +136,18 @@ const decodeResponse = async (
   return value;
 };
 
-const apiError = (
-  method: string,
-  response: Response,
-  value: SlackJson,
-): SlackApiError => {
-  const code = value["error"];
+const apiError = (input: {
+  readonly method: string;
+  readonly response: Response;
+  readonly value: SlackJson;
+  readonly body: SlackJson;
+}): SlackApiError => {
+  const code = input.value["error"];
   return new SlackApiError(
-    method,
-    typeof code === "string" ? code : `http_${response.status}`,
-    response.status,
+    input.method,
+    typeof code === "string" ? code : `http_${input.response.status}`,
+    input.response.status,
+    argumentContext(input.body),
   );
 };
 

@@ -75,6 +75,25 @@ describe("Slack agent integration", () => {
     expect(delays).toEqual([2000]);
   });
 
+  it("carries identifier-only argument context on API errors", async () => {
+    const client = new SlackWebClient({
+      token: "xoxb-test",
+      fetcher: async () =>
+        Response.json({ ok: false, error: "invalid_arguments" }),
+    });
+    const failure = client.request("conversations.replies", {
+      channel: "C123",
+      ts: "111.222",
+      limit: 100,
+      text: "never leak message content",
+    });
+    await expect(failure).rejects.toThrow(
+      "Slack conversations.replies failed: invalid_arguments "
+        + "[channel=C123 ts=111.222 limit=100]",
+    );
+    await expect(failure).rejects.not.toThrow(/leak/);
+  });
+
   it("decodes agent-view DM context, attachments, and root threads", () => {
     const context = {
       entities: [{
