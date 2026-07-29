@@ -68,6 +68,12 @@ const run = async (
     readonly keyPath: string;
   },
 ): Promise<Readonly<Record<string, unknown>>> => {
+  // Allowlist entries may pin their own account as "user@host" (hosts differ in
+  // which login they accept, e.g. nficano@spruce vs root@pve); a bare host falls
+  // back to the shared settings.user.
+  const destination = request.host.includes("@")
+    ? request.host
+    : `${settings.user}@${request.host}`;
   const child = Bun.spawn([
     "ssh",
     "-i",
@@ -76,9 +82,16 @@ const run = async (
     "BatchMode=yes",
     "-o",
     "StrictHostKeyChecking=accept-new",
+    // OpenSSH resolves ~/.ssh/known_hosts from the passwd home, which is on the
+    // read-only container rootfs; pin it beside the key on the writable state
+    // volume so host keys persist (and accept-new isn't re-run every call).
+    "-o",
+    `UserKnownHostsFile=${
+      path.join(path.dirname(request.keyPath), "known_hosts")
+    }`,
     "-o",
     `ConnectTimeout=${CONNECT_TIMEOUT_SECONDS}`,
-    `${settings.user}@${request.host}`,
+    destination,
     request.command,
   ], { stdout: "pipe", stderr: "pipe", stdin: "ignore" });
   const deadline = setTimeout(() => child.kill(), COMMAND_TIMEOUT_MILLISECONDS);
