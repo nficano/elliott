@@ -8,11 +8,13 @@ import type {
   BlueBubblesClient,
   BlueBubblesJson,
   BlueBubblesRequest,
+  ConversationRead,
   ResolvedChat,
 } from "./types";
 
 const CHAT_SCAN_LIMIT = 1000;
 const MIN_SUFFIX_DIGITS = 7;
+const US_LOCAL_DIGITS = 10;
 
 // A thin BlueBubbles REST client. `fetcher` defaults to global fetch and is
 // injected in tests. Reads are unrestricted by design (any conversation); the
@@ -33,18 +35,61 @@ export const createBlueBubblesClient = (
         }),
         "data",
       ),
-    queryChat: async (guid, limit) =>
-      recordArray(
-        await call({
-          method: "GET",
-          path: `/api/v1/chat/${encodeURIComponent(guid)}/message`,
-          query: { limit: String(limit), with: "handle", sort: "DESC" },
-        }),
-        "data",
-      ),
-    resolveChat: (target) => resolveChat(call, target),
+    readFrom: (target, limit) => readConversation(call, target, limit),
   };
 };
+
+// Resolve which conversation `target` names, then read it. A phone/email is
+// turned into its 1:1 chat GUID (`any;-;<address>`) and read directly — the
+// reliable path, since the server's chat list is capped and mis-sorted and can
+// omit the very chat we want. Only a name (or a candidate that finds nothing)
+// falls back to scanning that list, which is where group/display-name matches
+// live. A full GUID is read as-is.
+const readConversation = async (
+  call: (spec: BlueBubblesRequest) => Promise<BlueBubblesJson>,
+  target: string,
+  limit: number,
+): Promise<ConversationRead | undefined> => {
+  if (target.includes(";-;")) {
+    return { name: target, messages: await chatMessages(call, target, limit) };
+  }
+  for (const guid of guidCandidates(target)) {
+    const messages = await chatMessages(call, guid, limit);
+    if (messages.length > 0) return { name: target, messages };
+  }
+  const scanned = await scanForChat(call, target);
+  if (scanned === undefined) return undefined;
+  const messages = await chatMessages(call, scanned.guid, limit);
+  return { name: scanned.name, messages };
+};
+
+// 1:1 chat GUIDs the target could name. A phone yields the E.164 forms most
+// handles are stored as (US "+1…" from a 10-digit number, "+" + digits, and the
+// raw input); an email yields its single form. A name yields none.
+const guidCandidates = (target: string): readonly string[] => {
+  if (target.includes("@")) return [`any;-;${target}`];
+  const digits = target.replaceAll(/\D/g, "");
+  if (digits.length < MIN_SUFFIX_DIGITS) return [];
+  const addresses = new Set<string>();
+  if (digits.length === US_LOCAL_DIGITS) addresses.add(`+1${digits}`);
+  addresses.add(`+${digits}`);
+  addresses.add(target);
+  return [...addresses].map((address) => `any;-;${address}`);
+};
+
+const chatMessages = async (
+  call: (spec: BlueBubblesRequest) => Promise<BlueBubblesJson>,
+  guid: string,
+  limit: number,
+): Promise<readonly BlueBubblesJson[]> =>
+  recordArray(
+    await call({
+      method: "GET",
+      path: `/api/v1/chat/${encodeURIComponent(guid)}/message`,
+      query: { limit: String(limit), with: "handle", sort: "DESC" },
+    }),
+    "data",
+  );
 
 const request = async (
   settings: BlueBubblesSettings,
@@ -63,18 +108,21 @@ const request = async (
       body: JSON.stringify(spec.body),
     }),
   });
-  if (!response.ok) {
-    throw new Error(`BlueBubbles returned HTTP ${response.status}`);
-  }
+  // Non-OK responses (notably 404 for an absent chat, which candidate probing
+  // relies on) carry a JSON body with no `data`, so callers see empty results.
+  // Only a rejected fetch — a genuinely unreachable server — throws.
   const payload: unknown = await response.json().catch(() => ({}));
   return isJsonRecord(payload) ? payload : {};
 };
 
-const resolveChat = async (
+// Fallback for name targets: scan the (capped) chat list. Prefer a chat whose
+// own identity matches — the 1:1 whose chatIdentifier IS the handle, or a group
+// named for the target — over one where the target is merely a participant, so
+// "read from Alice" does not surface a group Alice happens to be in.
+const scanForChat = async (
   call: (spec: BlueBubblesRequest) => Promise<BlueBubblesJson>,
   target: string,
 ): Promise<ResolvedChat | undefined> => {
-  if (target.includes(";-;")) return { guid: target, name: target };
   const payload = await call({
     method: "POST",
     path: "/api/v1/chat/query",
@@ -85,10 +133,6 @@ const resolveChat = async (
       sort: "lastmessage",
     },
   });
-  // Prefer the conversation whose own identity matches (the 1:1 thread whose
-  // chatIdentifier IS the handle, or a group named for the target) over one
-  // where the target is merely a participant — otherwise "read from Alice"
-  // could surface a group Alice happens to be in.
   const chats = recordArray(payload, "data");
   const match = chats.find((chat) => directMatch(chat, target))
     ?? chats.find((chat) => participantMatch(chat, target));

@@ -12,8 +12,15 @@ export interface ResolvedChat {
   readonly name: string;
 }
 
+export interface ConversationRead {
+  readonly name: string;
+  readonly messages: readonly BlueBubblesJson[];
+}
+
 export interface BlueBubblesClient {
   queryRecent(limit: number): Promise<readonly BlueBubblesJson[]>;
-  queryChat(guid: string, limit: number): Promise<readonly BlueBubblesJson[]>;
-  resolveChat(target: string): Promise<ResolvedChat | undefined>;
+  readFrom(
+    target: string,
+    limit: number,
+  ): Promise<ConversationRead | undefined>;
 }

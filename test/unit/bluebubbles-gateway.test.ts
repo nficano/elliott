@@ -36,11 +36,15 @@ const CHAT_MESSAGE = {
   dateCreated: 1_785_275_100_000,
 };
 
+const MOM_GUID = "any;-;+13474062025";
+
 const requestUrl = (input: string | URL | Request): URL =>
   input instanceof Request ? new URL(input.url) : new URL(input.toString());
 
 // A fetcher that records every call and answers each BlueBubbles endpoint from
 // canned data, so the client's real query/resolve logic is exercised offline.
+// Only Mom's 1:1 chat GUID has messages; other chat GUIDs 404, so candidate
+// probing has to land on the right one.
 const recordingFetcher = (log: string[]): typeof fetch =>
   (async (input: string | URL | Request) => {
     const url = requestUrl(input);
@@ -51,8 +55,13 @@ const recordingFetcher = (log: string[]): typeof fetch =>
     if (url.pathname === "/api/v1/chat/query") {
       return Response.json({ status: 200, data: [MOM_CHAT] });
     }
-    if (url.pathname.endsWith("/message")) {
+    if (
+      url.pathname === `/api/v1/chat/${encodeURIComponent(MOM_GUID)}/message`
+    ) {
       return Response.json({ status: 200, data: [CHAT_MESSAGE] });
+    }
+    if (url.pathname.endsWith("/message")) {
+      return new Response("not found", { status: 404 });
     }
     return Response.json({ status: 404, data: [] });
   }) as typeof fetch;
@@ -88,69 +97,73 @@ describe("BlueBubbles iMessage read", () => {
     }]);
   });
 
-  it("resolves a conversation by contact name and reads the real chat GUID", async () => {
+  it("reads a phone handle via its direct 1:1 GUID, no chat-list scan", async () => {
     const log: string[] = [];
     const client = createBlueBubblesClient(SETTINGS, recordingFetcher(log));
-    const chat = await client.resolveChat("Mom");
-    expect(chat).toEqual({ guid: "any;-;+13474062025", name: "Mom" });
-    const messages = (await client.queryChat(chat?.guid ?? "", 20))
-      .map(compactMessage);
+    const found = await client.readFrom("+13474062025", 20);
+    // The 1:1 GUID is hit directly; chat/query is never consulted.
     expect(log).toEqual([
-      "/api/v1/chat/query",
-      `/api/v1/chat/${encodeURIComponent("any;-;+13474062025")}/message`,
+      `/api/v1/chat/${encodeURIComponent(MOM_GUID)}/message`,
     ]);
-    expect(messages[0]).toMatchObject({ from: "me", text: "omw" });
+    expect(found?.name).toBe("+13474062025");
+    expect(found?.messages.map(compactMessage)[0]).toMatchObject({
+      from: "me",
+      text: "omw",
+    });
   });
 
   it("matches a phone number across formatting and country code", async () => {
     const log: string[] = [];
     const client = createBlueBubblesClient(SETTINGS, recordingFetcher(log));
-    expect(await client.resolveChat("(347) 406-2025")).toEqual({
-      guid: "any;-;+13474062025",
-      name: "Mom",
-    });
-    expect(await client.resolveChat("3474062025")).toBeDefined();
+    // "(347) 406-2025" -> +13474062025 candidate; the +3474062025 candidate 404s.
+    expect((await client.readFrom("(347) 406-2025", 20))?.messages)
+      .toHaveLength(
+        1,
+      );
+    expect(await client.readFrom("3474062025", 20)).toBeDefined();
   });
 
-  it("prefers the direct thread over a group the handle is only a member of", async () => {
-    // The group is sorted first (most recent), but resolving a handle should
-    // land on that handle's own conversation, not a group it participates in.
-    const group = {
-      guid: "any;+;group-guid",
-      chatIdentifier: "any;+;group-guid",
-      displayName: "",
-      participants: [
-        { address: "+13474062025" },
-        { address: "+19995550000" },
-      ],
-    };
-    const fetcher: typeof fetch = (async () =>
-      Response.json({
-        status: 200,
-        data: [group, MOM_CHAT],
-      })) as typeof fetch;
-    const client = createBlueBubblesClient(SETTINGS, fetcher);
-    expect(await client.resolveChat("+13474062025")).toEqual({
-      guid: "any;-;+13474062025",
-      name: "Mom",
+  it("falls back to the chat list for a contact name", async () => {
+    const log: string[] = [];
+    const client = createBlueBubblesClient(SETTINGS, recordingFetcher(log));
+    const found = await client.readFrom("Mom", 20);
+    expect(log).toEqual([
+      "/api/v1/chat/query",
+      `/api/v1/chat/${encodeURIComponent(MOM_GUID)}/message`,
+    ]);
+    expect(found?.name).toBe("Mom");
+    expect(found?.messages.map(compactMessage)[0]).toMatchObject({
+      from: "me",
     });
+  });
+
+  it("prefers the direct 1:1 thread over a group the handle is only in", async () => {
+    // chat/query returns only groups (the real server caps and mis-sorts the
+    // list, dropping the 1:1). Reading by handle must still land on the 1:1,
+    // because it targets the constructed GUID rather than scanning.
+    const log: string[] = [];
+    const client = createBlueBubblesClient(SETTINGS, recordingFetcher(log));
+    const found = await client.readFrom("+13474062025", 20);
+    expect(found?.messages.map(compactMessage)[0]).toMatchObject({
+      from: "me",
+    });
+    expect(log).not.toContain("/api/v1/chat/query");
   });
 
   it("uses a full chat GUID directly without a chat lookup", async () => {
     const log: string[] = [];
     const client = createBlueBubblesClient(SETTINGS, recordingFetcher(log));
-    const chat = await client.resolveChat("iMessage;-;+15551234567");
-    expect(chat).toEqual({
-      guid: "iMessage;-;+15551234567",
-      name: "iMessage;-;+15551234567",
-    });
-    expect(log).toEqual([]);
+    const found = await client.readFrom("iMessage;-;+15551234567", 20);
+    expect(found?.name).toBe("iMessage;-;+15551234567");
+    expect(log).toEqual([
+      `/api/v1/chat/${encodeURIComponent("iMessage;-;+15551234567")}/message`,
+    ]);
   });
 
-  it("does not match an unrelated handle", async () => {
+  it("returns undefined when no conversation matches", async () => {
     const log: string[] = [];
     const client = createBlueBubblesClient(SETTINGS, recordingFetcher(log));
-    expect(await client.resolveChat("nobody@nowhere.test")).toBeUndefined();
+    expect(await client.readFrom("nobody@nowhere.test", 20)).toBeUndefined();
   });
 
   it("labels attachment-only messages and sent messages", () => {

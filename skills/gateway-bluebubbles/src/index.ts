@@ -56,17 +56,16 @@ const readTool = (settings: BlueBubblesSettings): ToolDefinition => ({
       const messages = await client.queryRecent(limit);
       return JSON.stringify({ messages: messages.map(compactMessage) });
     }
-    const chat = await client.resolveChat(target);
-    if (chat === undefined) {
+    const found = await client.readFrom(target, limit);
+    if (found === undefined) {
       return JSON.stringify({
         messages: [],
         note: `No conversation matched "${target}".`,
       });
     }
-    const messages = await client.queryChat(chat.guid, limit);
     return JSON.stringify({
-      chat: chat.name,
-      messages: messages.map(compactMessage),
+      chat: found.name,
+      messages: found.messages.map(compactMessage),
     });
   },
 });
