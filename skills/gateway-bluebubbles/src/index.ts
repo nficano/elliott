@@ -1,5 +1,9 @@
 import { isJsonRecord } from "../../../src/providers/http";
-import { objectSchema, requiredString } from "../../../src/runtime/skills/http";
+import {
+  objectSchema,
+  optionalInteger,
+  requiredString,
+} from "../../../src/runtime/skills/http";
 import type {
   SkillContext,
   SkillRegistration,
@@ -8,22 +12,64 @@ import type {
   BlueBubblesSettings,
   ToolDefinition,
 } from "../../../src/runtime/types";
+import { compactMessage, createBlueBubblesClient } from "./client";
 
 const MESSAGE_CHUNK_CHARACTERS = 4000;
 const HTTP_ERROR_FLOOR = 400;
 const GUID_SEPARATOR = ";-;";
+const READ_LIMIT_DEFAULT = 20;
+const READ_LIMIT_MAX = 50;
 
 export const register = (context: SkillContext): SkillRegistration => {
   const settings = context.settings.bluebubbles;
   if (settings === undefined) return {};
+  const tools: ToolDefinition[] = [readTool(settings)];
   if (
-    settings.allowedRecipients.length === 0
-    && settings.defaultRecipient === undefined
+    settings.allowedRecipients.length > 0
+    || settings.defaultRecipient !== undefined
   ) {
-    return {};
+    tools.push(sendTool(settings));
   }
-  return { tools: [sendTool(settings)] };
+  return { tools };
 };
+
+const readTool = (settings: BlueBubblesSettings): ToolDefinition => ({
+  name: "imessage_read",
+  description: "Read recent iMessages from the paired BlueBubbles server. "
+    + "Omit `from` for the most recent messages across every conversation, "
+    + "or pass `from` (a phone number, email, contact name, or full chat "
+    + "GUID) to read one conversation. Returns messages newest-first.",
+  inputSchema: objectSchema({
+    from: { type: "string" },
+    limit: { type: "integer", minimum: 1, maximum: READ_LIMIT_MAX },
+  }, []),
+  resultRetention: "turn",
+  execute: async (input) => {
+    const client = createBlueBubblesClient(settings);
+    const limit = optionalInteger(input, "limit", {
+      min: 1,
+      max: READ_LIMIT_MAX,
+      fallback: READ_LIMIT_DEFAULT,
+    });
+    const target = optionalString(input, "from");
+    if (target === undefined) {
+      const messages = await client.queryRecent(limit);
+      return JSON.stringify({ messages: messages.map(compactMessage) });
+    }
+    const chat = await client.resolveChat(target);
+    if (chat === undefined) {
+      return JSON.stringify({
+        messages: [],
+        note: `No conversation matched "${target}".`,
+      });
+    }
+    const messages = await client.queryChat(chat.guid, limit);
+    return JSON.stringify({
+      chat: chat.name,
+      messages: messages.map(compactMessage),
+    });
+  },
+});
 
 const sendTool = (settings: BlueBubblesSettings): ToolDefinition => ({
   name: "imessage_send",
@@ -102,6 +148,12 @@ const toChatGuid = (recipient: string): string =>
   recipient.includes(GUID_SEPARATOR)
     ? recipient
     : `iMessage${GUID_SEPARATOR}${recipient}`;
+
+const optionalString = (input: unknown, key: string): string | undefined => {
+  if (!isJsonRecord(input)) return undefined;
+  const value = input[key];
+  return typeof value === "string" && value.length > 0 ? value : undefined;
+};
 
 const chunkText = (text: string): readonly string[] => {
   if (text.length <= MESSAGE_CHUNK_CHARACTERS) return [text];
