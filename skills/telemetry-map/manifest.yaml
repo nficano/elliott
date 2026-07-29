@@ -6,7 +6,10 @@ spec:
   document: EXTENSION.md
   protocols: [health.checker]
   capabilities:
-    - { capability: fs.read, resources: [state://sessions.sqlite] }
+    - {
+        capability: fs.read,
+        resources: [state://sessions.sqlite, state://facilities/grants.json],
+      }
     - {
         capability: facility.use,
         resources:

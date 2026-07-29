@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { register } from "../../../skills/telemetry-map/src/index";
@@ -8,6 +8,7 @@ import { standaloneFacilityDirectory } from "../../../src/runtime/skills/facilit
 import type {
   GatewayEvents,
   SkillContext,
+  SkillPackageView,
   SkillRegistration,
 } from "../../../src/runtime/skills/types";
 import type { RuntimeSettings } from "../../../src/runtime/types";
@@ -22,9 +23,9 @@ afterEach(async () => {
   while (cleanups.length > 0) await cleanups.pop()?.();
 });
 
-const makeContext = async (): Promise<
-  { context: SkillContext; reported: unknown[]; }
-> => {
+const makeContext = async (
+  packages: readonly SkillPackageView[] = [],
+): Promise<{ context: SkillContext; reported: unknown[]; }> => {
   const stateDirectory = await mkdtemp(
     path.join(tmpdir(), "telemetry-map-routes-"),
   );
@@ -39,6 +40,7 @@ const makeContext = async (): Promise<
     settings,
     stateDirectory,
     facilities: standaloneFacilityDirectory(),
+    packages: () => packages,
     report: (error) => {
       reported.push(error);
     },
@@ -156,7 +158,7 @@ describe("GET /v1/observability/map", () => {
 });
 
 describe("GET /v1/observability/map/topology", () => {
-  it("serves the enriched topology JSON verbatim", async () => {
+  it("serves the enriched topology JSON verbatim when no packages loaded", async () => {
     const registration = await makeRegistration();
     const response = await dispatch(registration, "GET", `${BASE}/topology`);
     expect(response.status).toBe(200);
@@ -167,6 +169,162 @@ describe("GET /v1/observability/map/topology", () => {
       "utf8",
     );
     expect(body).toBe(onDisk);
+  });
+
+  it("auto-registers a loaded skill's manifest topology on the served map", async () => {
+    const view: SkillPackageView = {
+      name: "widget",
+      kind: "tool",
+      directory: "/srv/agent/skills/widget",
+      provides: [],
+      topology: {
+        node: {
+          id: "tool.widget",
+          kind: "tool",
+          domain: "tool-execution",
+          trustZone: "internal",
+        },
+        dispatch: "tool",
+        gate: "always",
+      },
+      registered: true,
+      bindings: {
+        tools: 1,
+        gateways: 0,
+        routes: 0,
+        services: 0,
+        facilities: 0,
+      },
+    };
+    const { context } = await makeContext([view]);
+    const registration = await register(context);
+    const response = await dispatch(registration, "GET", `${BASE}/topology`);
+    const body = (await response.json()) as {
+      nodes: { id: string; runtime: string; source: string; }[];
+      edges: { from: string; to: string; kind: string; }[];
+      autoRegistration: { nodes: string[]; };
+    };
+    const node = body.nodes.find((item) => item.id === "tool.widget");
+    expect(node).toMatchObject({
+      id: "tool.widget",
+      runtime: "live",
+      source: "skills/widget",
+    });
+    expect(body.edges).toContainEqual(expect.objectContaining({
+      from: "runtime.toolExec",
+      to: "tool.widget",
+      kind: "data",
+    }));
+    expect(body.autoRegistration.nodes).toEqual(["tool.widget"]);
+  });
+
+  it("derives facility grant edges from the persisted grants file", async () => {
+    const provider: SkillPackageView = {
+      name: "traefik",
+      kind: "tool",
+      directory: "/srv/agent/skills/traefik",
+      provides: ["core/proxy.route"],
+      topology: {
+        node: { id: "tool.traefik", kind: "tool", domain: "local-network" },
+        dispatch: "tool",
+      },
+      registered: true,
+      bindings: {
+        tools: 1,
+        gateways: 0,
+        routes: 0,
+        services: 0,
+        facilities: 1,
+      },
+    };
+    const consumer: SkillPackageView = {
+      name: "widget",
+      kind: "extension",
+      directory: "/srv/agent/skills/widget",
+      provides: [],
+      topology: {
+        node: {
+          id: "obs.widget",
+          kind: "observability",
+          domain: "observability",
+        },
+        dispatch: "none",
+      },
+      registered: true,
+      bindings: {
+        tools: 0,
+        gateways: 0,
+        routes: 1,
+        services: 0,
+        facilities: 0,
+      },
+    };
+    const { context } = await makeContext([provider, consumer]);
+    await mkdir(path.join(context.stateDirectory, "facilities"), {
+      recursive: true,
+    });
+    await writeFile(
+      path.join(context.stateDirectory, "facilities", "grants.json"),
+      JSON.stringify({
+        grants: [{
+          consumer: "widget",
+          name: "public",
+          facilityId: "core/proxy.route",
+          version: 1,
+          config: {},
+          grant: {
+            grantId: "g-1",
+            facility: "core/proxy.route",
+            values: {},
+          },
+        }],
+      }),
+    );
+    const registration = await register(context);
+    const response = await dispatch(registration, "GET", `${BASE}/topology`);
+    const body = (await response.json()) as {
+      edges: { from: string; to: string; kind: string; label?: string; }[];
+    };
+    expect(body.edges).toContainEqual(expect.objectContaining({
+      from: "obs.widget",
+      to: "tool.traefik",
+      kind: "control",
+      label: "facility core/proxy.route (public)",
+    }));
+  });
+
+  it("resolves liveness on enriched nodes from what actually registered", async () => {
+    const view: SkillPackageView = {
+      name: "gateway-webhook",
+      kind: "gateway",
+      directory: "/srv/agent/skills/gateway-webhook",
+      provides: [],
+      topology: {
+        node: { id: "gateway.webhook", kind: "gateway", domain: "ingress" },
+        dispatch: "route",
+      },
+      registered: true,
+      bindings: {
+        tools: 0,
+        gateways: 0,
+        routes: 1,
+        services: 0,
+        facilities: 0,
+      },
+    };
+    const { context } = await makeContext([view]);
+    const registration = await register(context);
+    const response = await dispatch(registration, "GET", `${BASE}/topology`);
+    const body = (await response.json()) as {
+      nodes: { id: string; runtime: string; }[];
+      autoRegistration: { liveness: Record<string, string>; };
+    };
+    // The enriched document ships gateway.webhook as config-gated; a live
+    // registration overrides it without duplicating the node.
+    const matches = body.nodes.filter((item) => item.id === "gateway.webhook");
+    expect(matches.length).toBe(1);
+    expect(matches[0]?.runtime).toBe("live");
+    expect(body.autoRegistration.liveness["gateway.webhook"]).toBe("live");
   });
 });
 

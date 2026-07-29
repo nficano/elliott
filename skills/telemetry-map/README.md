@@ -44,11 +44,32 @@ Endpoints (all under `/v1/observability/map`):
 | :--- | :--- |
 | `/` | the explorer UI (Nuxt build when `app/dist` exists, else the legacy document) |
 | `/legacy` | the original self-contained HTML/canvas document |
-| `/topology` | the connection graph — same as `docs/elliott-topology.enriched.json` |
+| `/topology` | the connection graph — `docs/elliott-topology.enriched.json` plus every auto-registered skill (see below) |
 | `/state` | current snapshot: turns, db table counts + recent rows, recent events |
 | `/stream` | Server-Sent-Events live feed of turn activity |
 | `/turn?id=<runId>` | one turn's full event list (rounds, prompt, tools) |
 | `POST /send` | inject a message; answers captured by the telemetry-map gateway |
+
+## Skill auto-registration
+
+Every loaded package that declares a `spec.topology` block in its manifest
+auto-registers on the served graph — no hand-editing of the enriched document.
+At request time `/topology` merges (`src/auto-topology.ts`, same derivation
+semantics as `scripts/gen-topology.mjs`):
+
+- **Nodes** for skills the enriched document doesn't know (framework and
+  agent-level skills alike), with uniform edges derived from
+  `spec.topology.dispatch` and any declared `edges` (`self` substituted).
+- **Liveness** resolved from what actually registered: a registration with at
+  least one binding reads `live`; anything else reads `config-gated`. This
+  also overrides `runtime` on enriched nodes when the static claim is stale.
+- **Facility grant edges** (consumer → provider, kind `control`) from the
+  persisted `facilities/grants.json`, so provisioning chains like
+  webhook-provisioner → traefik/pihole appear without any declaration.
+
+The merged document carries an `autoRegistration` summary (added node ids,
+added edge ids, liveness overrides). With nothing to merge, the enriched file
+is served byte-for-byte.
 
 ## How it taps the live system
 

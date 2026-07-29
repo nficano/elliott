@@ -84,7 +84,18 @@ const loadPackage = async (directory: string): Promise<BundledPackage> => {
     exports,
     ...(exports[0] !== undefined
       && { entrypoint: path.join(directory, exports[0].implementation) }),
+    ...decodeTopologyBlock(spec),
   };
+};
+
+// The manifest's spec.topology block travels verbatim on the package so the
+// telemetry map can auto-register the skill; absent or malformed blocks
+// simply contribute no key.
+const decodeTopologyBlock = (
+  spec: Readonly<Record<string, unknown>>,
+): { topology?: Readonly<Record<string, unknown>>; } => {
+  const topology = spec["topology"];
+  return isJsonRecord(topology) ? { topology } : {};
 };
 
 const decodeProvides = (value: unknown): readonly FacilityRef[] => {

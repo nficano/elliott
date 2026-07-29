@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { access, readFile } from "node:fs/promises";
 import path from "node:path";
 import { BUNDLED_CATALOG, loadBundledPackages } from "../../src/catalog/index";
+import { collectPackageViews } from "../../src/runtime/skills/loader";
 
 const root = path.resolve(import.meta.dir, "../..");
 
@@ -73,6 +74,48 @@ describe("Elliott bundled component packages", () => {
       const register = (module as { register?: unknown; }).register;
       expect(typeof register).toBe("function");
     }
+  });
+
+  it("carries each manifest's spec.topology block for map auto-registration", async () => {
+    const packages = await loadBundledPackages(root);
+    const map = packages.find((item) => item.name === "telemetry-map");
+    expect(map?.topology).toMatchObject({
+      node: expect.objectContaining({ id: "obs.map" }),
+    });
+    const withTopology = packages.filter((item) => item.topology !== undefined);
+    expect(withTopology.length).toBeGreaterThan(20);
+  });
+
+  it("joins catalog and registrations into SkillContext package views", async () => {
+    const packages = await loadBundledPackages(root);
+    const views = collectPackageViews(packages, [{
+      name: "telemetry-map",
+      registration: {
+        gateways: [{ name: "telemetry-map" }],
+        routes: [{ method: "GET", path: "/x" }],
+        services: [{ name: "telemetry-map" }],
+      } as never,
+    }]);
+    expect(views.length).toBe(packages.length);
+    const map = views.find((item) => item.name === "telemetry-map");
+    expect(map).toMatchObject({
+      kind: "extension",
+      registered: true,
+      bindings: {
+        tools: 0,
+        gateways: 1,
+        routes: 1,
+        services: 1,
+        facilities: 0,
+      },
+    });
+    expect(map?.topology).toMatchObject({
+      node: expect.objectContaining({ id: "obs.map" }),
+    });
+    const traefik = views.find((item) => item.name === "traefik");
+    expect(traefik?.provides).toContain("proxy.route");
+    expect(traefik?.registered).toBe(false);
+    expect(traefik?.bindings.tools).toBe(0);
   });
 
   it("runs without a vendored secondary agent framework", async () => {

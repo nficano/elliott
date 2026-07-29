@@ -38,6 +38,7 @@ const piholeContext = async (): Promise<SkillContext> => {
     },
     stateDirectory,
     facilities: standaloneFacilityDirectory(),
+    packages: () => [],
     report: () => {},
     deliver: async () => {},
   };
