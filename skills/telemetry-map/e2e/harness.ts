@@ -2,6 +2,7 @@ import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { HTTP_NOT_FOUND } from "../../../src/runtime/http";
+import { standaloneFacilityDirectory } from "../../../src/runtime/skills/facilities";
 import type {
   GatewayEvents,
   SkillRegistration,
@@ -26,6 +27,7 @@ const settings = {
 const registration: SkillRegistration = await register({
   settings,
   stateDirectory: await mkdtemp(path.join(tmpdir(), "telemetry-map-e2e-")),
+  facilities: standaloneFacilityDirectory(),
   report: (error, mechanism) => {
     console.error(`[harness] ${mechanism}:`, error);
   },

@@ -33,6 +33,7 @@ const IMPLEMENTED = [
   "traefik",
   "web-firecrawl",
   "web-parallel",
+  "webhook-provisioner",
   "youtube-dvr",
 ];
 

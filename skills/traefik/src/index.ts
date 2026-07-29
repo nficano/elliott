@@ -11,11 +11,11 @@ import type {
   ToolDefinition,
   TraefikSettings,
 } from "../../../src/runtime/types";
+import { proxyRouteFacility } from "./facility";
 import type { RouteStore, RouteTable } from "./types";
+import { hostnameValue, routeName, serviceTarget } from "./validate";
 
 const REQUEST_TIMEOUT_MILLISECONDS = 15_000;
-const ROUTE_NAME = /^[a-z\d][a-z\d-]*$/i;
-const LABEL = /^[a-z\d][a-z\d-]*$/i;
 const DYNAMIC_CONFIG_PATH = "/v1/traefik/dynamic";
 const ROUTER_PREFIX = "elliott-";
 const JSON_INDENT = 2;
@@ -31,6 +31,7 @@ export const register = (context: SkillContext): SkillRegistration => {
       removeTool(store),
     ],
     routes: [dynamicConfigRoute(settings, store)],
+    facilities: [proxyRouteFacility(settings, store)],
   };
 };
 
@@ -199,26 +200,4 @@ const liveRouters = async (settings: TraefikSettings): Promise<unknown> => {
   } catch (error) {
     return `Traefik API unreachable: ${String(error)}`;
   }
-};
-
-const routeName = (value: string): string => {
-  if (!ROUTE_NAME.test(value)) throw new Error(`Invalid route name: ${value}`);
-  return value.toLowerCase();
-};
-
-const hostnameValue = (value: string): string => {
-  const labels = value.split(".");
-  const invalid = labels.some((label) =>
-    !LABEL.test(label) || label.endsWith("-")
-  );
-  if (invalid) throw new Error(`Invalid hostname: ${value}`);
-  return value.toLowerCase();
-};
-
-const serviceTarget = (value: string): string => {
-  const url = new URL(value);
-  if (url.protocol !== "http:" && url.protocol !== "https:") {
-    throw new Error("Service URL must be HTTP or HTTPS");
-  }
-  return url.href;
 };

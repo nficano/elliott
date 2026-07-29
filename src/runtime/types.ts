@@ -36,6 +36,9 @@ export interface SlackSettings {
   readonly ownerId: string;
   readonly defaultChannel: string;
   readonly replyInThread?: boolean;
+  // The Slack app's request-signing secret. When set, the gateway acquires an
+  // ingress.webhook endpoint (slack-v2 profile) for HTTP interactivity.
+  readonly signingSecret?: string;
 }
 
 export interface BrowserSettings {
@@ -120,6 +123,23 @@ export interface TraefikSettings {
   readonly apiUrl: string;
   readonly certResolver: string;
   readonly entryPoint: string;
+  // The proxy's LAN address, surfaced in proxy.route facility grants so a
+  // consumer can chain a dns.local record pointing at the proxy.
+  readonly lanAddress?: string;
+}
+
+export interface WebhookProvisionerSettings {
+  // Public base of the hooks hostname the cloudflared tunnel routes to the
+  // runtime, e.g. https://hooks.octet.stream. Endpoint URLs are <base>/w/<slug>.
+  readonly hooksBaseUrl: string;
+}
+
+export interface TelemetryMapSettings {
+  // Local hostname to publish the observability map at (dns.local +
+  // proxy.route facilities), e.g. elliott.octet.stream.
+  readonly publicHostname: string;
+  // The runtime's HTTP endpoint as the reverse proxy reaches it.
+  readonly serviceUrl: string;
 }
 
 export interface SubscriptionAccountSettings {
@@ -313,6 +333,8 @@ export interface RuntimeSettings {
   readonly cloudflared?: CloudflaredSettings;
   readonly pihole?: PiholeSettings;
   readonly traefik?: TraefikSettings;
+  readonly webhookProvisioner?: WebhookProvisionerSettings;
+  readonly telemetryMap?: TelemetryMapSettings;
   readonly subscriptionUsage?: SubscriptionUsageSettings;
   readonly webhookSecret?: string;
   readonly mcp: readonly McpEndpointSettings[];

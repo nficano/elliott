@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { standaloneFacilityDirectory } from "../../../src/runtime/skills/facilities";
 import type { SkillContext } from "../../../src/runtime/skills/types";
 import {
   loadOneSkill,
@@ -36,6 +37,7 @@ const piholeContext = async (): Promise<SkillContext> => {
       pihole: { baseUrl: PIHOLE_URL ?? "", password: PIHOLE_PASSWORD ?? "" },
     },
     stateDirectory,
+    facilities: standaloneFacilityDirectory(),
     report: () => {},
     deliver: async () => {},
   };
@@ -110,6 +112,35 @@ describe("traefik e2e (Tier 2, gated)", () => {
       expect(health.ready).toBe(true);
       expect(health.skills).toBeGreaterThan(0);
       expect(health.tools).toBeGreaterThan(0);
+    },
+  );
+
+  it.skipIf(ELLIOTT_URL === undefined)(
+    "serves the /map alias published through the facility seam",
+    async () => {
+      const response = await fetch(new URL("/map", ELLIOTT_URL), {
+        redirect: "manual",
+        signal: AbortSignal.timeout(10_000),
+      });
+      expect(response.status).toBe(302);
+      expect(response.headers.get("location")).toBe("/v1/observability/map");
+    },
+  );
+});
+
+// The full published-hostname path (Pi-hole record -> Traefik route -> map),
+// probed by hostname so it exercises LAN DNS + the proxy + the certificate.
+describe("published map hostname e2e (Tier 2, gated)", () => {
+  const MAP_URL = Bun.env["ELLIOTT_E2E_MAP_URL"];
+  it.skipIf(MAP_URL === undefined)(
+    "answers on the published hostname with the map redirect",
+    async () => {
+      const response = await fetch(new URL("/map", MAP_URL), {
+        redirect: "manual",
+        signal: AbortSignal.timeout(15_000),
+      });
+      expect(response.status).toBe(302);
+      expect(response.headers.get("location")).toBe("/v1/observability/map");
     },
   );
 });

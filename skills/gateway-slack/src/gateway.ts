@@ -11,13 +11,9 @@ import type {
 import { agentMessageBlocks } from "./blocks";
 import { postMessage } from "./client";
 import { GATEWAY_NAME } from "./constants";
-import {
-  decodeContext,
-  decodeInteraction,
-  decodeMessage,
-  decodeReactionFeedback,
-} from "./events";
+import { decodeContext, decodeMessage, decodeReactionFeedback } from "./events";
 import { loadLiveThreadHistory, withoutRetainedHistory } from "./history";
+import { handleInteractionPayload } from "./interactivity";
 import { handleAppHomeOpened } from "./onboarding";
 import { SlackAgentResponse } from "./response";
 import {
@@ -230,24 +226,16 @@ export class SlackGateway {
     });
   }
 
+  // Socket Mode delivers the same interaction payload shape the HTTP
+  // interactivity endpoint receives; both funnel into one handler.
   async #handleInteraction(payload: SlackJson): Promise<void> {
-    const action = decodeInteraction(payload, this.#settings.ownerId);
-    if (action === undefined) return;
-    if (action.type === "delete") {
-      await this.#dependencies.clients.bot.request("chat.delete", {
-        channel: action.channel,
-        ts: action.message,
-      });
-      return;
-    }
-    await this.#events?.onFeedback({
-      gateway: GATEWAY_NAME,
-      channel: action.channel,
-      message: action.message,
-      sender: action.sender,
-      sentiment: action.sentiment,
-      source: "button",
-    });
+    const events = this.#events;
+    if (events === undefined) return;
+    await handleInteractionPayload(payload, {
+      ownerId: this.#settings.ownerId,
+      client: this.#dependencies.clients.bot,
+      report: this.#dependencies.report,
+    }, events);
   }
 
   #allowedMessage(event: SlackJson): boolean {

@@ -5,6 +5,8 @@ import type {
   TurnObserver,
 } from "../types";
 
+export type JsonRecord = Readonly<Record<string, unknown>>;
+
 export interface GatewayFeedback {
   readonly gateway: string;
   readonly channel: string;
@@ -49,18 +51,84 @@ export interface ServiceBinding {
   health?(): Readonly<Record<string, number>>;
 }
 
+// --- Facilities -------------------------------------------------------------
+// The fifth binding kind on the register() seam: a skill *provides* a facility
+// (infrastructure other skills can consume); a consumer *acquires* a grant
+// from it during its own register(). list/describe/acquire deliberately
+// mirror MCP's tools/list + tools/call so the same records can later back
+// ComponentDiscovery cards. See docs/skill-facilities.md.
+
+export interface FacilityDescriptor {
+  readonly id: string;
+  readonly version: number;
+  readonly description: string;
+  readonly requestSchema: JsonRecord;
+  readonly grantSchema: JsonRecord;
+}
+
+export interface FacilityRequest {
+  // Stamped by the loader from the acquiring package's metadata.name — never
+  // caller-supplied, so a skill cannot impersonate another consumer.
+  readonly consumer: string;
+  readonly name: string;
+  readonly config: JsonRecord;
+}
+
+export interface FacilityGrant {
+  readonly grantId: string;
+  readonly facility: string;
+  readonly values: JsonRecord;
+}
+
+export interface FacilityBinding {
+  readonly id: string;
+  readonly version: number;
+  describe(): FacilityDescriptor;
+  acquire(request: FacilityRequest): Promise<FacilityGrant>;
+  release?(grantId: string): Promise<void>;
+}
+
+export interface FacilityDirectory {
+  list(): readonly FacilityDescriptor[];
+  describe(id: string): FacilityDescriptor | undefined;
+  acquire(id: string, name: string, config: JsonRecord): Promise<FacilityGrant>;
+  // Tears down the provisioned resource behind one of this consumer's grants.
+  // Destructive; never called implicitly by the runtime.
+  release(grantId: string): Promise<void>;
+}
+
+export interface StoredGrant {
+  readonly consumer: string;
+  readonly name: string;
+  readonly facilityId: string;
+  readonly version: number;
+  readonly config: JsonRecord;
+  readonly grant: FacilityGrant;
+}
+
+export interface RegisteredFacility {
+  readonly provider: string;
+  readonly binding: FacilityBinding;
+}
+
 export interface SkillContext {
   readonly settings: RuntimeSettings;
   readonly stateDirectory: string;
+  readonly facilities: FacilityDirectory;
   report(error: unknown, mechanism: string): void;
   deliver(text: string): Promise<void>;
 }
+
+// What the runtime hands the loader: everything on SkillContext except the
+// facility directory, which the loader builds and scopes per package.
+export type SkillContextSeed = Omit<SkillContext, "facilities">;
 
 export interface SkillRegistration {
   readonly tools?: readonly ToolDefinition[];
   readonly gateways?: readonly GatewayBinding[];
   readonly routes?: readonly RouteBinding[];
   readonly services?: readonly ServiceBinding[];
+  readonly facilities?: readonly FacilityBinding[];
 }
 
 export type SkillRegistrar = (

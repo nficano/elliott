@@ -9,10 +9,9 @@ import type {
   ToolDefinition,
 } from "../../../src/runtime/types";
 import { detectBackend } from "./api";
+import { dnsLocalFacility } from "./facility";
+import { address, hostname, removeDomain } from "./records";
 import type { PiholeBackend, PiholeBackendSource } from "./types";
-
-const LABEL = /^[a-z\d][a-z\d-]*$/i;
-const ADDRESS = /^[\da-f.:]+$/i;
 
 export const register = (context: SkillContext): SkillRegistration => {
   const settings = context.settings.pihole;
@@ -20,6 +19,7 @@ export const register = (context: SkillContext): SkillRegistration => {
   const backend = backendSource(settings);
   return {
     tools: [listTool(backend), setTool(backend), removeTool(backend)],
+    facilities: [dnsLocalFacility(backend)],
   };
 };
 
@@ -62,15 +62,12 @@ const setTool = (backend: PiholeBackendSource): ToolDefinition => ({
     if ((ip === undefined) === (target === undefined)) {
       throw new Error("Provide exactly one of ip or target");
     }
-    if (ip !== undefined && !ADDRESS.test(ip)) {
-      throw new Error(`Invalid IP address: ${ip}`);
-    }
     const alias = target === undefined ? undefined : hostname(target);
     const api = await backend();
     await removeDomain(api, domain);
     await (ip === undefined
       ? api.addCname(domain, alias ?? "")
-      : api.addHost(ip, domain));
+      : api.addHost(address(ip), domain));
     return JSON.stringify(await api.snapshot());
   },
 });
@@ -88,34 +85,6 @@ const removeTool = (backend: PiholeBackendSource): ToolDefinition => ({
     return JSON.stringify({ removed, ...await api.snapshot() });
   },
 });
-
-const removeDomain = async (
-  api: PiholeBackend,
-  domain: string,
-): Promise<number> => {
-  const current = await api.snapshot();
-  let removed = 0;
-  for (const record of current.hosts) {
-    if (!record.domains.includes(domain)) continue;
-    await api.removeHost(record, domain);
-    removed += 1;
-  }
-  for (const record of current.cnames) {
-    if (record.alias !== domain) continue;
-    await api.removeCname(record);
-    removed += 1;
-  }
-  return removed;
-};
-
-const hostname = (value: string): string => {
-  const labels = value.split(".");
-  const invalid = labels.some((label) =>
-    !LABEL.test(label) || label.endsWith("-")
-  );
-  if (invalid) throw new Error(`Invalid hostname: ${value}`);
-  return value.toLowerCase();
-};
 
 const optionalField = (input: unknown, key: string): string | undefined => {
   if (!isJsonRecord(input)) return undefined;

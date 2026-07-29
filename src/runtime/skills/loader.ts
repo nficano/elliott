@@ -1,32 +1,66 @@
 import type { BundledPackage } from "../../catalog/types";
 import type { ToolDefinition } from "../types";
+import { RuntimeFacilityDirectory } from "./facilities";
 import type {
+  FacilityBinding,
   GatewayBinding,
   LoadedSkill,
   RouteBinding,
   ServiceBinding,
   SkillContext,
+  SkillContextSeed,
   SkillRegistrar,
   SkillRegistration,
 } from "./types";
 
+// Two-pass registration: packages whose manifest declares spec.provides
+// register first and their FacilityBindings populate the directory; everything
+// else registers second with the populated directory on SkillContext, so
+// consumers can acquire grants inside register(). Providers get a view whose
+// acquire fails hard — provider→provider cycles are rejected at load.
 export const loadSkillRegistrations = async (
   packages: readonly BundledPackage[],
-  context: SkillContext,
+  seed: SkillContextSeed,
 ): Promise<readonly LoadedSkill[]> => {
+  const directory = new RuntimeFacilityDirectory(seed.stateDirectory);
+  const providers = packages.filter((item) => item.provides.length > 0);
+  const consumers = packages.filter((item) => item.provides.length === 0);
   const loaded: LoadedSkill[] = [];
-  for (const item of packages) {
-    if (item.entrypoint === undefined) continue;
-    try {
-      loaded.push({
-        name: item.name,
-        registration: await registerModule(item.entrypoint, context),
-      });
-    } catch (error) {
-      context.report(error, `skill:${item.name}`);
+  for (const item of providers) {
+    const skill = await loadOne(item, {
+      ...seed,
+      facilities: directory.providerView(),
+    });
+    if (skill === undefined) continue;
+    for (const binding of skill.registration.facilities ?? []) {
+      directory.register(item.name, binding);
     }
+    loaded.push(skill);
+  }
+  for (const item of consumers) {
+    const skill = await loadOne(item, {
+      ...seed,
+      facilities: directory.scoped(item.name),
+    });
+    if (skill !== undefined) loaded.push(skill);
   }
   return loaded;
+};
+
+const loadOne = async (
+  item: BundledPackage,
+  context: SkillContext,
+): Promise<LoadedSkill | undefined> => {
+  if (item.entrypoint === undefined) return undefined;
+  try {
+    return {
+      name: item.name,
+      registration: await registerModule(item.entrypoint, context),
+    };
+  } catch (error) {
+    context.report(error, `skill:${item.name}`);
+    return undefined;
+  }
 };
 
 const registerModule = async (
@@ -79,3 +113,8 @@ export const collectServices = (
   skills: readonly LoadedSkill[],
 ): readonly ServiceBinding[] =>
   skills.flatMap((skill) => skill.registration.services ?? []);
+
+export const collectFacilities = (
+  skills: readonly LoadedSkill[],
+): readonly FacilityBinding[] =>
+  skills.flatMap((skill) => skill.registration.facilities ?? []);

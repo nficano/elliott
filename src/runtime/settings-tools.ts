@@ -19,6 +19,7 @@ import type {
   SubscriptionUsageSettings,
   TerminalSettings,
   TraefikSettings,
+  WebhookProvisionerSettings,
 } from "./types";
 
 const DEFAULT_WORKSPACE = ".elliott-runtime/workspace";
@@ -133,6 +134,11 @@ export const optionalTraefik = (
   value: unknown,
 ): { readonly traefik?: TraefikSettings; } => {
   if (valueAt(value, ["tools", "traefik", "enabled"]) !== true) return {};
+  const lanAddress = optionalStringAt(value, [
+    "tools",
+    "traefik",
+    "lan_address",
+  ]);
   return {
     traefik: {
       apiUrl: stringAt(value, ["tools", "traefik", "api_url"]),
@@ -141,8 +147,19 @@ export const optionalTraefik = (
           ?? DEFAULT_CERT_RESOLVER,
       entryPoint: optionalStringAt(value, ["tools", "traefik", "entry_point"])
         ?? DEFAULT_ENTRY_POINT,
+      ...(lanAddress !== undefined && { lanAddress }),
     },
   };
+};
+
+export const optionalWebhookProvisioner = (
+  value: unknown,
+): { readonly webhookProvisioner?: WebhookProvisionerSettings; } => {
+  const base = ["gateways", "webhook_provisioner"];
+  if (valueAt(value, [...base, "enabled"]) !== true) return {};
+  const hooksBaseUrl = optionalStringAt(value, [...base, "hooks_base_url"]);
+  if (hooksBaseUrl === undefined || hooksBaseUrl.length === 0) return {};
+  return { webhookProvisioner: { hooksBaseUrl } };
 };
 
 export const optionalSubscriptionUsage = (

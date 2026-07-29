@@ -6,9 +6,16 @@ spec:
   document: GATEWAY.md
   protocols: [message.source, message.sink, identity.resolver]
   capabilities:
-    - { capability: network.connect, resources: [slack.com, slack-edge.com] }
+    - {
+        capability: network.connect,
+        resources: [slack.com, slack-edge.com, hooks.slack.com],
+      }
     - { capability: secret.use, resources: [secret://gateways/slack] }
-  egress: { class: declared, hosts: [slack.com, slack-edge.com] }
+    - {
+        capability: facility.use,
+        resources: ["facility://core/ingress.webhook@1"],
+      }
+  egress: { class: declared, hosts: [slack.com, slack-edge.com, hooks.slack.com] }
   isolation: container
   senderAllowlist: required
   outputTrust: untrusted

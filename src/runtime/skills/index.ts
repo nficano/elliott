@@ -2,6 +2,8 @@
 // the package contract types, the registration loader, and the JSON/schema
 // helpers every bundled skill uses. See docs/agent-skills.md.
 export { isJsonRecord, nestedRecord, recordArray } from "../../providers/http";
+export * from "./facilities";
 export * from "./http";
 export * from "./loader";
+export * from "./schema";
 export type * from "./types";

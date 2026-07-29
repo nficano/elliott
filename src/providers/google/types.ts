@@ -24,3 +24,9 @@ export interface GoogleClientOptions {
   readonly fetcher?: typeof fetch;
   readonly sleep?: (milliseconds: number) => Promise<void>;
 }
+
+export interface GoogleRequestRuntime {
+  readonly source: GoogleTokenSource;
+  readonly fetcher: typeof fetch;
+  readonly sleep: (milliseconds: number) => Promise<void>;
+}

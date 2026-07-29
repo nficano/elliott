@@ -7,6 +7,11 @@ spec:
   protocols: [health.checker]
   capabilities:
     - { capability: fs.read, resources: [state://sessions.sqlite] }
+    - {
+        capability: facility.use,
+        resources:
+          ["facility://core/proxy.route@1", "facility://core/dns.local@1"],
+      }
   egress: { class: none }
   isolation: container
   topology:

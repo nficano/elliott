@@ -53,6 +53,7 @@ export const stringArrayAt = (
 
 export const optionalSlack = (
   value: unknown,
+  secrets: Readonly<Record<string, string>> = {},
 ): { readonly slack?: SlackSettings; } => {
   if (valueAt(value, ["channels", "slack", "enabled"]) !== true) return {};
   return {
@@ -75,6 +76,7 @@ export const optionalSlack = (
         "slack",
         "reply_in_thread",
       ]),
+      ...optionalValue("signingSecret", secrets["slack_signing_secret"]),
     },
   };
 };

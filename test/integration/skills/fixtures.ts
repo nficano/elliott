@@ -3,9 +3,11 @@ import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { loadBundledPackages } from "../../../src/catalog/bundled";
+import { standaloneFacilityDirectory } from "../../../src/runtime/skills/facilities";
 import { loadSkillRegistrations } from "../../../src/runtime/skills/loader";
 import type {
   GatewayEvents,
+  GatewayFeedback,
   SkillContext,
   SkillRegistration,
 } from "../../../src/runtime/skills/types";
@@ -47,6 +49,7 @@ export const smokeSettings = (stateDirectory: string): RuntimeSettings => ({
     botToken: "xoxb-x",
     ownerId: "U0",
     defaultChannel: "C0",
+    signingSecret: "slack-signing",
   },
   gmail: {
     clientId: "x",
@@ -108,7 +111,9 @@ export const smokeSettings = (stateDirectory: string): RuntimeSettings => ({
     apiUrl: "http://127.0.0.1:1",
     certResolver: "letsencrypt",
     entryPoint: "websecure",
+    lanAddress: "192.0.2.10",
   },
+  webhookProvisioner: { hooksBaseUrl: "https://hooks.smoke.test" },
   webhookSecret: "x",
   mcp: [],
   newsBrief: { keywords: ["ai"], threshold: 1, briefSize: 3, alerts: false },
@@ -129,7 +134,9 @@ export const smokeSettings = (stateDirectory: string): RuntimeSettings => ({
   },
 });
 
-export const makeSmokeContext = async (): Promise<{
+export const makeSmokeContext = async (
+  overrides: Partial<RuntimeSettings> = {},
+): Promise<{
   readonly context: SkillContext;
   readonly reported: readonly string[];
   readonly delivered: readonly string[];
@@ -141,8 +148,9 @@ export const makeSmokeContext = async (): Promise<{
     reported,
     delivered,
     context: {
-      settings: smokeSettings(stateDirectory),
+      settings: { ...smokeSettings(stateDirectory), ...overrides },
       stateDirectory,
+      facilities: standaloneFacilityDirectory(),
       report: (error, mechanism) =>
         reported.push(`${mechanism}: ${String(error)}`),
       deliver: async (text) => {
@@ -167,6 +175,21 @@ export const loadOneSkill = async (
   return skill.registration;
 };
 
+// Load several skills through the real two-pass loader, keyed by name. This
+// is the seam for facility tests: providers register first regardless of the
+// order given here, exactly as in production.
+export const loadSkills = async (
+  names: readonly string[],
+  context: SkillContext,
+): Promise<ReadonlyMap<string, SkillRegistration>> => {
+  const packages = await loadBundledPackages(repoRoot);
+  const selected = packages.filter(
+    (item) => names.includes(item.name) && item.entrypoint !== undefined,
+  );
+  const skills = await loadSkillRegistrations(selected, context);
+  return new Map(skills.map((skill) => [skill.name, skill.registration]));
+};
+
 export const toolByName = (
   registration: SkillRegistration,
   name: string,
@@ -183,18 +206,23 @@ export const toolByName = (
 export const makeGatewayEvents = (): {
   readonly events: GatewayEvents;
   readonly inbound: readonly InboundMessage[];
+  readonly feedback: readonly GatewayFeedback[];
   readonly errors: readonly unknown[];
 } => {
   const inbound: InboundMessage[] = [];
+  const feedback: GatewayFeedback[] = [];
   const errors: unknown[] = [];
   return {
     inbound,
+    feedback,
     errors,
     events: {
       onMessage: async (message) => {
         inbound.push(message);
       },
-      onFeedback: async () => {},
+      onFeedback: async (item) => {
+        feedback.push(item);
+      },
       onError: (error) => errors.push(error),
     },
   };

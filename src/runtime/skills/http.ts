@@ -1,4 +1,4 @@
-import { timingSafeEqual } from "node:crypto";
+import { createHmac, timingSafeEqual } from "node:crypto";
 import { isJsonRecord } from "../../providers/http";
 
 export const MAX_TOOL_OUTPUT_CHARACTERS = 12_000;
@@ -92,6 +92,25 @@ export const verifiedRequestToken = (
   const provided = new URL(request.url).searchParams.get("token");
   return provided !== null && provided.length > 0
     && constantTimeEqual(provided, secret);
+};
+
+export const SIGNATURE_HEADER = "x-elliott-signature";
+
+export const hmacSha256Hex = (secret: string, body: string): string =>
+  createHmac("sha256", secret).update(body).digest("hex");
+
+// The internal-hop scheme shared by webhook ingress: the sender signs the raw
+// body with the shared secret in x-elliott-signature; consumer routes verify
+// it so nothing that can merely reach the runtime port can inject "verified"
+// deliveries. Same scheme as skills/gateway-webhook.
+export const verifiedSignatureHeader = (
+  request: Request,
+  body: string,
+  secret: string,
+): boolean => {
+  const provided = request.headers.get(SIGNATURE_HEADER);
+  return provided !== null && provided.length > 0
+    && constantTimeEqual(provided, hmacSha256Hex(secret, body));
 };
 
 export const objectSchema = (

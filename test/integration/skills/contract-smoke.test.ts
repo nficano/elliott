@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { loadBundledPackages } from "../../../src/catalog/bundled";
 import {
+  collectFacilities,
   collectGateways,
   collectRoutes,
   collectServices,
@@ -17,7 +18,16 @@ import { makeSmokeContext, repoRoot } from "./fixtures";
 // review rather than letting it drift silently. See
 // docs/skill-e2e-smoke-strategy.md.
 
-const EXPECTED = { tools: 40, gateways: 4, routes: 38, services: 5 } as const;
+const EXPECTED = {
+  tools: 41,
+  gateways: 4,
+  // 38 static routes + the facility-driven three: the /map alias, the
+  // provisioner's /w/<slug> verification route for slack-interactivity, and
+  // gateway-slack's /v1/ingress/<slug> consumer route.
+  routes: 41,
+  services: 6,
+  facilities: 3,
+} as const;
 
 describe("skill contract smoke (Tier 0)", () => {
   it("registers every implemented skill with no register-time failures", async () => {
@@ -43,11 +53,26 @@ describe("skill contract smoke (Tier 0)", () => {
     const gateways = collectGateways(skills);
     const routes = collectRoutes(skills);
     const services = collectServices(skills);
+    const facilities = collectFacilities(skills);
 
     expect(tools.length).toBe(EXPECTED.tools);
     expect(gateways.length).toBe(EXPECTED.gateways);
     expect(routes.length).toBe(EXPECTED.routes);
     expect(services.length).toBe(EXPECTED.services);
+    expect(facilities.length).toBe(EXPECTED.facilities);
+
+    // Every facility must present a well-formed MCP-like card: stable id,
+    // integer contract version, and object schemas for request and grant.
+    for (const facility of facilities) {
+      const descriptor = facility.describe();
+      expect(descriptor.id).toBe(facility.id);
+      expect(descriptor.version).toBe(facility.version);
+      expect(Number.isSafeInteger(descriptor.version)).toBe(true);
+      expect(descriptor.description.length).toBeGreaterThan(0);
+      expect(descriptor.requestSchema["type"]).toBe("object");
+      expect(descriptor.grantSchema["type"]).toBe("object");
+    }
+    expect(new Set(facilities.map((f) => f.id)).size).toBe(facilities.length);
 
     // Every tool must present an object JSON-Schema the model can call.
     for (const tool of tools) {

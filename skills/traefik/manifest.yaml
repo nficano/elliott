@@ -5,6 +5,8 @@ metadata: { namespace: core, name: traefik, version: 1.0.0 }
 spec:
   document: EXTENSION.md
   protocols: [tool.executor]
+  provides:
+    - { facility: proxy.route, version: 1 }
   capabilities:
     - { capability: network.connect, resources: [declared://traefik] }
     - { capability: fs.write, resources: [state://traefik/routes.json] }

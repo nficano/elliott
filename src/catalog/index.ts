@@ -309,6 +309,16 @@ export const BUNDLED_CATALOG: readonly BundledComponentDescriptor[] = Object
       untrustedOutput: true,
     }),
     descriptor({
+      name: "webhook-provisioner",
+      kind: "extension",
+      protocols: ["facility.provider"],
+      egress: egressClass("none"),
+      isolation: "container",
+      secretRefs: ["secret://facilities/webhook"],
+      senderAllowlistRequired: false,
+      untrustedOutput: true,
+    }),
+    descriptor({
       name: "fetch",
       kind: "tool",
       protocols: ["tool.executor"],

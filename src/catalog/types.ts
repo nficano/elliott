@@ -23,6 +23,15 @@ export interface BundledExport {
   readonly implementation: string;
 }
 
+// A facility this package's registration provides (manifest spec.provides).
+// Packages that provide facilities register before everything else so
+// consumers can acquire grants during their own register(). See
+// docs/skill-facilities.md.
+export interface FacilityRef {
+  readonly facility: string;
+  readonly version: number;
+}
+
 export interface BundledPackage {
   readonly name: string;
   readonly kind: ComponentKind;
@@ -30,6 +39,7 @@ export interface BundledPackage {
   readonly directory: string;
   readonly document: string;
   readonly protocols: readonly string[];
+  readonly provides: readonly FacilityRef[];
   readonly exports: readonly BundledExport[];
   readonly entrypoint?: string;
 }

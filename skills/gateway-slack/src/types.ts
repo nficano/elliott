@@ -74,3 +74,15 @@ export interface DecodedSlackEvent {
   readonly message?: InboundMessage;
   readonly context?: readonly InboundContextEntity[];
 }
+
+export interface InteractionHandlerOptions {
+  readonly ownerId: string;
+  readonly client: SlackApiClient;
+  readonly report: (error: unknown, mechanism: string) => void;
+  readonly fetcher?: typeof fetch;
+}
+
+export interface ChoiceAction {
+  readonly value: string;
+  readonly responseUrl: string;
+}

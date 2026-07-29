@@ -20,6 +20,7 @@ import {
 import {
   optionalNewsBrief,
   optionalPakman,
+  optionalTelemetryMap,
   optionalYouTubeDvr,
 } from "./settings-skills";
 import {
@@ -32,6 +33,7 @@ import {
   optionalSubscriptionUsage,
   optionalTerminal,
   optionalTraefik,
+  optionalWebhookProvisioner,
 } from "./settings-tools";
 import type {
   RuntimeEvolutionSettings,
@@ -206,7 +208,7 @@ const optionalSettings = (
   ...optionalValue("firecrawlApiKey", secrets["firecrawl_api_key"]),
   ...optionalValue("parallelApiKey", secrets["parallel_api_key"]),
   ...optionalValue("webhookSecret", secrets["webhook_signing_secret"]),
-  ...optionalSlack(resolved),
+  ...optionalSlack(resolved, secrets),
   ...optionalGmail(resolved, secrets),
   ...optionalGoogle(resolved, secrets),
   ...optionalBlueBubbles(resolved, secrets),
@@ -218,6 +220,8 @@ const optionalSettings = (
   ...optionalCloudflared(resolved),
   ...optionalPihole(resolved, secrets),
   ...optionalTraefik(resolved),
+  ...optionalWebhookProvisioner(resolved),
+  ...optionalTelemetryMap(resolved),
   ...optionalSubscriptionUsage(resolved, secrets),
   ...optionalStringProperty("glitchtipDsn", resolved, [
     "observability",

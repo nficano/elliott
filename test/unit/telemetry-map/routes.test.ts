@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { register } from "../../../skills/telemetry-map/src/index";
 import type { MapSnapshot } from "../../../skills/telemetry-map/src/types";
+import { standaloneFacilityDirectory } from "../../../src/runtime/skills/facilities";
 import type {
   GatewayEvents,
   SkillContext,
@@ -37,6 +38,7 @@ const makeContext = async (): Promise<
   const context: SkillContext = {
     settings,
     stateDirectory,
+    facilities: standaloneFacilityDirectory(),
     report: (error) => {
       reported.push(error);
     },

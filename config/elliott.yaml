@@ -111,12 +111,23 @@ tools:
     # resolver names match proxy-01's static config (https / letsencrypt,
     # Cloudflare DNS-01 wildcard for *.octet.stream). The dashboard API sits
     # behind Authentik, so live router status degrades to a note.
+    # lan_address is proxy-01's LAN IP, surfaced in proxy.route facility
+    # grants so consumers can chain a dns.local record at the proxy.
     enabled: true
     api_url: https://traefik.octet.stream
     cert_resolver: letsencrypt
     entry_point: https
+    lan_address: 172.16.10.200
 
 skills:
+  telemetry_map:
+    # Publish the observability map on the LAN through the facility seam:
+    # proxy.route (Traefik HTTPS route) chained into dns.local (Pi-hole A
+    # record at the proxy). https://elliott.octet.stream/map redirects into
+    # the map. Dormant until pihole/traefik register (see their gates).
+    enabled: true
+    public_hostname: elliott.octet.stream
+    service_url: http://172.16.20.21:18082
   news_brief:
     enabled: true
     alerts: false
@@ -164,6 +175,13 @@ skills:
       - { name: pakman, days: [monday, tuesday, wednesday, thursday, friday] }
 
 gateways:
+  webhook_provisioner:
+    # ingress.webhook facility (docs/skill-facilities.md). hooks_base_url is
+    # the public hooks hostname the cloudflared tunnel routes at the runtime;
+    # endpoint URLs are <base>/w/<slug>. Requires webhook_signing_secret for
+    # the internal delivery hop.
+    enabled: true
+    hooks_base_url: https://hooks.octet.stream
   cloudflared:
     # ready_url points at the local cloudflared metrics /ready endpoint;
     # unset means the health checker stays dormant.

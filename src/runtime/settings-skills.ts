@@ -13,6 +13,7 @@ import type {
   NewsBriefRssSource,
   NewsBriefSettings,
   PakmanSettings,
+  TelemetryMapSettings,
   YouTubeDvrProviderRef,
   YouTubeDvrSettings,
   YouTubeOAuthSettings,
@@ -63,6 +64,23 @@ export const optionalNewsBrief = (
       ...gnewsSource(resolved, secrets),
     },
   };
+};
+
+// Publishing the observability map on the LAN needs both halves of the
+// address: the hostname to claim and where the reverse proxy finds the
+// runtime. Either one missing keeps the publish dormant.
+export const optionalTelemetryMap = (
+  resolved: unknown,
+): { readonly telemetryMap?: TelemetryMapSettings; } => {
+  const base = ["skills", "telemetry_map"];
+  if (!flagAt(resolved, [...base, "enabled"])) return {};
+  const publicHostname = optionalStringAt(resolved, [
+    ...base,
+    "public_hostname",
+  ]);
+  const serviceUrl = optionalStringAt(resolved, [...base, "service_url"]);
+  if (publicHostname === undefined || serviceUrl === undefined) return {};
+  return { telemetryMap: { publicHostname, serviceUrl } };
 };
 
 const newsReddit = (

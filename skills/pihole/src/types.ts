@@ -24,3 +24,9 @@ export interface PiholeBackend {
 }
 
 export type PiholeBackendSource = () => Promise<PiholeBackend>;
+
+export interface DnsRecordConfig {
+  readonly domain: string;
+  readonly ip?: string;
+  readonly target?: string;
+}

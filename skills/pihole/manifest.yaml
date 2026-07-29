@@ -5,6 +5,8 @@ metadata: { namespace: core, name: pihole, version: 1.0.0 }
 spec:
   document: TOOL.md
   protocols: [tool.executor]
+  provides:
+    - { facility: dns.local, version: 1 }
   capabilities:
     - { capability: network.connect, resources: [declared://pihole] }
     - { capability: secret.use, resources: [secret://tools/pihole/password] }

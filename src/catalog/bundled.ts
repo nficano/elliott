@@ -3,7 +3,7 @@ import path from "node:path";
 import { parse } from "yaml";
 import type { ComponentKind } from "../core/types";
 import { isJsonRecord } from "../providers/http";
-import type { BundledExport, BundledPackage } from "./types";
+import type { BundledExport, BundledPackage, FacilityRef } from "./types";
 
 const DOCUMENTS: ReadonlySet<string> = new Set([
   "SKILL.md",
@@ -80,10 +80,24 @@ const loadPackage = async (directory: string): Promise<BundledPackage> => {
     protocols: Array.isArray(protocols)
       ? protocols.filter((item): item is string => typeof item === "string")
       : [],
+    provides: decodeProvides(spec["provides"]),
     exports,
     ...(exports[0] !== undefined
       && { entrypoint: path.join(directory, exports[0].implementation) }),
   };
+};
+
+const decodeProvides = (value: unknown): readonly FacilityRef[] => {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    if (!isJsonRecord(item)) return [];
+    const facility = item["facility"];
+    const version = item["version"];
+    if (typeof facility !== "string" || !Number.isSafeInteger(version)) {
+      return [];
+    }
+    return [{ facility, version: version as number }];
+  });
 };
 
 const decodeExports = async (

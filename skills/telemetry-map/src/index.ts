@@ -17,6 +17,7 @@ import { Aggregator } from "./aggregator";
 import { appDistRoutes } from "./app-dist";
 import { assetRoutes } from "./assets";
 import { TelemetryMapGateway } from "./gateway";
+import { mapAliasRoute, publishMap } from "./publish";
 import { SqliteTail } from "./sqlite-tail";
 import { streamResponse } from "./sse";
 import { loadTopology } from "./topology";
@@ -55,11 +56,13 @@ export const register = async (
   // the legacy single-file document stays reachable at /legacy; without a
   // build the legacy document remains the primary UI.
   const dist = await appDistRoutes(BASE);
+  await publishMap(context);
   return {
     gateways: [gateway],
     routes: [
       ...routes(aggregator, gateway, dist.index ?? uiResponse),
       ...dist.routes,
+      mapAliasRoute(),
     ],
     services: [service(aggregator, tail)],
   };

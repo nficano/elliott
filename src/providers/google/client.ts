@@ -3,6 +3,7 @@ import type {
   GoogleClient,
   GoogleClientOptions,
   GoogleJson,
+  GoogleRequestRuntime,
   GoogleRequestSpec,
   GoogleTokenSource,
 } from "./types";
@@ -13,6 +14,7 @@ const BASE_BACKOFF_MS = 500;
 const RATE_LIMITED = 429;
 const SERVER_ERROR_FLOOR = 500;
 const NO_CONTENT = 204;
+const MILLISECONDS_PER_SECOND = 1000;
 
 const defaultSleep = (milliseconds: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, milliseconds));
@@ -27,22 +29,20 @@ export const createGoogleClient = (
   const fetcher = options.fetcher ?? fetch;
   const sleep = options.sleep ?? defaultSleep;
   return {
-    request: (spec) => runRequest(source, fetcher, sleep, spec),
+    request: (spec) => runRequest({ source, fetcher, sleep }, spec),
   };
 };
 
 const runRequest = async (
-  source: GoogleTokenSource,
-  fetcher: typeof fetch,
-  sleep: (milliseconds: number) => Promise<void>,
+  runtime: GoogleRequestRuntime,
   spec: GoogleRequestSpec,
 ): Promise<GoogleJson> => {
   let lastStatus = 0;
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt += 1) {
-    const response = await fetcher(spec.url, {
+    const response = await runtime.fetcher(spec.url, {
       method: spec.method,
       headers: {
-        authorization: `Bearer ${await source.token()}`,
+        authorization: `Bearer ${await runtime.source.token()}`,
         ...(spec.body !== undefined && {
           "content-type": "application/json",
         }),
@@ -55,7 +55,7 @@ const runRequest = async (
     if (!retriable(response.status) || attempt === MAX_RETRIES) {
       throw new Error(`Google API returned HTTP ${response.status}`);
     }
-    await sleep(backoff(response, attempt));
+    await runtime.sleep(backoff(response, attempt));
   }
   throw new Error(`Google API returned HTTP ${lastStatus}`);
 };
@@ -71,7 +71,9 @@ const retriable = (status: number): boolean =>
 
 const backoff = (response: Response, attempt: number): number => {
   const header = response.headers.get("retry-after");
-  const retryAfter = header === null ? Number.NaN : Number(header);
-  if (Number.isFinite(retryAfter)) return retryAfter * 1000;
+  const retryAfter = header === null ? NaN : Number(header);
+  if (Number.isFinite(retryAfter)) {
+    return retryAfter * MILLISECONDS_PER_SECOND;
+  }
   return BASE_BACKOFF_MS * 2 ** attempt;
 };

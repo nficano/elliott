@@ -34,7 +34,7 @@ import type {
   GatewayResponse,
   RouteBinding,
   ServiceBinding,
-  SkillContext,
+  SkillContextSeed,
 } from "./skills/types";
 import { ensureRuntimeSnapshot } from "./snapshot";
 import { runtimeTelemetry, telemetryTurnObserver } from "./telemetry";
@@ -213,7 +213,7 @@ export class ElliottRuntime {
     };
   }
 
-  #skillContext(settings: RuntimeSettings): SkillContext {
+  #skillContext(settings: RuntimeSettings): SkillContextSeed {
     return {
       settings,
       stateDirectory: path.join(this.#agentRoot, ".elliott-runtime"),
