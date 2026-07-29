@@ -1,4 +1,5 @@
 import { AuditLog, MemoryCommitAdapter } from "./audit/index";
+import type { AuditCommitAdapter } from "./audit/types";
 import { PostureController } from "./config/postures/index";
 import { scopeId } from "./core/brands";
 import { DiscoveryPipeline } from "./core/discovery/discovery";
@@ -37,27 +38,34 @@ export class AgentKernel {
   readonly schemas = new ComponentSchemaRegistry();
   readonly snapshots: SnapshotStore;
   readonly validationCache = new ValidationCache();
-  readonly auditAdapter = new MemoryCommitAdapter();
-  readonly records = new AuditLog(this.auditAdapter);
-  readonly epochs = new EpochRegistry(this.records);
+  // The audit stack (adapter → records → epochs → grants → broker → placement →
+  // dispatcher) is assigned in the constructor rather than via field
+  // initializers because the durable adapter arrives through options, and field
+  // initializers run before constructor parameters are readable.
+  readonly auditAdapter: AuditCommitAdapter;
+  readonly records: AuditLog;
+  readonly epochs: EpochRegistry;
   readonly routeTables = new RouteTableStore();
-  readonly grants = new GrantManager(this.epochs);
+  readonly grants: GrantManager;
   readonly secrets = new OpaqueSecretStore();
-  readonly broker = new CapabilityBroker(
-    this.grants,
-    this.records,
-    this.secrets,
-  );
-  readonly placement = new PlacementManager(this.records);
+  readonly broker: CapabilityBroker;
+  readonly placement: PlacementManager;
   readonly footprints = new FootprintTracker();
   readonly postures: PostureController;
   readonly residency: ResidencyRegistry;
   readonly providers: ProviderStateRegistry;
-  readonly dispatcher = new ModelDispatcher(this.routeTables, this.records);
+  readonly dispatcher: ModelDispatcher;
   readonly discovery: DiscoveryPipeline;
   #started = false;
 
   constructor(options: AgentKernelOptions = {}) {
+    this.auditAdapter = options.auditAdapter ?? new MemoryCommitAdapter();
+    this.records = new AuditLog(this.auditAdapter);
+    this.epochs = new EpochRegistry(this.records);
+    this.grants = new GrantManager(this.epochs);
+    this.broker = new CapabilityBroker(this.grants, this.records, this.secrets);
+    this.placement = new PlacementManager(this.records);
+    this.dispatcher = new ModelDispatcher(this.routeTables, this.records);
     this.snapshots = options.snapshotDirectory === undefined
       ? new SnapshotStore()
       : new FileSnapshotStore(options.snapshotDirectory);

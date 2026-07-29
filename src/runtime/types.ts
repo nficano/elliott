@@ -227,6 +227,17 @@ export interface YouTubeDvrSettings {
   readonly tool: boolean;
 }
 
+export interface GovernanceSettings {
+  // Tool names the policy refuses outright. Governance is default-allow so the
+  // existing tool set keeps working; a denied tool still appears to the model
+  // but every invocation is refused and audited. Centralizes what used to be
+  // ad-hoc per-skill guards.
+  readonly deny: readonly string[];
+  // Bearer token for the /v1/control/governance kill-switch route. When unset
+  // the route is not exposed; policy evaluation and the audit trail still run.
+  readonly controlToken?: string;
+}
+
 export interface RuntimeEvolutionSettings {
   readonly controlToken: string;
   readonly operatorPrincipalId: string;
@@ -345,6 +356,7 @@ export interface RuntimeSettings {
   readonly youtubeDvr?: YouTubeDvrSettings;
   readonly evolution?: EvolutionConfig;
   readonly evolutionRuntime?: RuntimeEvolutionSettings;
+  readonly governance?: GovernanceSettings;
 }
 
 export interface ToolDefinition {
@@ -454,8 +466,22 @@ export interface InboundMessage {
   readonly historyMode?: "runtime" | "external";
 }
 
+// Identity behind a tool invocation. `agent` is which agent owns this runtime
+// (elliott vs oslo — they share one Slack app, so per-agent attribution is the
+// only way to tell their actions apart in the audit trail); the remaining
+// fields describe the human/external actor that triggered the turn, when known.
+export interface GovernancePrincipal {
+  readonly agent: string;
+  readonly actor?: string;
+  readonly gateway?: string;
+  readonly channel?: string;
+}
+
 export interface ToolExecutionContext {
   readonly message?: InboundMessage;
+  // Populated by the runtime on every turn; the governance layer attributes
+  // audit records to it and skills may read it for their own checks.
+  readonly principal?: GovernancePrincipal;
 }
 
 export interface TurnToolProgress {

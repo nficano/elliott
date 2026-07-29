@@ -3,6 +3,7 @@ import * as Effect from "effect/Effect";
 import { scopeId } from "../../../core/brands";
 import { hashValue } from "../../../core/digest";
 import {
+  makePromptInjectionStage,
   makeRequiredBenchmarkStages,
   runBenchmarkLadder,
 } from "../benchmarks/index";
@@ -166,10 +167,16 @@ export const runRecurringEvolutionBenchmark = Effect.fn(
   const results = yield* runBenchmarkLadder({
     run,
     candidate,
-    stages: makeRequiredBenchmarkStages({
-      runner: input.runner,
-      targetClass: input.target.targetClass,
-    }),
+    // The native prompt-injection gate runs first: cheap, no companion call, and
+    // it short-circuits the ladder before the expensive HTTP benchmarks if the
+    // artifact carries injection/safety-bypass content.
+    stages: [
+      makePromptInjectionStage(input.target.targetClass),
+      ...makeRequiredBenchmarkStages({
+        runner: input.runner,
+        targetClass: input.target.targetClass,
+      }),
+    ],
     context: {
       baselineSnapshotId: input.snapshotId,
       candidateSnapshotId: input.snapshotId,

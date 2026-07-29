@@ -55,3 +55,15 @@ export interface EvolutionBenchmarkStageFactoryInput {
   readonly runner: EvolutionBenchmarkRunnerShape;
   readonly targetClass: typeof EvolutionTargetClassSchema.Type;
 }
+
+// A prompt-injection / safety-bypass signature the native benchmark scans an
+// evolution candidate's materialized artifact for.
+export interface InjectionPattern {
+  readonly id: string;
+  readonly matcher: RegExp;
+}
+
+export interface PromptInjectionScan {
+  readonly clean: boolean;
+  readonly matches: readonly string[];
+}

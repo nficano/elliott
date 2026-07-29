@@ -460,15 +460,21 @@ describe("continuous evolution integration", () => {
       now: () => new Date(0),
     }));
     expect(outcome.passed).toBe(true);
-    expect(outcome.results).toHaveLength(13);
+    // The native prompt-injection gate runs first, ahead of the 13 required
+    // gates, and passes on the clean baseline artifact.
+    expect(outcome.results).toHaveLength(14);
+    expect(outcome.results[0]?.benchmarkRef).toBe(
+      "core/evaluator/prompt-injection",
+    );
+    expect(outcome.results[0]?.passed).toBe(true);
     expect(outcome.projection).toMatchObject({
       targetRef: target.componentRef,
       targetDigest: target.baselineDigest,
       successRate: 1,
-      sampleCount: 11,
+      sampleCount: 12,
       projectedAt: new Date(0).toISOString(),
     });
-    expect(outcome.projection.benchmarkScore).toBeCloseTo(0.8);
+    expect(outcome.projection.benchmarkScore).toBeCloseTo(0.817);
     expect(
       new FileEvolutionProjectionStore(path.join(root, "projections"))
         .get(target.componentRef),

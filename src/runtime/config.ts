@@ -36,6 +36,7 @@ import {
   optionalWebhookProvisioner,
 } from "./settings-tools";
 import type {
+  GovernanceSettings,
   RuntimeEvolutionSettings,
   RuntimeSettings,
   SecretResolver,
@@ -85,6 +86,22 @@ export const loadRuntimeSettings = async (
     mcp: mcpSettings(agent, secrets),
     ...(evolution !== undefined && { evolution }),
     ...runtimeEvolutionSettings(),
+    ...governanceSettings(resolved),
+  };
+};
+
+// Governance is always present so audit + identity run for every agent. The
+// deny list is declarative config; the kill-switch route only opens when the
+// control token is provided out-of-band via the environment.
+const governanceSettings = (
+  resolved: unknown,
+): { readonly governance: GovernanceSettings; } => {
+  const controlToken = environment["ELLIOTT_GOVERNANCE_TOKEN"];
+  return {
+    governance: {
+      deny: stringArrayAt(resolved, ["governance", "deny"]),
+      ...(controlToken !== undefined && { controlToken }),
+    },
   };
 };
 

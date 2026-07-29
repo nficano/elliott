@@ -9,11 +9,19 @@ import type { BundledPackage } from "../catalog/types";
 import type { AgentKernel } from "../kernel";
 import type { EvolutionControlPlaneBinding } from "../learning/evolution/cli";
 import { SessionStore } from "../memory/session-store/index";
+import { isJsonRecord } from "../providers/http";
 import { RuntimeAgent } from "./agent";
 import { loadRuntimeSettings } from "./config";
 import { RuntimeConversationSnapshots } from "./conversation-snapshots";
 import { makeRuntimeEvolutionIntegration } from "./evolution";
 import { RuntimeEvolutionEvidence } from "./evolution-evidence";
+import {
+  CapabilityGate,
+  GovernancePolicy,
+  makeGovernanceControlPlane,
+  ToolGovernor,
+} from "./governance/index";
+import type { GovernanceControlPlaneBinding } from "./governance/index";
 import { HTTP_NOT_FOUND, HTTP_OK, HTTP_SERVICE_UNAVAILABLE } from "./http";
 import { makeRuntimeKernel } from "./kernel";
 import { logRuntimeStarted } from "./logging";
@@ -41,16 +49,27 @@ import type {
 import { ensureRuntimeSnapshot } from "./snapshot";
 import { runtimeTelemetry, telemetryTurnObserver } from "./telemetry";
 import type {
+  GovernancePrincipal,
   InboundMessage,
   RuntimeHealth,
   RuntimeRoots,
   RuntimeSettings,
+  ToolDefinition,
 } from "./types";
 
 const resolveRoots = (roots: string | RuntimeRoots): RuntimeRoots =>
   typeof roots === "string"
     ? { frameworkRoot: roots, agentRoot: roots, agentName: "elliott" }
     : roots;
+
+// Resource extractor for the SSH capability gate: the broker denies the call
+// unless this host is covered by the seeded grant (the configured allowlist).
+const sshHost = (input: unknown): string => {
+  if (isJsonRecord(input) && typeof input["host"] === "string") {
+    return input["host"];
+  }
+  throw new Error("ssh_exec requires a host");
+};
 
 export class ElliottRuntime {
   readonly #frameworkRoot: string;
@@ -68,6 +87,7 @@ export class ElliottRuntime {
   #routes: readonly RouteBinding[] = [];
   #services: readonly ServiceBinding[] = [];
   #agent: RuntimeAgent | undefined;
+  #governanceControlPlane: GovernanceControlPlaneBinding | undefined;
   #reporter: RuntimeErrorReporter | undefined;
   #server: ReturnType<typeof Bun.serve> | undefined;
   #ready = false;
@@ -150,10 +170,16 @@ export class ElliottRuntime {
         this.#services = [...this.#services, evolution.continuousService];
       }
     }
-    const tools = [
+    // High-risk tools (SSH) route through the real CapabilityBroker for
+    // default-deny per-resource enforcement; then governance wraps the whole
+    // set so every model-issued call is policy-checked, attributed, and audited
+    // at one chokepoint. Names are preserved, so evidence and the model see the
+    // same tool surface.
+    const gated = this.#installCapabilityGates(settings, [
       ...(evolution?.decorateTools(baseTools) ?? baseTools),
       ...(evolution?.agentTools ?? []),
-    ];
+    ]);
+    const tools = this.#installGovernance(settings, gated);
     this.#evolutionEvidence = new RuntimeEvolutionEvidence({
       sink: this.#evidenceStore.evolution,
       targetsForTool: evolution?.targetsForTool ?? (() => []),
@@ -214,6 +240,63 @@ export class ElliottRuntime {
           service.health?.() ?? {},
         ]),
       ),
+    };
+  }
+
+  // Builds the tool governor over the kernel's durable audit log, opens the
+  // kill-switch route when a control token is configured, and returns the
+  // governed tool set. Default-allow: the value here is attribution + a
+  // tamper-evident trail + the runtime disable, not an allow-list of every tool.
+  #installGovernance(
+    settings: RuntimeSettings,
+    tools: readonly ToolDefinition[],
+  ): readonly ToolDefinition[] {
+    const governor = new ToolGovernor({
+      agent: this.#agentName,
+      records: this.#kernel.records,
+      policy: new GovernancePolicy({ deny: settings.governance?.deny ?? [] }),
+      report: (error, mechanism) => this.#capture(error, mechanism),
+    });
+    const token = settings.governance?.controlToken;
+    if (token !== undefined) {
+      this.#governanceControlPlane = makeGovernanceControlPlane(
+        governor,
+        token,
+      );
+    }
+    return governor.decorate(tools);
+  }
+
+  // Routes the SSH tool through the kernel CapabilityBroker with a grant scoped
+  // to exactly the configured host allowlist. Behavior-preserving: the granted
+  // resources equal the skill's own allowlist, so any host the skill would run
+  // also passes the broker, while a non-allowlisted host is denied one layer
+  // earlier (and audited as broker.dispatch) before the skill's guard runs.
+  #installCapabilityGates(
+    settings: RuntimeSettings,
+    tools: readonly ToolDefinition[],
+  ): readonly ToolDefinition[] {
+    const ssh = settings.ssh;
+    if (ssh === undefined) return tools;
+    const gate = new CapabilityGate({
+      broker: this.#kernel.broker,
+      grants: this.#kernel.grants,
+      agent: this.#agentName,
+    }, {
+      tool: "ssh_exec",
+      capability: "ssh.exec",
+      resources: ssh.hosts,
+      resolveResource: sshHost,
+    });
+    return gate.decorate(tools);
+  }
+
+  #principal(message: InboundMessage): GovernancePrincipal {
+    return {
+      agent: this.#agentName,
+      actor: message.sender,
+      gateway: message.gateway,
+      channel: message.channel,
     };
   }
 
@@ -329,7 +412,7 @@ export class ElliottRuntime {
     try {
       const answer = await agent.turn(conversation, message.text, {
         observer,
-        context: { message },
+        context: { message, principal: this.#principal(message) },
         retainHistory: retainConversation,
       });
       await response.complete(answer);
@@ -390,6 +473,10 @@ export class ElliottRuntime {
       url.pathname === "/v1/control/evolution"
       && this.#evolutionControlPlane !== undefined
     ) return this.#evolutionControlPlane.handle(request);
+    if (
+      url.pathname === "/v1/control/governance"
+      && this.#governanceControlPlane !== undefined
+    ) return this.#governanceControlPlane.handle(request);
     const route = this.#routes.find(
       (item) => item.method === request.method && item.path === url.pathname,
     );
