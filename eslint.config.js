@@ -86,6 +86,9 @@ export default tseslint.config(
             "eslint-rules/*.js",
             "scripts/*.ts",
           ],
+          // scripts/ outgrew the default cap of 8 (coverage gate, ratchet
+          // guard, unicode/workflow gates, Claude Code hooks).
+          maximumDefaultProjectFileMatchCount_THIS_WILL_SLOW_DOWN_LINTING: 20,
         },
         tsconfigRootDir: import.meta.dirname,
       },

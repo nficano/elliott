@@ -10,3 +10,9 @@ __pycache__/
 .artifacts/
 .repos/effect
 crates/hot-core/target/
+
+# Track shared Claude Code project settings (global gitignore excludes
+# .claude/ wholesale); local state under .claude/ stays ignored.
+!.claude/
+.claude/*
+!.claude/settings.json
