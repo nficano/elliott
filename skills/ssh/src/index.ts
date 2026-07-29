@@ -82,6 +82,13 @@ const run = async (
     "BatchMode=yes",
     "-o",
     "StrictHostKeyChecking=accept-new",
+    // OpenSSH resolves ~/.ssh/known_hosts from the passwd home, which is on the
+    // read-only container rootfs; pin it beside the key on the writable state
+    // volume so host keys persist (and accept-new isn't re-run every call).
+    "-o",
+    `UserKnownHostsFile=${
+      path.join(path.dirname(request.keyPath), "known_hosts")
+    }`,
     "-o",
     `ConnectTimeout=${CONNECT_TIMEOUT_SECONDS}`,
     destination,
