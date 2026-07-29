@@ -34,9 +34,11 @@ export class SlackApiError extends Error {
   }
 }
 
-// Identifier-only argument context (never message content) appended to API
-// errors, so a report like invalid_arguments pins down *which* channel/ts
-// shape broke instead of needing a repro.
+// Low-cardinality argument context (never message content, never per-message
+// values like ts — those would shatter error grouping into one issue per
+// occurrence): the channel plus *which* identifier keys were present. The
+// shape is the diagnostic that matters — e.g. a chat.startStream failure
+// whose args lack thread_ts.
 const SAFE_CONTEXT_KEYS = [
   "channel",
   "channel_id",
@@ -46,13 +48,11 @@ const SAFE_CONTEXT_KEYS = [
 ] as const;
 
 const argumentContext = (body: SlackJson): string | undefined => {
-  const parts = SAFE_CONTEXT_KEYS.flatMap((key) => {
-    const value = body[key];
-    return typeof value === "string" || typeof value === "number"
-      ? [`${key}=${value}`]
-      : [];
-  });
-  return parts.length > 0 ? parts.join(" ") : undefined;
+  const present = SAFE_CONTEXT_KEYS.filter((key) => body[key] !== undefined);
+  if (present.length === 0) return undefined;
+  const channel = body["channel"] ?? body["channel_id"];
+  const channelPart = typeof channel === "string" ? `channel=${channel} ` : "";
+  return `${channelPart}args=${present.join(",")}`;
 };
 
 export class SlackWebClient implements SlackApiClient {

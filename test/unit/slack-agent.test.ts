@@ -89,8 +89,11 @@ describe("Slack agent integration", () => {
     });
     await expect(failure).rejects.toThrow(
       "Slack conversations.replies failed: invalid_arguments "
-        + "[channel=C123 ts=111.222 limit=100]",
+        + "[channel=C123 args=channel,ts,limit]",
     );
+    // Per-message values (ts) must stay out of the message — they would
+    // shatter GlitchTip grouping into one issue per occurrence.
+    await expect(failure).rejects.not.toThrow(/111\.222/);
     await expect(failure).rejects.not.toThrow(/leak/);
   });
 
