@@ -13,10 +13,27 @@ Proposals, approval, promotion, and rollback.
 | `evaluator-darwinian` | Darwinian code evolution | Darwinian Evolver at `7f12365`, its corresponding AGPL source, Bun, and an Elliott-authorized loopback model proxy |
 | `evaluator-agent-benchmarks` | Pre-shortlist code checks, independent sealed-dataset comparison, and Snapshot-bound regression gates | Loopback code-check, case, and benchmark executors provisioned by the placement layer |
 
-The benchmark/evaluation companion and its shared HTTP boundary are TypeScript
-running on Bun. DSPy/GEPA/MIPROv2 and Darwinian Evolver remain Python because
-their algorithm libraries are Python-native; Elliott communicates with them
-over the same versioned REST contracts and never imports them into its process.
+## Layout
+
+The tree is organized by boundary ownership:
+
+- `runtime/` contains the shared HTTP, wire, and smoke primitives;
+- `optimizers/` contains the optimizer contract, job server, supervision, and
+  the DSPy and Darwinian implementations;
+- `evaluators/agent-benchmarks/` contains the independent evaluator image,
+  split into `benchmark/`, `candidate/`, and `evaluation/`; and
+- each image owns its fixtures, dependency locks, tests, and Dockerfile.
+
+Repeated filename qualifiers are represented by their directory. For example,
+benchmark configuration is `benchmark/config.ts`, and evaluation comparison
+is `evaluation/compare.ts`.
+
+Every companion HTTP boundary, optimizer wire validator, candidate-envelope
+builder, smoke client, and pause/resume/cancel supervisor is TypeScript running
+on Bun. Only the calls into DSPy/GEPA/MIPROv2 and Darwinian Evolver remain
+Python because those algorithm libraries are Python-native. A small Python
+adapter receives a schema-validated request in a private job directory and
+returns an untrusted raw result for TypeScript to validate and materialize.
 The current boundary uses ordinary request/response HTTP. Add SSE only for
 future progress streams; optimizer control operations do not require
 WebSockets.
@@ -27,7 +44,7 @@ Elliott process. Candidate checks and benchmark drivers remain behind the
 isolated executor boundary even when a skill initiates them.
 
 The observed local OCI digests and dependency revisions are recorded in
-[`evolution-images.lock.json`](./evolution-images.lock.json). The Component
+[`images.lock.json`](./images.lock.json). The Component
 manifests refer to those local digest locks. A deployment must publish the same
 OCI manifests to its registry and replace each local reference with the
 observed registry `RepoDigest`; it must not invent a registry name around a
@@ -225,7 +242,7 @@ The executor token is short-lived and loopback-scoped. The executor must:
 3. enforce the timeout and cost ceiling;
 4. provision Harbor and terminal sandboxes outside the evaluator container;
 5. use the pinned OpenThoughts-TBLite, TerminalBench2, Harbor, or YC-Bench
-   revision from `benchmark-drivers.json`; and
+   revision from `evaluators/agent-benchmarks/benchmark/drivers.json`; and
 6. return a result that echoes the exact binding object plus numeric baseline,
    candidate, cost, and latency fields.
 
@@ -253,7 +270,7 @@ build command. Before enabling a published image:
    available with the image;
 5. push to the authorized registry;
 6. record the registry-reported digest;
-7. update `evolution-images.lock.json` and the matching Component manifest in
+7. update `images.lock.json` and the matching Component manifest in
    one reviewed change; and
 8. run a non-fixture staging campaign through the authorized model and
    benchmark proxies.

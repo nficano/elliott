@@ -29,6 +29,8 @@ build_image() {
   echo "${name} ${tag} ${digest} ${archive}"
 }
 
-build_image "evaluator-dspy" "companions/dspy/Dockerfile"
-build_image "evaluator-darwinian" "companions/darwinian/Dockerfile"
-build_image "evaluator-agent-benchmarks" "companions/benchmarks/Dockerfile"
+build_image "evaluator-dspy" "companions/optimizers/dspy/Dockerfile"
+build_image "evaluator-darwinian" "companions/optimizers/darwinian/Dockerfile"
+build_image \
+  "evaluator-agent-benchmarks" \
+  "companions/evaluators/agent-benchmarks/Dockerfile"

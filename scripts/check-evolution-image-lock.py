@@ -7,49 +7,54 @@ from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
-LOCK_PATH = ROOT / "companions" / "evolution-images.lock.json"
+LOCK_PATH = ROOT / "companions" / "images.lock.json"
 IMAGE_PATTERN = re.compile(r"^\s+image:\s+(\S+)\s*$", re.MULTILINE)
 SOURCE_FILES = {
-    "common": [
-        "companions/common/elliott_companion/__init__.py",
-        "companions/common/elliott_companion/server.py",
-        "companions/common/elliott_companion/smoke.py",
-        "companions/common/elliott_companion/wire.py",
-        "companions/common/elliott_companion/worker_process.py",
+    "optimizer-runtime": [
+        "companions/runtime/http.ts",
+        "companions/runtime/smoke.ts",
+        "companions/runtime/wire.ts",
+        "companions/optimizers/contract.ts",
+        "companions/optimizers/server.ts",
+        "companions/optimizers/jobs/controller.ts",
+        "companions/optimizers/jobs/support.ts",
+        "companions/optimizers/python/worker.py",
     ],
     "evaluator-dspy": [
-        "companions/dspy/Dockerfile",
-        "companions/dspy/pyproject.toml",
-        "companions/dspy/uv.lock",
-        "companions/dspy/dspy_worker.py",
+        "companions/optimizers/dspy/Dockerfile",
+        "companions/optimizers/dspy/pyproject.toml",
+        "companions/optimizers/dspy/uv.lock",
+        "companions/optimizers/dspy/worker.py",
+        "package.json",
+        "bun.lock",
     ],
     "evaluator-darwinian": [
-        "companions/darwinian/Dockerfile",
-        "companions/darwinian/darwinian_problem.py",
-        "companions/darwinian/darwinian_worker.py",
+        "companions/optimizers/darwinian/Dockerfile",
+        "companions/optimizers/darwinian/problem.py",
+        "companions/optimizers/darwinian/worker.py",
         "package.json",
         "bun.lock",
     ],
     "evaluator-agent-benchmarks": [
-        "companions/benchmarks/Dockerfile",
-        "companions/benchmarks/benchmark.ts",
-        "companions/benchmarks/benchmark-config.ts",
-        "companions/benchmarks/benchmark-driver.ts",
-        "companions/benchmarks/benchmark-result.ts",
-        "companions/benchmarks/code-check.ts",
-        "companions/benchmarks/evaluation.ts",
-        "companions/benchmarks/evaluation-baseline.ts",
-        "companions/benchmarks/evaluation-benchmarks.ts",
-        "companions/benchmarks/evaluation-compare.ts",
-        "companions/benchmarks/evaluation-executor.ts",
-        "companions/benchmarks/evaluation-metrics.ts",
-        "companions/benchmarks/evaluation-validation.ts",
-        "companions/benchmarks/server.ts",
-        "companions/benchmarks/snapshot-executor-driver.ts",
-        "companions/benchmarks/benchmark-drivers.json",
-        "companions/typescript/server.ts",
-        "companions/typescript/smoke.ts",
-        "companions/typescript/wire.ts",
+        "companions/evaluators/agent-benchmarks/Dockerfile",
+        "companions/evaluators/agent-benchmarks/benchmark/config.ts",
+        "companions/evaluators/agent-benchmarks/benchmark/driver.ts",
+        "companions/evaluators/agent-benchmarks/benchmark/drivers.json",
+        "companions/evaluators/agent-benchmarks/benchmark/index.ts",
+        "companions/evaluators/agent-benchmarks/benchmark/result.ts",
+        "companions/evaluators/agent-benchmarks/benchmark/snapshot-executor.ts",
+        "companions/evaluators/agent-benchmarks/candidate/check.ts",
+        "companions/evaluators/agent-benchmarks/evaluation/baseline.ts",
+        "companions/evaluators/agent-benchmarks/evaluation/benchmarks.ts",
+        "companions/evaluators/agent-benchmarks/evaluation/compare.ts",
+        "companions/evaluators/agent-benchmarks/evaluation/executor.ts",
+        "companions/evaluators/agent-benchmarks/evaluation/index.ts",
+        "companions/evaluators/agent-benchmarks/evaluation/metrics.ts",
+        "companions/evaluators/agent-benchmarks/evaluation/validation.ts",
+        "companions/evaluators/agent-benchmarks/server.ts",
+        "companions/runtime/http.ts",
+        "companions/runtime/smoke.ts",
+        "companions/runtime/wire.ts",
         "package.json",
         "bun.lock",
         *sorted(
@@ -101,8 +106,10 @@ def main() -> int:
     if lock.get("schemaVersion") != 1:
         raise SystemExit("unsupported evolution image lock version")
     build = _mapping(lock.get("build"), "image lock build")
-    if build.get("commonSourceDigest") != _digest(SOURCE_FILES["common"]):
-        raise SystemExit("common companion source changed without rebuilding images")
+    if build.get("optimizerRuntimeSourceDigest") != _digest(
+        SOURCE_FILES["optimizer-runtime"]
+    ):
+        raise SystemExit("optimizer runtime source changed without rebuilding images")
     images = _mapping(lock.get("images"), "image lock images")
     for name, manifest_path in MANIFESTS.items():
         image = _mapping(images.get(name), f"image {name}")
@@ -125,9 +132,10 @@ def main() -> int:
             raise SystemExit(f"{name} has no recorded fixture smoke result")
     drivers = _mapping(
         json.loads(
-            (ROOT / "companions/benchmarks/benchmark-drivers.json").read_text(
-                encoding="utf-8"
-            )
+            (
+                ROOT
+                / "companions/evaluators/agent-benchmarks/benchmark/drivers.json"
+            ).read_text(encoding="utf-8")
         ).get("drivers"),
         "benchmark drivers",
     )

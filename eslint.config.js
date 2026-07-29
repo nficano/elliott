@@ -85,7 +85,6 @@ export default tseslint.config(
           allowDefaultProject: [
             "eslint.config.js",
             "eslint-rules/*.js",
-            "scripts/*.ts",
           ],
         },
         tsconfigRootDir: import.meta.dirname,

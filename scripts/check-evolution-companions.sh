@@ -4,26 +4,28 @@ set -euo pipefail
 repository_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${repository_root}"
 
-export PYTHONPATH="${repository_root}/companions/common:${repository_root}/companions/dspy:${repository_root}/companions/darwinian:${repository_root}/companions/benchmarks:${repository_root}/companions/tests"
+export PYTHONPATH="${repository_root}"
+export PYTHONPYCACHEPREFIX="/tmp/elliott-companion-pycache"
 
 bun test \
-  companions/benchmarks/benchmark.test.ts \
-  companions/typescript/server.test.ts
+  companions/evaluators/agent-benchmarks/server.test.ts \
+  companions/optimizers/contract.test.ts \
+  companions/optimizers/jobs/controller.test.ts \
+  companions/runtime/http.test.ts
 
 python3 -m unittest \
-  companions/dspy/test_dspy_worker.py \
-  companions/darwinian/test_darwinian_worker.py \
-  companions/tests/test_job_server.py
+  companions/optimizers/dspy/tests/worker.py \
+  companions/optimizers/darwinian/tests/worker.py
 
 rg --files companions \
   -g '*.py' \
   -0 \
   | xargs -0 python3 -m py_compile
 
-python3 -m json.tool companions/benchmarks/benchmark-drivers.json >/dev/null
-python3 -m json.tool companions/fixtures/dspy-request.json >/dev/null
-python3 -m json.tool companions/fixtures/darwinian-request.json >/dev/null
-python3 -m json.tool companions/fixtures/benchmark-request.json >/dev/null
-python3 -m json.tool companions/fixtures/evaluation-request.json >/dev/null
-python3 -m json.tool companions/fixtures/code-check-request.json >/dev/null
+python3 -m json.tool companions/optimizers/dspy/fixtures/request.json >/dev/null
+python3 -m json.tool companions/optimizers/darwinian/fixtures/request.json >/dev/null
+python3 -m json.tool companions/evaluators/agent-benchmarks/benchmark/drivers.json >/dev/null
+python3 -m json.tool companions/evaluators/agent-benchmarks/fixtures/benchmark.json >/dev/null
+python3 -m json.tool companions/evaluators/agent-benchmarks/fixtures/evaluation.json >/dev/null
+python3 -m json.tool companions/evaluators/agent-benchmarks/fixtures/code-check.json >/dev/null
 python3 scripts/check-evolution-image-lock.py

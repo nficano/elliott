@@ -11,7 +11,7 @@ spec:
   outputTrust: untrusted
   companions:
     - name: darwinian-evolver
-      image: elliott/evaluator-darwinian@sha256:c6cfd9830f0b91a8e1879c0d18ae97ea42f08b80a136baa54b146252c02bf297
+      image: elliott/evaluator-darwinian@sha256:8cc9463fe2abc08af17c9f456ce5b877af4ddf89a607a61faf7be2652b1325cd
       endpoint: http://127.0.0.1:9072
       egress: { class: none }
       volumes: []

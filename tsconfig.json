@@ -22,6 +22,11 @@
     "noEmit": true,
     "baseUrl": "."
   },
-  "include": ["src/**/*.ts", "skills/**/*.ts", "companions/**/*.ts"],
+  "include": [
+    "src/**/*.ts",
+    "skills/**/*.ts",
+    "companions/**/*.ts",
+    "scripts/**/*.ts"
+  ],
   "exclude": ["skills/telemetry-map/app"]
 }

@@ -11,7 +11,7 @@ spec:
   outputTrust: untrusted
   companions:
     - name: dspy-optimizer
-      image: elliott/evaluator-dspy@sha256:4dcf63d818354f9b0663baf1d87ede229290dfd8b15fcb23e653fc21eedd4baa
+      image: elliott/evaluator-dspy@sha256:5cf9a09cd4da7a0ba92d8358f24f39980cb72af8562c9a0ac6c44773bb9c81f0
       endpoint: http://127.0.0.1:9071
       egress: { class: none }
       volumes: []

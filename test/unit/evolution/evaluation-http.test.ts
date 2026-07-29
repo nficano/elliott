@@ -39,7 +39,7 @@ const comparisonRequest = async () =>
   Schema.decodeUnknownSync(EvolutionComparisonRequest)(
     await Bun.file(
       new URL(
-        "../../../companions/fixtures/evaluation-request.json",
+        "../../../companions/evaluators/agent-benchmarks/fixtures/evaluation.json",
         import.meta.url,
       ),
     ).json(),

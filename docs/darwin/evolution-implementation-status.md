@@ -37,8 +37,8 @@ Those are deployment activities, not results that CI can synthesize.
 | Code adapter and sandbox | `targets/code.ts`, `engine/isolation.ts`, `application/code-sandbox.ts`, pre-shortlist `application/code-checker.ts` |
 | GEPA and MIPROv2 boundary | `skills/evaluator-dspy/` |
 | Darwinian boundary | `skills/evaluator-darwinian/` |
-| Independent evaluation and broad benchmark boundary | `skills/evaluator-agent-benchmarks/`, `companions/benchmarks/evaluation.ts` |
-| Reproducible companion images | `companions/`, `companions/evolution-images.lock.json` |
+| Independent evaluation and broad benchmark boundary | `skills/evaluator-agent-benchmarks/`, `companions/evaluators/agent-benchmarks/evaluation/` |
+| Reproducible companion images | `companions/`, `companions/images.lock.json` |
 | Proposal and release transaction | `release/`, including post-release regression monitoring and operator-rollback notification |
 | Optional Git projection | `release/git-cli-projection.ts`, using an isolated temporary clone and effect-gating publication intent |
 | Production acceptance | Schema, decoder, fail-closed auditor, and operator command in `model/acceptance.ts`, `acceptance/`, and `scripts/audit-evolution-acceptance.ts` |
@@ -289,7 +289,7 @@ Observed repository-gate result:
 
 The separately executed companion build and smoke gates also passed:
 
-- Companion Ruff lint and formatting: passed.
+- Companion TypeScript lint/type checks and Python adapter tests: passed.
 - Native Linux ARM64 OCI builds: 3 passed.
 - No-network, read-only, capability-dropped HTTP endpoint smokes: 6 passed.
 
@@ -304,9 +304,9 @@ deterministic property/fuzz corpora.
 
 | Image | Observed OCI manifest digest |
 | :--- | :--- |
-| DSPy evaluator | `sha256:83644cc6c9bdcf08bd5c8b1f47f76eb2bab4eafefb2f75b7214ce30eb5b26a3e` |
-| Darwinian evaluator | `sha256:c6cfd9830f0b91a8e1879c0d18ae97ea42f08b80a136baa54b146252c02bf297` |
-| Independent, code-check, and broad-gate evaluator | `sha256:d0d0a2c81321378d0c0297ad48ec196c5692d3222172273d75ae588f11ecfc5c` |
+| DSPy evaluator | `sha256:5cf9a09cd4da7a0ba92d8358f24f39980cb72af8562c9a0ac6c44773bb9c81f0` |
+| Darwinian evaluator | `sha256:8cc9463fe2abc08af17c9f456ce5b877af4ddf89a607a61faf7be2652b1325cd` |
+| Independent, code-check, and broad-gate evaluator | `sha256:0af6b78cfffc2a5ced3aef0aea0244cf70b89548b86a15a35295832516ef09ed` |
 
 The build lock records source digests, dependency locks, upstream revisions,
 artifact paths, platform, and smoke status. CI rejects source changes that are

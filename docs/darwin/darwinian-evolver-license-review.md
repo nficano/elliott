@@ -20,7 +20,7 @@ The local build copies the complete pinned source tree, license, dependency
 lock, and build metadata into
 `/usr/share/darwinian-evolver/source`. Elliott's TypeScript package does not
 import or link that code. The image is recorded separately in
-`companions/evolution-images.lock.json`.
+`companions/images.lock.json`.
 
 Anyone who publishes the companion image containing Darwinian Evolver must:
 

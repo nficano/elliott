@@ -328,7 +328,7 @@
       "name": "Companions: dspy · darwinian · benchmarks (sealed OCI, reached over HTTP)",
       "kind": "evaluator",
       "runtime": "config-gated",
-      "source": "companions/dspy/dspy_worker.py, companions/darwinian/darwinian_worker.py, companions/benchmarks/evaluation_worker.py; .artifacts/evolution-companions/*.oci.tar; endpoints src/runtime/evolution.ts:285,302,351,373"
+      "source": "companions/optimizers/dspy/worker.py, companions/optimizers/darwinian/worker.py, companions/evaluators/agent-benchmarks/evaluation/; .artifacts/evolution-companions/*.oci.tar; endpoints src/runtime/evolution.ts:285,302,351,373"
     },
 
     {

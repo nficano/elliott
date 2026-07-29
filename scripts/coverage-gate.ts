@@ -16,6 +16,8 @@
  * emergency push with `git push --no-verify`).
  */
 
+import process from "node:process";
+
 const PERCENT = 100;
 const LABEL_WIDTH = 10;
 const MIN_LINES_PCT = 80;

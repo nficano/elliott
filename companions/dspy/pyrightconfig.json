@@ -1,9 +1,0 @@
-{
-  "extraPaths": ["../common", "../typings"],
-  "stubPath": "../typings",
-  "venvPath": ".",
-  "venv": ".venv",
-  "pythonVersion": "3.12",
-  "pythonPlatform": "All",
-  "reportMissingModuleSource": "none"
-}

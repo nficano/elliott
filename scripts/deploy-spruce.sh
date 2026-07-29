@@ -39,11 +39,11 @@ docker build \
   --label "org.opencontainers.image.revision=$RELEASE" \
   --tag elliott:latest \
   .
-docker build --file companions/dspy/Dockerfile \
+docker build --file companions/optimizers/dspy/Dockerfile \
   --tag elliott/evaluator-dspy:local .
-docker build --file companions/darwinian/Dockerfile \
+docker build --file companions/optimizers/darwinian/Dockerfile \
   --tag elliott/evaluator-darwinian:local .
-docker build --file companions/benchmarks/Dockerfile \
+docker build --file companions/evaluators/agent-benchmarks/Dockerfile \
   --tag elliott/evaluator-agent-benchmarks:local .
 docker build --file deploy/placement/model-proxy/Dockerfile \
   --tag elliott/model-proxy:local .

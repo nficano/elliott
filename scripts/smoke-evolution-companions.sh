@@ -30,22 +30,13 @@ smoke() {
     "${image}" >/dev/null
 
   trap 'docker rm --force "${container}" >/dev/null 2>&1 || true' RETURN
-  if [[ "${image}" == "elliott/evaluator-agent-benchmarks:local" ]]; then
-    docker exec "${container}" \
-      bun /opt/elliott/companions/typescript/smoke.ts \
-        --endpoint "http://127.0.0.1:${port}" \
-        --path "${path}" \
-        --request /tmp/request.json \
-        --kind "${kind}" \
-        --token smoke-secret >/dev/null
-  else
-    docker exec "${container}" \
-      python -m elliott_companion.smoke \
-        --endpoint "http://127.0.0.1:${port}" \
-        --path "${path}" \
-        --request /tmp/request.json \
-        --kind "${kind}" >/dev/null
-  fi
+  docker exec "${container}" \
+    bun /opt/elliott/companions/runtime/smoke.ts \
+      --endpoint "http://127.0.0.1:${port}" \
+      --path "${path}" \
+      --request /tmp/request.json \
+      --kind "${kind}" \
+      --token smoke-secret >/dev/null
   docker rm --force "${container}" >/dev/null
   trap - RETURN
   echo "${name} smoke passed"
@@ -55,41 +46,41 @@ smoke \
   dspy \
   elliott/evaluator-dspy:local \
   9071 \
-  companions/fixtures/dspy-request.json \
+  companions/optimizers/dspy/fixtures/request.json \
   optimizer \
   /v1/optimize
 smoke \
   darwinian \
   elliott/evaluator-darwinian:local \
   9072 \
-  companions/fixtures/darwinian-request.json \
+  companions/optimizers/darwinian/fixtures/request.json \
   optimizer \
   /v1/optimize
 smoke \
   benchmarks \
   elliott/evaluator-agent-benchmarks:local \
   9073 \
-  companions/fixtures/benchmark-request.json \
+  companions/evaluators/agent-benchmarks/fixtures/benchmark.json \
   benchmark \
   /v1/run
 smoke \
   independent-evaluator \
   elliott/evaluator-agent-benchmarks:local \
   9073 \
-  companions/fixtures/evaluation-request.json \
+  companions/evaluators/agent-benchmarks/fixtures/evaluation.json \
   evaluator \
   /v1/compare
 smoke \
   pre-optimization-baseline \
   elliott/evaluator-agent-benchmarks:local \
   9073 \
-  companions/fixtures/evaluation-request.json \
+  companions/evaluators/agent-benchmarks/fixtures/evaluation.json \
   baseline \
   /v1/baseline
 smoke \
   code-checker \
   elliott/evaluator-agent-benchmarks:local \
   9073 \
-  companions/fixtures/code-check-request.json \
+  companions/evaluators/agent-benchmarks/fixtures/code-check.json \
   code-check \
   /v1/candidate/check
