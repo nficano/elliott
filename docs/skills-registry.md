@@ -1,6 +1,7 @@
 # Installable skills: the `nficano/skills` registry
 
-Status: design v2 (post adversarial review) · 2026-07-29
+Status: IMPLEMENTED (v2 design) · 2026-07-29 — see §15 for what shipped and the
+open deploy-time follow-ups.
 
 Elliott today loads skills from exactly two places on disk: the framework's
 `skills/` directory (`loadBundledPackages`, `src/catalog/bundled.ts:18`) and the
@@ -643,3 +644,54 @@ two-pass facility loader with installed providers feeding built-in deep-trace;
 governance decorating installed tools identically; the migration needing zero
 new subpath exports; snapshot churn being benign; the app.ts:132 install slot
 being correct.
+
+## 15. Implementation status (2026-07-29)
+
+Landed on branches (NOT merged to main — both elliott and tide-pods auto-deploy
+on push to main, so the cutover is left for a reviewed, deliberate deploy):
+
+- **elliott `skills-registry`** (pushed): the installer subsystem (`src/install/`
+  — settings, resolver, system-`tar` fetch/extract, cache/lock, CLI, scoped
+  `SkillContext`, soft delivery, `/healthz` install section), the deep-trace and
+  darwin renames, and the removal of the 22 migrated skills. elliott now ships
+  only the 8 built-ins (`fetch`, `evaluator/*`, `files`, `mcp-client`,
+  `scheduler`, `ssh`, `terminal`, `deep-trace`). Gates green: typecheck, lint,
+  format, 408 tests, `darwin:check`. contract-smoke counts recomputed
+  (tools 41→9, gateways 4→1, routes 41→35, services 6→2, facilities 3→0).
+- **`nficano/skills`** (public, live): 22 skills, per-skill tags
+  `<name>/v<x.y.z>` (gateway-slack at v2.0.0, rest v1.0.0), README, CI, vendored
+  schema. Verified end-to-end: unpinned `traefik` resolves to latest and pinned
+  `gateway-slack@2.0.0` resolves exactly, both fetched as real codeload pax
+  tarballs, extracted, validated, digest-locked.
+- **tide-pods `skills-registry-cutover`** (pushed): elliott pin → the
+  post-removal commit (+ surgical `bun.lock` SHA bump; git deps are
+  content-addressed), `install:` block with oslo's 19 registry skills, committed
+  `skills.lock.json`, `skills.telemetry_map`→`skills.deep_trace`,
+  `.elliott/skills/` gitignored, and the Dockerfile frozen-install build step.
+  `elliott skills install --frozen` against the committed lock materialized all
+  19 with matching digests.
+
+Open follow-ups (deploy-time, not code):
+
+1. **Merge + deploy** both branches deliberately (production auto-deploys on
+   main). The frozen build step needs network at image build; the read-only
+   runtime never fetches.
+2. **deep-trace persisted grant.** The legacy `elliott-telemetry-map-public`
+   Traefik router/grant on spruce's `elliott-runtime` volume needs one manual
+   release — the facility API can't cross-consumer-release (documented in
+   `skills/deep-trace/src/publish.ts`, search "deep-trace-rename").
+3. **darwin evolution stack.** Rebuild + redeploy the darwin images (new
+   `ELLIOTT_DARWIN_*` env, rebuilt OCI digests) and split the evolution compose
+   off the retired `elliott` runtime service before deploying — otherwise
+   self-evolution acceptance fails against the recomputed source lock. Do not
+   run the old `deploy-spruce.sh` `elliott` service (port/volume conflict with
+   oslo).
+4. **subscription-usage egress** carries `${LITELLM_HOST}` as declarative
+   metadata only; the effective host is config-driven
+   (`subscription_usage.litellm.base_url`), so nothing breaks — the scrub is
+   cosmetic.
+5. **registry CI** typecheck job needs the `ELLIOTT_DEPLOY_KEY` repo secret
+   (private elliott dep); it is already gated to skip when absent (fork-safe).
+6. **Curated topology** (`docs/elliott-topology.enriched.json`, served at
+   `/topology`) still lists the moved skills and the `evaluator.companions`
+   node id — cosmetic, ungated; the generated topology was regenerated.
