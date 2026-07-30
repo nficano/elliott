@@ -3,7 +3,7 @@ kind: scheduler
 profile: scheduler-standard
 metadata: { namespace: core, name: scheduler, version: 1.0.0 }
 spec:
-  document: SCHEDULER.md
+  document: SKILL.md
   protocols: [scheduler]
   capabilities: []
   egress: { class: none }

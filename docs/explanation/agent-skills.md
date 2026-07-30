@@ -25,7 +25,7 @@ my-agents/
       skills/
         <name>/
           manifest.yaml      # same package format as framework skills
-          TOOL.md | EXTENSION.md | …
+          SKILL.md           # agentskills.io frontmatter + Markdown
           src/index.ts       # register(context) → { tools, routes, … }
 ```
 

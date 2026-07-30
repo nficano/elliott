@@ -1,3 +1,8 @@
+---
+name: evaluator-agent-benchmarks
+description: Isolated benchmark runner and independent evolution evaluator that owns the hidden comparison route and broad benchmark ladder. Use when scoring or baselining candidate components against sealed holdout data.
+---
+
 # Independent evolution evaluator and broad benchmark runner
 
 This isolated Component owns the hidden comparison route and the broad

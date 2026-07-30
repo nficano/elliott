@@ -5,6 +5,11 @@ import type { ComponentKind } from "../core/types";
 import { isJsonRecord } from "../providers/http";
 import type { BundledExport, BundledPackage, FacilityRef } from "./types";
 
+// SKILL.md is the canonical agentskills.io document for every skill (new skills
+// use it — see scaffold.ts; bundled-skill conformance is asserted in
+// test/unit/bundled-skills.test.ts). The kind-named docs are still accepted so
+// the loader can read registry packages tagged before the migration; that
+// backward-compat set narrows to SKILL.md once every registry tag is re-cut.
 const DOCUMENTS: ReadonlySet<string> = new Set([
   "SKILL.md",
   "TOOL.md",

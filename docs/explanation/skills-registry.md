@@ -65,7 +65,7 @@ Built-in (stay in elliott `skills/`):
 | Skill | Notes |
 | --- | --- |
 | `fetch` | no deps |
-| `evaluator/dspy`, `evaluator/darwinian`, `evaluator/agent-benchmarks` | coupled to the evolution runtime (`evaluator.gauntlet`); meaningless outside the framework |
+| `evaluator-dspy`, `evaluator-darwinian`, `evaluator-agent-benchmarks` | coupled to the evolution runtime (`evaluator.gauntlet`); meaningless outside the framework |
 | `files` | no deps |
 | `mcp-client` | the "mcp" built-in; keeps its `mcp-client` name (renaming churns `agent.yaml` component refs for no benefit) |
 | `scheduler` | delivers via primary gateway when one exists; see the soft-delivery fix below |

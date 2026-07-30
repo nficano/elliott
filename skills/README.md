@@ -4,9 +4,9 @@ This directory is the first-party component catalog shipped by Elliott.
 Packages may live directly under `skills/` or in a category directory. Every
 directory containing `manifest.yaml` is one complete Elliott component package
 following the standard layout (TDD §7.18b): the manifest declares its authority
-and runtime posture, the kind-specific Markdown document describes its
-model-visible behavior, and `src/` carries the executable implementation where
-one exists.
+and runtime posture, `SKILL.md` (agentskills.io frontmatter plus Markdown)
+describes its model-visible behavior, and `src/` carries the executable
+implementation where one exists.
 
 The runtime discovers these packages directly. A package that exports an
 executable declares it in `manifest.yaml`:
@@ -23,10 +23,10 @@ routes, and background services the package contributes. A package whose
 required settings or secrets are absent registers nothing and stays dormant;
 a package with no `exports` at all is a zero-authority descriptor.
 
-Category directories remove repeated package-name prefixes without changing
-manifest identities or component references:
-
-- `evaluator/{agent-benchmarks,darwinian,dspy}`
+Every package directory name equals its `metadata.name` and its `SKILL.md`
+frontmatter `name` (an agentskills.io requirement), so each package sits
+directly under `skills/` — e.g. `evaluator-dspy`, `evaluator-darwinian`,
+`evaluator-agent-benchmarks`.
 
 The framework ships built-ins only. Everything else is installed from the
 `nficano/skills` registry (see [`docs/explanation/skills-registry.md`](../docs/explanation/skills-registry.md)).
@@ -36,7 +36,7 @@ The built-in set is:
 - Connectivity: `mcp-client`
 - Local execution: `files`, `terminal`, `ssh`
 - Automation: `scheduler`
-- Evolution: `evaluator/{dspy,darwinian,agent-benchmarks}`
+- Evolution: `evaluator-dspy`, `evaluator-darwinian`, `evaluator-agent-benchmarks`
 - Observability: `deep-trace`
 
 Executable entries ship a registration module. Several executable entries stay

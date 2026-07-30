@@ -3,7 +3,7 @@ kind: evaluator
 profile: evaluator-benchmark-isolated
 metadata: { namespace: organization, name: evaluator-agent-benchmarks, version: 1.0.0 }
 spec:
-  document: EVALUATOR.md
+  document: SKILL.md
   protocols: [evaluation.runner, benchmark.runner]
   capabilities:
     - { capability: evaluation.run, resources: [snapshot://granted/**] }

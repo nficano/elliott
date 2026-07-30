@@ -3,7 +3,7 @@ kind: evaluator
 profile: evaluator-isolated
 metadata: { namespace: organization, name: evaluator-dspy, version: 1.0.0 }
 spec:
-  document: EVALUATOR.md
+  document: SKILL.md
   protocols: [optimization.engine, evaluation.runner]
   capabilities: []
   egress: { class: none }

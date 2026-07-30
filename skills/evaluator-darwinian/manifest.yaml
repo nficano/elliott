@@ -3,7 +3,7 @@ kind: evaluator
 profile: evaluator-code-isolated
 metadata: { namespace: organization, name: evaluator-darwinian, version: 1.0.0 }
 spec:
-  document: EVALUATOR.md
+  document: SKILL.md
   protocols: [optimization.engine]
   capabilities: []
   egress: { class: none }

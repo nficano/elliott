@@ -3,7 +3,7 @@ kind: tool
 profile: tool-local-only
 metadata: { namespace: core, name: terminal, version: 1.0.0 }
 spec:
-  document: TOOL.md
+  document: SKILL.md
   protocols: [tool.executor]
   capabilities:
     - { capability: process.execute, resources: [declared://executables] }

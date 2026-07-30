@@ -15,8 +15,9 @@ const validComponentName = (value: string): boolean =>
     && [...part].every((character) => COMPONENT_NAME_CHARACTERS.has(character))
   );
 
-const markdownName = (kind: "skill" | "tool"): string =>
-  kind === "skill" ? "SKILL.md" : "TOOL.md";
+// Every skill's document is SKILL.md — the agentskills.io filename — regardless
+// of kind; the manifest's `kind` carries the tool/gateway/… distinction.
+const DOCUMENT_NAME = "SKILL.md";
 
 const overlay = (request: ScaffoldRequest): string =>
   `apiVersion: elliott/v1
@@ -151,7 +152,7 @@ export const scaffoldComponent = async (
   const directory = path.resolve(request.parentDirectory, request.name);
   const tests = path.join(directory, "tests");
   await mkdir(tests, { recursive: true });
-  const markdownPath = path.join(directory, markdownName(request.kind));
+  const markdownPath = path.join(directory, DOCUMENT_NAME);
   const overlayPath = path.join(directory, "manifest.yaml");
   const testPath = path.join(tests, "conformance.test.ts");
   const files = [markdownPath, overlayPath, testPath];

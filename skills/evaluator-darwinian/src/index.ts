@@ -1,13 +1,13 @@
 import * as Effect from "effect/Effect";
 import * as Schema from "effect/Schema";
-import { validateCodeSandboxContract } from "../../../../src/learning/evolution/engine/isolation";
-import { EvolutionEngineError } from "../../../../src/learning/evolution/errors";
+import { validateCodeSandboxContract } from "../../../src/learning/evolution/engine/isolation";
+import { EvolutionEngineError } from "../../../src/learning/evolution/errors";
 import {
   OptimizationEngineCapabilities,
   OptimizationEngineResult,
-} from "../../../../src/learning/evolution/model/index";
-import type { OptimizationEngineShape } from "../../../../src/learning/evolution/types";
-import type { SkillRegistration } from "../../../../src/runtime/skills/types";
+} from "../../../src/learning/evolution/model/index";
+import type { OptimizationEngineShape } from "../../../src/learning/evolution/types";
+import type { SkillRegistration } from "../../../src/runtime/skills/types";
 import type { DarwinianClientConfig } from "./types";
 
 const invoke = (

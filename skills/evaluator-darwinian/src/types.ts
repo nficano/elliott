@@ -1,4 +1,4 @@
-import type { OptimizationEngineShape } from "../../../../src/learning/evolution/types";
+import type { OptimizationEngineShape } from "../../../src/learning/evolution/types";
 
 export interface DarwinianClientConfig {
   readonly endpoint: string;

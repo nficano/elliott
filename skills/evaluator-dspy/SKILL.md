@@ -1,3 +1,8 @@
+---
+name: evaluator-dspy
+description: Isolated DSPy optimizer companion (GEPA and MIPROv2) for governed self-evolution. Use when optimizing a text or prompt target against a sealed training and validation view.
+---
+
 # DSPy text optimizer
 
 Isolated companion adapter for GEPA and MIPROv2. Elliott supplies a sealed

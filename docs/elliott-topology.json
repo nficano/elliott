@@ -268,11 +268,11 @@
     },
     {
       "id": "evaluator.benchmarks",
-      "name": "evaluator-agent-benchmarks (skills/evaluator/agent-benchmarks/src/index.ts)",
+      "name": "evaluator-agent-benchmarks (skills/evaluator-agent-benchmarks/src/index.ts)",
       "kind": "evaluator",
       "runtime": "config-gated",
       "domain": "self-evolution",
-      "source": "skills/evaluator/agent-benchmarks/src/index.ts",
+      "source": "skills/evaluator-agent-benchmarks/src/index.ts",
       "classifications": {
         "trustZone": "egress",
         "dataClassification": "internal",
@@ -284,11 +284,11 @@
     },
     {
       "id": "evaluator.darwinian",
-      "name": "evaluator-darwinian (skills/evaluator/darwinian/src/index.ts)",
+      "name": "evaluator-darwinian (skills/evaluator-darwinian/src/index.ts)",
       "kind": "evaluator",
       "runtime": "config-gated",
       "domain": "self-evolution",
-      "source": "skills/evaluator/darwinian/src/index.ts",
+      "source": "skills/evaluator-darwinian/src/index.ts",
       "classifications": {
         "trustZone": "egress",
         "dataClassification": "internal",
@@ -300,11 +300,11 @@
     },
     {
       "id": "evaluator.dspy",
-      "name": "evaluator-dspy (skills/evaluator/dspy/src/index.ts)",
+      "name": "evaluator-dspy (skills/evaluator-dspy/src/index.ts)",
       "kind": "evaluator",
       "runtime": "config-gated",
       "domain": "self-evolution",
-      "source": "skills/evaluator/dspy/src/index.ts",
+      "source": "skills/evaluator-dspy/src/index.ts",
       "classifications": {
         "trustZone": "egress",
         "dataClassification": "internal",

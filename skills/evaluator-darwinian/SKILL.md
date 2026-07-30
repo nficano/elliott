@@ -1,3 +1,8 @@
+---
+name: evaluator-darwinian
+description: Isolated Darwinian Evolver companion for governed self-evolution. Use when evolving code candidates against an allowlisted test command in a disposable, network-isolated checkout.
+---
+
 # Darwinian code optimizer
 
 External CLI boundary for Darwinian Evolver. Its image and license stay

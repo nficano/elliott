@@ -3,7 +3,7 @@ kind: mcp-endpoint
 profile: mcp-endpoint-standard
 metadata: { namespace: core, name: mcp-client, version: 1.0.0 }
 spec:
-  document: MCP.md
+  document: SKILL.md
   protocols: [tool.executor, resource.reader, prompt.source]
   capabilities:
     - { capability: network.connect, resources: [declared://server-host] }

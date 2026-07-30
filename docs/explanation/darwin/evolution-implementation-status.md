@@ -35,9 +35,9 @@ Those are deployment activities, not results that CI can synthesize.
 | Tool-description adapter | `targets/tool-description.ts` |
 | Typed prompt adapter | `targets/prompt-segment.ts`, `prompt-assembly.ts` |
 | Code adapter and sandbox | `targets/code.ts`, `engine/isolation.ts`, `application/code-sandbox.ts`, pre-shortlist `application/code-checker.ts` |
-| GEPA and MIPROv2 boundary | `skills/evaluator/dspy/` |
-| Darwinian boundary | `skills/evaluator/darwinian/` |
-| Independent evaluation and broad benchmark boundary | `skills/evaluator/agent-benchmarks/`, `darwin/evaluators/agent-benchmarks/evaluation/` |
+| GEPA and MIPROv2 boundary | `skills/evaluator-dspy/` |
+| Darwinian boundary | `skills/evaluator-darwinian/` |
+| Independent evaluation and broad benchmark boundary | `skills/evaluator-agent-benchmarks/`, `darwin/evaluators/agent-benchmarks/evaluation/` |
 | Reproducible Darwin images | `darwin/`, `darwin/images.lock.json` |
 | Proposal and release transaction | `release/`, including post-release regression monitoring and operator-rollback notification |
 | Optional Git projection | `release/git-cli-projection.ts`, using an isolated temporary clone and effect-gating publication intent |

@@ -1,3 +1,8 @@
+---
+name: deep-trace
+description: Read-only observability map of the running agent — live topology, sessions, telemetry, and container health. Use when inspecting how a request flows through Elliott or debugging runtime behavior.
+---
+
 # Telemetry map
 
 A read-only, self-contained observability map of the running agent. It mounts

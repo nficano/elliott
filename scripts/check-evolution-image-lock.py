@@ -68,9 +68,9 @@ SOURCE_FILES = {
     ],
 }
 MANIFESTS = {
-    "evaluator-dspy": "skills/evaluator/dspy/manifest.yaml",
-    "evaluator-darwinian": "skills/evaluator/darwinian/manifest.yaml",
-    "evaluator-agent-benchmarks": "skills/evaluator/agent-benchmarks/manifest.yaml",
+    "evaluator-dspy": "skills/evaluator-dspy/manifest.yaml",
+    "evaluator-darwinian": "skills/evaluator-darwinian/manifest.yaml",
+    "evaluator-agent-benchmarks": "skills/evaluator-agent-benchmarks/manifest.yaml",
 }
 REQUIRED_BENCHMARKS = {
     "target-syntax",

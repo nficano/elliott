@@ -3,7 +3,7 @@ kind: extension
 profile: extension-standard
 metadata: { namespace: core, name: deep-trace, version: 1.0.0 }
 spec:
-  document: EXTENSION.md
+  document: SKILL.md
   protocols: [health.checker]
   capabilities:
     - {

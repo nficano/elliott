@@ -1,12 +1,12 @@
 import * as Effect from "effect/Effect";
 import * as Schema from "effect/Schema";
-import { EvolutionEngineError } from "../../../../src/learning/evolution/errors";
+import { EvolutionEngineError } from "../../../src/learning/evolution/errors";
 import {
   OptimizationEngineCapabilities,
   OptimizationEngineResult,
-} from "../../../../src/learning/evolution/model/index";
-import type { OptimizationEngineShape } from "../../../../src/learning/evolution/types";
-import type { SkillRegistration } from "../../../../src/runtime/skills/types";
+} from "../../../src/learning/evolution/model/index";
+import type { OptimizationEngineShape } from "../../../src/learning/evolution/types";
+import type { SkillRegistration } from "../../../src/runtime/skills/types";
 import type { DspyClientConfig } from "./types";
 
 const request = (
@@ -87,4 +87,4 @@ export const createOptimizationEngineClient = (
 
 export const register = (): SkillRegistration => ({});
 
-export { EvolutionRunIdSchema as DspyWireRunId } from "../../../../src/learning/evolution/model/index";
+export { EvolutionRunIdSchema as DspyWireRunId } from "../../../src/learning/evolution/model/index";

@@ -3,7 +3,7 @@ kind: tool
 profile: tool-standard
 metadata: { namespace: core, name: ssh, version: 1.0.0 }
 spec:
-  document: TOOL.md
+  document: SKILL.md
   protocols: [tool.executor]
   capabilities:
     - { capability: network.connect, resources: [declared://ssh-hosts] }
