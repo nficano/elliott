@@ -11,6 +11,7 @@ import type {
   RuntimeModelCompleter,
   ToolCall,
   ToolDefinition,
+  ToolRoundContext,
   TurnOptions,
   TurnToolProgress,
 } from "./types";
@@ -18,6 +19,11 @@ import type {
 const MAX_ROUNDS = 8;
 const MAX_HISTORY_MESSAGES = 40;
 const MAX_TOOL_OUTPUT_CHARACTERS = 30_000;
+// Third identical call (same tool, same arguments) within one turn triggers a
+// runtime notice: a repeat rarely yields new information, and without the
+// notice the model tends to burn all remaining rounds on the same call.
+const REPEATED_CALL_WARNING_THRESHOLD = 3;
+const REPEATED_CALL_ERROR_TAG = "repeated-tool-call";
 
 export class RuntimeAgent {
   readonly #model: RuntimeModelCompleter;
@@ -46,11 +52,13 @@ export class RuntimeAgent {
     options: TurnOptions = {},
   ): Promise<string> {
     if (options.retainHistory === false) {
-      this.#history.delete(conversation);
-      this.#conversationTools.delete(conversation);
-      this.#conversationPersonas.delete(conversation);
+      this.#remember(conversation, [], false);
     }
-    const tools = this.#toolsForConversation(conversation);
+    const execution: ToolRoundContext = {
+      options,
+      tools: this.#toolsForConversation(conversation),
+      repeats: new Map(),
+    };
     let messages = [
       ...(options.retainHistory === false
         ? []
@@ -65,7 +73,7 @@ export class RuntimeAgent {
       const request = {
         system: this.#systemPrompt(conversation),
         messages,
-        tools: [...tools.values()],
+        tools: [...execution.tools.values()],
         allowTools,
       } satisfies ModelTurnRequest;
       await notifyModelRequest(options, request);
@@ -80,7 +88,7 @@ export class RuntimeAgent {
         return result.text || "…";
       }
       const outputs = await Promise.all(
-        result.toolCalls.map((call) => this.#execute(call, options, tools)),
+        result.toolCalls.map((call) => this.#execute(call, execution)),
       );
       messages = [...messages, ...outputs];
     }
@@ -104,10 +112,10 @@ export class RuntimeAgent {
   // eslint-disable-next-line max-lines-per-function
   async #execute(
     call: ToolCall,
-    options: TurnOptions,
-    tools: ReadonlyMap<string, ToolDefinition>,
+    execution: ToolRoundContext,
   ): Promise<ModelMessage> {
-    const tool = tools.get(call.name);
+    const { options } = execution;
+    const tool = execution.tools.get(call.name);
     if (tool === undefined) {
       await notifyTool(options, call, {
         status: "error",
@@ -120,6 +128,7 @@ export class RuntimeAgent {
     }
     const schemaDigest = hashValue(tool.inputSchema);
     const argumentsDigest = hashBytes(call.arguments);
+    const notice = repeatNotice(execution.repeats, call, argumentsDigest);
     await notifyTool(options, call, {
       status: "in_progress",
       requestedTool: call.name,
@@ -138,10 +147,11 @@ export class RuntimeAgent {
         schemaDigest,
         argumentsDigest,
         resultDigest: hashBytes(bounded),
+        ...(notice.length > 0 && { errorTag: REPEATED_CALL_ERROR_TAG }),
       });
       return toolMessage(
         call,
-        `[UNTRUSTED TOOL OUTPUT]\n${bounded}`,
+        `${notice}[UNTRUSTED TOOL OUTPUT]\n${bounded}`,
         tool.resultRetention === "turn",
       );
     } catch (error) {
@@ -154,7 +164,7 @@ export class RuntimeAgent {
         argumentsDigest,
         errorTag: "tool-execution-error",
       });
-      return toolMessage(call, JSON.stringify({ error: detail }));
+      return toolMessage(call, `${notice}${JSON.stringify({ error: detail })}`);
     }
   }
 
@@ -207,6 +217,24 @@ const toolMessage = (
   toolCallId: call.id,
   ...(ephemeral && { ephemeral: true }),
 });
+
+// Counts this call against the turn's identical-call ledger and returns the
+// runtime notice to prepend once the threshold is reached. The notice is
+// runtime-generated (trusted), so it sits before the untrusted-output marker.
+const repeatNotice = (
+  repeats: Map<string, number>,
+  call: ToolCall,
+  argumentsDigest: string,
+): string => {
+  const key = `${call.name}:${argumentsDigest}`;
+  const count = (repeats.get(key) ?? 0) + 1;
+  repeats.set(key, count);
+  if (count < REPEATED_CALL_WARNING_THRESHOLD) return "";
+  return `[RUNTIME NOTICE] This is identical call ${count} to ${call.name} `
+    + "this turn (same tool, same arguments). Repeating it will not produce "
+    + "new information unless you are deliberately polling for an external "
+    + "change; change approach or report what is blocking you.\n";
+};
 
 const parseArguments = (value: string): unknown => {
   const parsed: unknown = JSON.parse(value);

@@ -580,6 +580,16 @@ export interface TurnOptions {
   readonly retainHistory?: boolean;
 }
 
+// Per-turn tool-execution context threaded through each round. `repeats`
+// counts identical calls (tool name + arguments digest) within one turn so
+// the agent can surface a repeated-call notice instead of silently burning
+// rounds on a stuck loop.
+export interface ToolRoundContext {
+  readonly options: TurnOptions;
+  readonly tools: ReadonlyMap<string, ToolDefinition>;
+  readonly repeats: Map<string, number>;
+}
+
 export interface RuntimeHealth {
   readonly ready: boolean;
   readonly release: string;
