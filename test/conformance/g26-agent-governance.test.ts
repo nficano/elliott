@@ -12,7 +12,7 @@ import {
 // Agentic Top-10 control set to elliott's live tool path: every model-issued
 // tool call is intercepted in deterministic code, attributed to a principal,
 // audited to the tamper-evident log, and subject to a runtime kill switch. This
-// is the executable checklist for that adoption (docs/agent-governance.md).
+// is the executable checklist for that adoption (docs/explanation/agent-governance.md).
 
 const HTTP_OK = 200;
 const HTTP_UNAUTHORIZED = 401;
@@ -62,10 +62,10 @@ describe("G26 agent governance", () => {
       tool("noop", () => Promise.resolve("ok")),
     );
     await guarded.execute({}, {
-      principal: { agent: "oslo", actor: "U9", gateway: "slack" },
+      principal: { agent: "agent-a", actor: "U9", gateway: "slack" },
     });
     const payload = ofType(log, "tool.invocation")[0]?.payload ?? {};
-    expect(payload["agent"]).toBe("oslo");
+    expect(payload["agent"]).toBe("agent-a");
     expect(payload["actor"]).toBe("U9");
   });
 

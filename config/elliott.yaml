@@ -1,15 +1,17 @@
 runtime:
-  timezone: America/New_York
+  timezone: UTC
   http: { port: 8080 }
 
 store:
-  dsn: ${VAULT:secret/services/oslo#postgres_dsn}
+  dsn: ${VAULT:secret/services/elliott#postgres_dsn}
   pool: { max: 10 }
   vectors: { dim: 768, type: vector }
 
 llm:
-  base_url: https://api.litellm.octet.stream/v1
-  api_key: ${VAULT:secret/services/oslo#litellm_key}
+  # Any OpenAI-compatible endpoint (a LiteLLM proxy, a provider's native
+  # /v1, or a local server). Agent repos point this at their own gateway.
+  base_url: http://localhost:4000/v1
+  api_key: ${VAULT:secret/services/elliott#llm_api_key}
   max_parallel: 12
   models:
     utility: { model: tier-local, context_window: 32768 }
@@ -28,14 +30,14 @@ budgets:
   per_turn_usd_max: 2
 
 observability:
-  otel: { endpoint: http://host.docker.internal:4318 }
+  otel: { endpoint: http://localhost:4318 }
   glitchtip:
-    dsn: ${VAULT:secret/services/oslo#glitchtip_dsn}
-    environment: prod
+    dsn: ${VAULT:secret/services/elliott#glitchtip_dsn}
+    environment: dev
 
 notify:
-  webhook_url: https://api.octet.stream/api/notify
-  default_channels: [slack]
+  webhook_url: ""
+  default_channels: []
 
 tools:
   files:
@@ -52,11 +54,11 @@ tools:
 
 skills:
   deep_trace:
-    # Publish the observability map on the LAN through the facility seam:
-    # proxy.route (Traefik HTTPS route) chained into dns.local (Pi-hole A
-    # record at the proxy). https://elliott.octet.stream/map redirects into
-    # the map. Dormant until the proxy.route/dns.local providers (traefik +
-    # pihole) are installed from the nficano/skills registry.
+    # The observability map ships enabled and serves on the runtime HTTP port
+    # at /v1/observability/map. To publish it beyond localhost, provide
+    # proxy.route / dns.local facilities (e.g. traefik + pihole skills) and
+    # set the hostname the route should answer on:
+    #
+    # public_hostname: elliott.example.com
+    # service_url: http://127.0.0.1:8080
     enabled: true
-    public_hostname: elliott.octet.stream
-    service_url: http://172.16.20.21:18082

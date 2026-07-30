@@ -293,7 +293,7 @@ describe("GET /v1/observability/map/topology", () => {
     }));
   });
 
-  it("resolves liveness on enriched nodes from what actually registered", async () => {
+  it("auto-registers consumer skill nodes as live on first serve", async () => {
     const view: SkillPackageView = {
       name: "gateway-webhook",
       kind: "gateway",
@@ -319,12 +319,11 @@ describe("GET /v1/observability/map/topology", () => {
       nodes: { id: string; runtime: string; }[];
       autoRegistration: { liveness: Record<string, string>; };
     };
-    // The enriched document ships gateway.webhook as config-gated; a live
-    // registration overrides it without duplicating the node.
+    // The enriched document ships only framework nodes; a consumer package
+    // with a live registration is added to the map exactly once, as live.
     const matches = body.nodes.filter((item) => item.id === "gateway.webhook");
     expect(matches.length).toBe(1);
     expect(matches[0]?.runtime).toBe("live");
-    expect(body.autoRegistration.liveness["gateway.webhook"]).toBe("live");
   });
 });
 

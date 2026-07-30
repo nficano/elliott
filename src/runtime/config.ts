@@ -22,8 +22,7 @@ import {
 import {
   optionalDeepTrace,
   optionalNewsBrief,
-  optionalPakman,
-  optionalYouTubeDvr,
+  optionalSkillConfig,
 } from "./settings-skills";
 import {
   optionalCloudflared,
@@ -269,8 +268,7 @@ const optionalSettings = (
   ]),
   ...optionalStringProperty("postgresDsn", resolved, ["store", "dsn"]),
   ...optionalNewsBrief(resolved, secrets),
-  ...optionalPakman(secrets),
-  ...optionalYouTubeDvr(resolved, secrets),
+  ...optionalSkillConfig(resolved),
 });
 
 // The agent definition lives at agents/<name>/agent.yaml (the tide-pods pod

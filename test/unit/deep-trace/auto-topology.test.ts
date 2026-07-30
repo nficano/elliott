@@ -230,14 +230,14 @@ describe("mergeTopology", () => {
   it("keeps the source repo-relative for agent skills", () => {
     const merged = merge([view({
       name: "openbanking",
-      directory: "/srv/tide-pods/agents/oslo/skills/openbanking",
+      directory: "/srv/pod/agents/example/skills/openbanking",
       topology: {
         node: { id: "tool.openbanking", kind: "tool", domain: "finance" },
         dispatch: "tool",
       },
     })]);
     const node = merged.nodes.find((item) => item["id"] === "tool.openbanking");
-    expect(node?.["source"]).toBe("agents/oslo/skills/openbanking");
+    expect(node?.["source"]).toBe("agents/example/skills/openbanking");
   });
 
   it("derives consumer->provider edges from facility grants", () => {

@@ -11,7 +11,7 @@ import { CapabilityBroker } from "../../src/security/broker/broker";
 import { GrantManager } from "../../src/security/grants/manager";
 import { OpaqueSecretStore } from "../../src/security/secrets/secrets";
 
-const HOSTS = ["spruce", "root@pve"];
+const HOSTS = ["web-01", "root@db-01"];
 
 const sshTool = (onRun: (host: string) => void) => ({
   name: "ssh_exec",
@@ -44,8 +44,8 @@ describe("CapabilityGate (SSH through the broker)", () => {
   it("runs an allowlisted host and records broker dispatch/result", async () => {
     const { log, gate } = setup();
     const gated = gate.apply(sshTool(() => undefined));
-    const out = await gated.execute({ host: "spruce", command: "uptime" });
-    expect(out).toBe("ran:spruce");
+    const out = await gated.execute({ host: "web-01", command: "uptime" });
+    expect(out).toBe("ran:web-01");
     expect(types(log)).toContain("broker.dispatch");
     expect(types(log)).toContain("broker.result");
   });
@@ -53,8 +53,8 @@ describe("CapabilityGate (SSH through the broker)", () => {
   it("allows a user-qualified allowlist entry", async () => {
     const { gate } = setup();
     const gated = gate.apply(sshTool(() => undefined));
-    expect(await gated.execute({ host: "root@pve", command: "id" })).toBe(
-      "ran:root@pve",
+    expect(await gated.execute({ host: "root@db-01", command: "id" })).toBe(
+      "ran:root@db-01",
     );
   });
 
@@ -92,7 +92,7 @@ describe("CapabilityGate (SSH through the broker)", () => {
     const composed = governor.decorate(
       gate.decorate([sshTool(() => undefined)]),
     );
-    await composed[0]?.execute({ host: "spruce", command: "x" }, {
+    await composed[0]?.execute({ host: "web-01", command: "x" }, {
       principal: { agent: "elliott", actor: "U1" },
     });
     const recorded = types(log);

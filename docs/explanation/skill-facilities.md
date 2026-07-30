@@ -179,7 +179,7 @@ implicitly.
 4 feeds registered facilities into the kernel's `ComponentRegistry` so
 `ComponentDiscovery.search/inspect` and `GET /v1/components` report them —
 one registration, two views. Until then the runtime directory is the sole
-authority, which matches how `docs/elliott-tdd.md` §7.5/§7.11 machinery is being
+authority, which matches how `docs/explanation/elliott-tdd.md` §7.5/§7.11 machinery is being
 adopted incrementally elsewhere.
 
 ## The `ingress.webhook` facility
@@ -244,8 +244,8 @@ The provisioner owns a scoped Cloudflare client, built in the
 429/5xx. No SDK dependency.
 
 - **Hostname strategy: one stable first-level hostname per agent**, e.g.
-  `oslo-hooks.<zone>`, path-routed by slug. First-level keeps Cloudflare
-  Universal SSL sufficient (deeper levels like `oslo.hooks.<zone>` require
+  `<agent>-hooks.<zone>`, path-routed by slug. First-level keeps Cloudflare
+  Universal SSL sufficient (deeper levels like `<agent>.hooks.<zone>` require
   Advanced Certificate Manager). One CNAME per agent means DNS writes happen
   once at provisioner first-boot, not per-endpoint — smaller blast radius,
   no cert churn, and endpoint revocation never touches DNS. Per-endpoint
@@ -257,7 +257,7 @@ The provisioner owns a scoped Cloudflare client, built in the
   reconfigured or restarted.
 - **API token scoping (hard requirement).** One dedicated token, stored in
   Vault (`config/secrets.yaml`: `cloudflare_api_token:
-  ${VAULT:secret/services/oslo#cloudflare_api_token}`), scoped to exactly:
+  ${VAULT:secret/services/<agent>#cloudflare_api_token}`), scoped to exactly:
   Zone → DNS → Edit on the hooks zone only; Account → Cloudflare Tunnel →
   Edit. Nothing account-wide, no Workers scope until phase 4. The token is
   resolved into `RuntimeSettings` like every other secret
@@ -360,7 +360,7 @@ authority — the doc's "Rules going forward" apply here unchanged.
   existing operator-run cloudflared companion with a statically configured
   hooks hostname. No Cloudflare API writes, no new companion yet.
 - Profiles: `hmac-sha256`, `token-query`, `slack-v2`.
-- Tier-0 integration tests per `docs/skill-e2e-smoke-strategy.md`: acquire →
+- Tier-0 integration tests per `docs/contributing/skill-e2e-smoke-strategy.md`: acquire →
   route registered → signed request accepted → tampered request dropped →
   re-acquire returns identical grant.
 
@@ -401,7 +401,7 @@ authority — the doc's "Rules going forward" apply here unchanged.
 - Grant store backend: `stateDirectory` JSON is phase-1 pragmatic, but the
   runtime already has a Postgres store — should grants live there from the
   start so `release()` and audit share infrastructure?
-- Hostname per agent (`oslo-hooks.<zone>`) is the recommendation; confirm the
+- Hostname per agent (`<agent>-hooks.<zone>`) is the recommendation; confirm the
   zone to delegate and whether tide-pods agents share one zone.
 - Should a second facility (`egress.proxy`? `storage.blob`?) be sketched
   before the seam freezes, to check the abstraction isn't webhook-shaped?

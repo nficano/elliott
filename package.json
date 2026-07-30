@@ -3,6 +3,7 @@
   "version": "0.0.0",
   "type": "module",
   "description": "Standalone TypeScript framework for composing secure personal AI agents from one universal primitive: the Component.",
+  "license": "MIT",
   "bin": {
     "elliott": "./src/cli.ts"
   },
@@ -36,7 +37,6 @@
     "prepare": "./scripts/prepare-effect.sh && ./scripts/setup-hooks.sh",
     "start": "bun src/runtime/main.ts",
     "dev": "ELLIOTT_ENV=dev bun src/runtime/main.ts",
-    "deploy:spruce": "./scripts/deploy-spruce.sh",
     "footprint:check": "bun scripts/check-footprint.ts",
     "hot-core:build": "bun scripts/build-hot-core.ts",
     "hot-core:check": "cargo test --manifest-path native/hot-core/Cargo.toml && bun run hot-core:build && bun scripts/check-hot-core.ts && bun test test/fuzz/hot-core-fuzz.test.ts",

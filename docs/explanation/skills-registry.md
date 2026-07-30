@@ -19,7 +19,7 @@ migration for everything else.
 > operations/rollout, architecture/correctness) demolished two load-bearing
 > assumptions in v1 — that `<agentRoot>` is writable at runtime, and that the
 > bundled skills could stay as a "fallback" during cutover. Both were false and
-> each independently produced a non-booting or zero-gateway production oslo. The
+> each independently produced a non-booting or zero-gateway production agent. The
 > full list of what changed and why is in §14. The short version: **installation
 > is a build/CLI-time step producing a committed, authoritative lock; boot-time
 > "latest" resolution is an optional refresh that only runs where state is
@@ -339,8 +339,8 @@ their config shape is most likely to drift ahead of the framework pin.
   fail-fast on duplicate tool names). Precedence/shadowing via the kernel
   `ComponentRegistry` is explicitly out of scope.
 - **A degraded boot is not a healthy boot.** Today `health.ready` is set true
-  unconditionally (`app.ts:203`) and `deploy-spruce.sh` gates only on HTTP 200,
-  so a zero-gateway oslo deploys green. This feature adds:
+  unconditionally (`app.ts:203`) and the legacy deploy script gates only on HTTP 200,
+  so a zero-gateway agent deploys green. This feature adds:
   - a `required` marker on install entries (default: gateways are required);
   - a new `install` section in `/healthz`:
     `{skill, requested, resolved, state: ok|cached-fallback|failed, error?}`;
@@ -358,7 +358,7 @@ their config shape is most likely to drift ahead of the framework pin.
 ## 8. Cache and lockfile
 
 - **Cache location:** `<agentRoot>/.elliott/skills/<name>/<version>/…`. In the
-  read-only oslo container this is **populated at image build** (§5.1) and
+  read-only consumer container this is **populated at image build** (§5.1) and
   mounted read-only at runtime. `discoverPackageDirectories` is **never pointed
   at the cache root** (it would recurse into every retained version → duplicate
   names → boot crash); the installer hands `loadPackage` each exact
@@ -400,7 +400,7 @@ their config shape is most likely to drift ahead of the framework pin.
   in a CI bump job (bot PR when registry tags land) or by hand; never "boot a
   runtime and copy the file out".
 - **Gitignore + volume.** Both repos add `.elliott/skills/` to `.gitignore`
-  (verified: currently NOT ignored in either). The oslo image bakes the cache
+  (verified: currently NOT ignored in either). The consumer image bakes the cache
   layer; no runtime volume is required for it (build-time install removes the
   cold-boot fetch entirely).
 
@@ -476,7 +476,7 @@ hostname all key on the route — live infrastructure).
   places (an error string + a copy line in `_nuxt/CRc73fKd.js`); nothing
   functional keys on it, so no dist rebuild is required — but the v1 claim
   "nothing in dist embeds the name" was wrong and is corrected here.
-- Docs: `docs/telemetry-map-plan.md` → `docs/deep-trace-plan.md`; app package
+- Docs: `docs/telemetry-map-plan.md` → `docs/explanation/deep-trace-plan.md`; app package
   name `telemetry-map-app` → `deep-trace-app`; regenerate topology JSON.
 
 ## 11. Rename: `companions` → `darwin`
@@ -508,11 +508,11 @@ manifests) keeps its name — a Chromium sidecar is not "darwin".
   Documented as legacy wire names.
 - **Deploy reality (review's catch): elliott no longer has a deploy pipeline
   that rebuilds the companions.** elliott CI only tests; tide-pods' deploy builds
-  only oslo; the evolution stack on spruce came from the retired elliott compose.
-  `scripts/deploy-spruce.sh` still `compose up`s a retired `elliott` runtime
-  service that binds port 18082 (conflicts oslo) and mounts oslo's external
+  only the consumer agent; the evolution stack came from the retired elliott compose.
+  the (since-removed) legacy deploy script still `compose up`s a retired `elliott` runtime
+  service that binds the same port (conflicting with the consumer agent) and mounts the agent's external
   volumes (`elliott-runtime`, `elliott-postgres`) — running it would put a second
-  runtime on oslo's `sessions.sqlite` and Slack socket. So, before §11 lands:
+  runtime on the agent's `sessions.sqlite` and gateway socket. So, before §11 lands:
   1. Split the evolution stack into its own compose file/profile with **no
      `elliott` runtime service**, and a documented deploy command.
   2. Add an explicit rollout sub-step: rebuild + redeploy the darwin images
@@ -521,7 +521,7 @@ manifests) keeps its name — a Chromium sidecar is not "darwin".
      acceptance fails for every engine (the deliberately-kept
      `companion.<engine>.digest` IDs compare against the recomputed lock).
 - Naming adjacency, accepted: `darwin/optimizers/darwinian/` and the existing
-  `docs/darwin/` docs dir, which this rename aligns with.
+  `docs/explanation/darwin/` docs dir, which this rename aligns with.
 
 ## 12. Rollout
 
@@ -542,7 +542,7 @@ The v1 order self-destructed (bundled skills + installed skills of the same name
    youtube-dvr** so no `../<sibling>` import remains, rewrite relative framework
    imports to `elliott/*` subpath specifiers (audited: zero *new* exports
    needed), scrub the public surface (see §13 — includes moving the hardcoded
-   `api.litellm.octet.stream` egress host out of the manifest into agent
+   `api.litellm.example.com` egress host out of the manifest into agent
    config), add CI, tag every skill at its manifest version. Moved multi-skill
    integration tests come here.
 4. **Atomic elliott removal + tide-pods cutover** (the collision-safe step). In
@@ -555,14 +555,14 @@ The v1 order self-destructed (bundled skills + installed skills of the same name
    `elliott skills install --frozen` build step, and commit the generated
    `skills.lock.json`. Because tide-pods only sees elliott changes when it bumps
    the pin, "old elliott meets new config" never occurs.
-5. **Deploy + verify**: build the oslo image (frozen install bakes the cache),
-   deploy to spruce, verify the `/healthz` install section is all-ok, the
+5. **Deploy + verify**: build the consumer image (frozen install bakes the cache),
+   deploy to the target host, verify the `/healthz` install section is all-ok, the
    resolved gateway set is non-empty, Slack round-trips, and the deep-trace map
    publishes (new router, legacy router released by the §10 migration).
 
 Ordering invariant: elliott-side removal (step 4a) and the tide-pods pin bump
 that adopts it (step 4b) are bound by the SHA pin, so they are effectively
-atomic from oslo's perspective; the registry (step 3) must exist and be tagged
+atomic from the consumer agent's perspective; the registry (step 3) must exist and be tagged
 before step 4b, and production is never asked to fetch at runtime.
 
 ## 13. Security model
@@ -590,7 +590,7 @@ before step 4b, and production is never asked to fetch at runtime.
   refreshes; a version bump requires a human-run `elliott skills lock`/refresh
   that shows the change and commits a new lock.
 - Public-repo exposure: the scrub covers *functional* files, not just docs —
-  environment-specific egress hosts (e.g. `api.litellm.octet.stream` in
+  environment-specific egress hosts (e.g. `api.litellm.example.com` in
   `subscription-usage`'s `egress.hosts`) move to agent config; the published
   manifests still reveal the `secret://` namespace and which SaaS/LAN services
   exist (an accepted residual for a personal registry — values never leak, and
@@ -605,7 +605,7 @@ before step 4b, and production is never asked to fetch at runtime.
 
 Load-bearing corrections (each independently broke v1):
 
-1. **Read-only production container.** oslo runs `read_only: true` (writable:
+1. **Read-only production container.** The consumer agent runs `read_only: true` (writable:
    tmpfs `/app/data` + the `elliott-runtime` volume only). v1's runtime
    cache/lock writes to `<agentRoot>` were impossible → every boot re-fetched all
    skills; GitHub down on any restart = zero gateways. → **Build-time frozen
@@ -665,7 +665,7 @@ on push to main, so the cutover is left for a reviewed, deliberate deploy):
   tarballs, extracted, validated, digest-locked.
 - **tide-pods `skills-registry-cutover`** (pushed): elliott pin → the
   post-removal commit (+ surgical `bun.lock` SHA bump; git deps are
-  content-addressed), `install:` block with oslo's 19 registry skills, committed
+  content-addressed), `install:` block with the consumer agent's registry skills, committed
   `skills.lock.json`, `skills.telemetry_map`→`skills.deep_trace`,
   `.elliott/skills/` gitignored, and the Dockerfile frozen-install build step.
   `elliott skills install --frozen` against the committed lock materialized all
@@ -677,15 +677,15 @@ Open follow-ups (deploy-time, not code):
    main). The frozen build step needs network at image build; the read-only
    runtime never fetches.
 2. **deep-trace persisted grant.** The legacy `elliott-telemetry-map-public`
-   Traefik router/grant on spruce's `elliott-runtime` volume needs one manual
+   Traefik router/grant on the deploy host's `elliott-runtime` volume needs one manual
    release — the facility API can't cross-consumer-release (documented in
    `skills/deep-trace/src/publish.ts`, search "deep-trace-rename").
 3. **darwin evolution stack.** Rebuild + redeploy the darwin images (new
    `ELLIOTT_DARWIN_*` env, rebuilt OCI digests) and split the evolution compose
    off the retired `elliott` runtime service before deploying — otherwise
    self-evolution acceptance fails against the recomputed source lock. Do not
-   run the old `deploy-spruce.sh` `elliott` service (port/volume conflict with
-   oslo).
+   run the retired `elliott` compose service (port/volume conflict with
+   the consumer agent).
 4. **subscription-usage egress** carries `${LITELLM_HOST}` as declarative
    metadata only; the effective host is config-driven
    (`subscription_usage.litellm.base_url`), so nothing breaks — the scrub is

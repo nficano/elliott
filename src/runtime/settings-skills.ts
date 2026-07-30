@@ -13,10 +13,6 @@ import type {
   NewsBriefRssFeed,
   NewsBriefRssSource,
   NewsBriefSettings,
-  PakmanSettings,
-  YouTubeDvrProviderRef,
-  YouTubeDvrSettings,
-  YouTubeOAuthSettings,
 } from "./types";
 
 const NEWS_DEFAULT_THRESHOLD = 0.6;
@@ -193,87 +189,13 @@ const apiSource = (
   };
 };
 
-export const optionalPakman = (
-  secrets: Readonly<Record<string, string>>,
-): { readonly pakman?: PakmanSettings; } => {
-  const username = secrets["pakman_username"];
-  const password = secrets["pakman_password"];
-  if (username === undefined || password === undefined) return {};
-  return { pakman: { username, password } };
-};
-
-const YT = ["skills", "youtube_dvr"];
-const YT_DEFAULT_WINDOW_START = 6;
-const YT_DEFAULT_WINDOW_END = 24;
-const YT_DEFAULT_LOOKBACK = 600;
-const YT_DEFAULT_MIN_DURATION = 300;
-const YT_DEFAULT_POLL_INTERVAL = 3600;
-const YT_DEFAULT_TEMPLATE = "{dayName}, {month} {day}{ordinal}";
-const YT_DEFAULT_PRIVACY = "unlisted";
-const DEFAULT_TIMEZONE = "UTC";
-
-export const optionalYouTubeDvr = (
+// Agent-local skills (loaded from agents/<name>/skills/) own their config
+// schemas. The raw resolved `skills:` subtree passes through verbatim so those
+// skills decode their own blocks; framework and registry skills keep the typed
+// loaders above.
+export const optionalSkillConfig = (
   resolved: unknown,
-  secrets: Readonly<Record<string, string>>,
-): { readonly youtubeDvr?: YouTubeDvrSettings; } => {
-  if (!flagAt(resolved, [...YT, "enabled"])) return {};
-  const oauth = youtubeOauth(secrets);
-  if (oauth === undefined) return {};
-  return { youtubeDvr: { oauth, ...youtubeDvrTuning(resolved) } };
+): { readonly skillConfig?: Readonly<Record<string, unknown>>; } => {
+  const value = valueAt(resolved, ["skills"]);
+  return isJsonRecord(value) ? { skillConfig: value } : {};
 };
-
-const youtubeDvrTuning = (
-  resolved: unknown,
-): Omit<YouTubeDvrSettings, "oauth"> => ({
-  channels: stringArrayAt(resolved, [...YT, "channels"]),
-  providers: providerRefs(valueAt(resolved, [...YT, "providers"])),
-  timezone: optionalStringAt(resolved, [...YT, "timezone"])
-    ?? optionalStringAt(resolved, ["runtime", "timezone"]) ?? DEFAULT_TIMEZONE,
-  windowStartHour: optionalNumberAt(resolved, [...YT, "window_start_hour"])
-    ?? YT_DEFAULT_WINDOW_START,
-  windowEndHour: optionalNumberAt(resolved, [...YT, "window_end_hour"])
-    ?? YT_DEFAULT_WINDOW_END,
-  lookbackSeconds: optionalNumberAt(resolved, [...YT, "lookback_seconds"])
-    ?? YT_DEFAULT_LOOKBACK,
-  minDurationSeconds:
-    optionalNumberAt(resolved, [...YT, "min_duration_seconds"])
-      ?? YT_DEFAULT_MIN_DURATION,
-  pollIntervalSeconds:
-    optionalNumberAt(resolved, [...YT, "poll_interval_seconds"])
-      ?? YT_DEFAULT_POLL_INTERVAL,
-  playlistTitleTemplate:
-    optionalStringAt(resolved, [...YT, "playlist_title_template"])
-      ?? YT_DEFAULT_TEMPLATE,
-  playlistPrivacy: optionalStringAt(resolved, [...YT, "playlist_privacy"])
-    ?? YT_DEFAULT_PRIVACY,
-  tool: valueAt(resolved, [...YT, "tool"]) !== false,
-});
-
-const youtubeOauth = (
-  secrets: Readonly<Record<string, string>>,
-): YouTubeOAuthSettings | undefined => {
-  const clientId = secrets["youtube_client_id"];
-  const clientSecret = secrets["youtube_client_secret"];
-  const refreshToken = secrets["youtube_refresh_token"];
-  if (
-    clientId === undefined || clientSecret === undefined
-    || refreshToken === undefined
-  ) return undefined;
-  return { clientId, clientSecret, refreshToken };
-};
-
-const providerRefs = (value: unknown): readonly YouTubeDvrProviderRef[] => {
-  if (!Array.isArray(value)) return [];
-  return value.flatMap((item) => {
-    if (typeof item === "string") return [{ name: item, days: [] }];
-    if (!isJsonRecord(item) || typeof item["name"] !== "string") return [];
-    return [{ name: item["name"], days: providerDays(item["days"]) }];
-  });
-};
-
-const providerDays = (value: unknown): readonly string[] =>
-  Array.isArray(value)
-    ? value
-      .filter((day): day is string => typeof day === "string")
-      .map((day) => day.toLowerCase())
-    : [];

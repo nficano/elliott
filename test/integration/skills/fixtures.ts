@@ -117,21 +117,6 @@ export const smokeSettings = (stateDirectory: string): RuntimeSettings => ({
   webhookSecret: "x",
   mcp: [],
   newsBrief: { keywords: ["ai"], threshold: 1, briefSize: 3, alerts: false },
-  pakman: { username: "x", password: "x" },
-  youtubeDvr: {
-    oauth: { clientId: "x", clientSecret: "x", refreshToken: "x" },
-    channels: [],
-    providers: [],
-    timezone: "America/New_York",
-    windowStartHour: 0,
-    windowEndHour: 23,
-    lookbackSeconds: 60,
-    minDurationSeconds: 60,
-    pollIntervalSeconds: 3600,
-    playlistTitleTemplate: "t",
-    playlistPrivacy: "private",
-    tool: true,
-  },
 });
 
 export const makeSmokeContext = async (

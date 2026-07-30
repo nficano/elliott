@@ -1,6 +1,6 @@
 # Skill E2E & Smoke Test Strategy
 
-Status: proposal · 2026-07-27
+Status: Tier 0 landed (test/integration/skills/); Tiers 1-2 remain proposals
 
 ## Problem
 
@@ -185,7 +185,7 @@ webhook route with a signed payload.
 
 ### 2d. Live post-deploy canary (deploy gate)
 
-Reuse the existing verification muscle from `deploy-spruce.sh`:
+Reuse the verification muscle from the consumer's deploy pipeline:
 
 - After the `/healthz` gate, assert the health JSON's `skills`/`tools` counts
   equal the expected snapshot (catches "deployed image is missing a skill").
@@ -207,7 +207,7 @@ Tier 2 must never spam or mutate real systems:
   cassettes in the nightly lane; hit the live API only in a weekly "freshness"
   run that detects provider-side contract drift.
 - **Credentials**: sourced the same way deploy does — Vault (`elliott-deploy`
-  AppRole reads `secret/services/oslo`), never checked into the repo.
+  AppRole reads the configured secrets path), never checked into the repo.
 
 ---
 
@@ -219,7 +219,7 @@ Tier 2 must never spam or mutate real systems:
 - **Nightly gated lane**: Tier 2a–2c against loopback model + recorded
   cassettes. No prod side effects.
 - **Post-deploy canary**: Tier 2d, right after the `/healthz` gate in
-  `deploy-spruce.sh`; failure pages `#alerts`.
+  the consumer's deploy pipeline; failure pages the alerts channel.
 - **Weekly freshness**: live third-party calls (read-only) to catch upstream
   contract drift, decoupled from deploys so a provider outage can't block a
   release.
@@ -241,7 +241,7 @@ Tier 2 must never spam or mutate real systems:
    store + validation errors + service start/stop lifecycle. Generalizes to the
    other route/service skills.
 5. **Tier 2a** loopback-model callability for one tool per family.
-6. **Tier 2d** deploy canary — extend `deploy-spruce.sh`.
+6. **Tier 2d** deploy canary — extend the consumer's deploy pipeline.
 7. **Tier 2b/2c + nightly/weekly lanes.**
 
 Steps 1–4 are landed: `test/integration/skills/` (7 files, 18 tests), all

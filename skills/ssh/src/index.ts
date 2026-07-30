@@ -69,7 +69,7 @@ const run = async (
   },
 ): Promise<Readonly<Record<string, unknown>>> => {
   // Allowlist entries may pin their own account as "user@host" (hosts differ in
-  // which login they accept, e.g. nficano@spruce vs root@pve); a bare host falls
+  // which login they accept, e.g. alice@web-01 vs root@db-01); a bare host falls
   // back to the shared settings.user.
   const destination = request.host.includes("@")
     ? request.host

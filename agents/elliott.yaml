@@ -15,11 +15,14 @@ spec:
     - core/tool/ssh
     - core/scheduler/scheduler
     - core/extension/deep-trace
-  mcp:
-    - id: h12o
-      url: https://mcp.octet.stream/mcp
-      transport: streamable-http
-    - id: home-assistant
-      url: http://172.16.10.235:8123/mcp_server/sse
-      transport: sse
-      authorizationSecret: ha_token
+  # External MCP servers this agent connects to. None by default — agent repos
+  # declare their own. Example:
+  #
+  # mcp:
+  #   - id: example
+  #     url: https://mcp.example.com/mcp
+  #     transport: streamable-http
+  #   - id: home-assistant
+  #     url: http://homeassistant.local:8123/mcp_server/sse
+  #     transport: sse
+  #     authorizationSecret: ha_token

@@ -31,7 +31,7 @@
   "nodes": [
     {
       "id": "secret.vault",
-      "name": "Vault secret source (secret/services/oslo)",
+      "name": "Vault secret source (configured KV path)",
       "kind": "secret-source",
       "runtime": "live",
       "domain": "secrets",
@@ -103,7 +103,7 @@
     },
     {
       "id": "provider.litellm",
-      "name": "LiteLLM gateway (api.litellm.octet.stream/v1)",
+      "name": "LiteLLM gateway (configured llm.base_url)",
       "kind": "provider",
       "runtime": "live",
       "domain": "model-inference",
@@ -116,14 +116,6 @@
       "runtime": "dormant",
       "domain": "model-inference",
       "source": "src/providers/ollama/index.ts:13"
-    },
-    {
-      "id": "youtube.data-api",
-      "name": "YouTube Data API",
-      "kind": "provider",
-      "runtime": "config-gated",
-      "domain": "external-integrations",
-      "source": "skills/youtube-dvr/manifest.yaml"
     },
     {
       "id": "memory.sessionStore",
@@ -231,7 +223,7 @@
     },
     {
       "id": "obs.reporter",
-      "name": "Error reporter (GlitchTip) via #capture",
+      "name": "Error reporter (Sentry-compatible DSN) via #capture",
       "kind": "observability",
       "runtime": "live",
       "domain": "observability",
@@ -239,7 +231,7 @@
     },
     {
       "id": "container.elliott",
-      "name": "elliott app container (127.0.0.1:18082->8080)",
+      "name": "elliott app container (runtime.http port)",
       "kind": "container",
       "runtime": "live",
       "domain": "deployment-substrate",
@@ -408,28 +400,6 @@
         "dataClassification": "internal",
         "criticality": "supporting"
       }
-    },
-    {
-      "id": "mcp.h12o",
-      "name": "h12o MCP server",
-      "kind": "mcp-endpoint",
-      "runtime": "live",
-      "domain": "mcp-federation",
-      "source": "agents/elliott.yaml (mcp[])",
-      "egressTargets": [
-        "https://mcp.octet.stream/mcp"
-      ]
-    },
-    {
-      "id": "mcp.homeassistant",
-      "name": "home-assistant MCP server",
-      "kind": "mcp-endpoint",
-      "runtime": "live",
-      "domain": "mcp-federation",
-      "source": "agents/elliott.yaml (mcp[])",
-      "egressTargets": [
-        "http://172.16.10.235:8123/mcp_server/sse"
-      ]
     }
   ],
   "edges": [
@@ -805,22 +775,6 @@
       "kind": "data",
       "protocol": "in-process (ToolDefinition.execute)",
       "label": "execute"
-    },
-    {
-      "id": "e.gen.mcp.client--mcp.h12o",
-      "from": "mcp.client",
-      "to": "mcp.h12o",
-      "kind": "data",
-      "protocol": "jsonrpc over streamable-http",
-      "label": "tools/call"
-    },
-    {
-      "id": "e.gen.mcp.client--mcp.homeassistant",
-      "from": "mcp.client",
-      "to": "mcp.homeassistant",
-      "kind": "data",
-      "protocol": "jsonrpc over sse",
-      "label": "tools/call"
     }
   ]
 }

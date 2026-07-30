@@ -3,13 +3,12 @@
   "nodes": [
     {
       "id": "secret.vault",
-      "name": "Vault secret source (secret/services/oslo)",
+      "name": "Vault secret source (configured KV path)",
       "kind": "secret-source",
       "runtime": "live",
       "domain": "secrets",
       "source": "src/runtime/config.ts"
     },
-
     {
       "id": "runtime.http",
       "name": "Bun.serve -> #handleRequest (single HTTP server)",
@@ -74,10 +73,9 @@
       "domain": "kernel-governance",
       "source": "src/runtime/kernel.ts:4; src/kernel.ts:36"
     },
-
     {
       "id": "provider.litellm",
-      "name": "LiteLLM gateway (api.litellm.octet.stream/v1)",
+      "name": "LiteLLM gateway (configured llm.base_url)",
       "kind": "provider",
       "runtime": "live",
       "domain": "model-inference",
@@ -91,15 +89,6 @@
       "domain": "model-inference",
       "source": "src/providers/ollama/index.ts:13"
     },
-    {
-      "id": "youtube.data-api",
-      "name": "YouTube Data API",
-      "kind": "provider",
-      "runtime": "config-gated",
-      "domain": "external-integrations",
-      "source": "skills/youtube-dvr/manifest.yaml"
-    },
-
     {
       "id": "memory.sessionStore",
       "name": "SessionStore (bun:sqlite, WAL; only .evolution sub-store consumed)",
@@ -132,7 +121,6 @@
       "domain": "memory-persistence",
       "source": "src/core/snapshot/snapshot.ts:125; src/runtime/conversation-snapshots.ts:4"
     },
-
     {
       "id": "database.sessions",
       "name": "sessions.sqlite (5 evolution tables written at runtime)",
@@ -141,7 +129,6 @@
       "domain": "memory-persistence",
       "source": ".elliott-runtime/sessions.sqlite; DDL session-store/index.ts:25 + evolution.ts:12"
     },
-
     {
       "id": "learning.signals",
       "name": "Evolution signal detection (evolution-signals.ts via scheduler)",
@@ -182,7 +169,6 @@
       "domain": "self-evolution",
       "source": "src/learning/evolution/orchestrator/operations.ts:128; evaluation/harness.ts"
     },
-
     {
       "id": "obs.telemetry",
       "name": "RuntimeTelemetry bus (in-process pub/sub, ring, SSE)",
@@ -209,16 +195,15 @@
     },
     {
       "id": "obs.reporter",
-      "name": "Error reporter (GlitchTip) via #capture",
+      "name": "Error reporter (Sentry-compatible DSN) via #capture",
       "kind": "observability",
       "runtime": "live",
       "domain": "observability",
       "source": "src/runtime/reporter.ts:5; app.ts:361"
     },
-
     {
       "id": "container.elliott",
-      "name": "elliott app container (127.0.0.1:18082->8080)",
+      "name": "elliott app container (runtime.http port)",
       "kind": "container",
       "runtime": "live",
       "domain": "deployment-substrate",
@@ -305,7 +290,6 @@
       "label": "tool calls",
       "evidence": "src/runtime/agent.ts:82"
     },
-
     {
       "id": "e.loop.evidence",
       "from": "runtime.inbound",
@@ -369,7 +353,6 @@
       "label": "ensureRuntimeSnapshot (boot)",
       "evidence": "src/runtime/app.ts:95"
     },
-
     {
       "id": "e.db.signals",
       "from": "database.sessions",
@@ -415,7 +398,6 @@
       "label": "review / promote / rollback",
       "evidence": "src/runtime/app.ts:350"
     },
-
     {
       "id": "e.tel.inbound",
       "from": "runtime.inbound",
@@ -452,7 +434,6 @@
       "label": "turn failure -> error report",
       "evidence": "src/runtime/app.ts:306,361"
     },
-
     {
       "id": "e.vault.model",
       "from": "secret.vault",
@@ -471,7 +452,6 @@
       "label": "glitchtipDsn",
       "evidence": "src/runtime/config.ts:208 -> reporter.ts"
     },
-
     {
       "id": "e.kernel.audit",
       "from": "runtime.kernel",
@@ -490,7 +470,6 @@
       "label": "contains FootprintTracker (dormant)",
       "evidence": "src/kernel.ts:52"
     },
-
     {
       "id": "e.elliott.pg",
       "from": "container.elliott",

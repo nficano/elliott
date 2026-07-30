@@ -6,8 +6,8 @@
 > evolution learns → containers stay healthy. Built as a first‑class Elliott
 > **extension** that rides the existing runtime container and is served over HTTP.
 
-**Status:** design complete, feasibility **confirmed**. Deliverables:
-`docs/deep-trace-plan.md` (this file), `docs/telemetry-map-topology.json` (the
+**Status:** historical — this plan SHIPPED as the deep-trace extension (see `skills/deep-trace/`); kept as design rationale. Original deliverables:
+`docs/explanation/deep-trace-plan.md` (this file) and the topology docs (now `docs/elliott-topology*.json`, the
 machine‑readable connection graph), and `skills/deep-trace/` (the extension).
 
 ---
@@ -148,7 +148,7 @@ flows. The authoritative node/edge list is `docs/telemetry-map-topology.json`
 ```
                           ┌──────────────────────────────────────────┐
    ── GATEWAYS ──         │              RUNTIME CORE                 │      ── PROVIDERS ──
-  Slack  Gmail  IMAP      │  Bun.serve ── #handleRequest              │      LiteLLM (h12o)
+  Slack  Gmail  IMAP      │  Bun.serve ── #handleRequest              │      LiteLLM
   BlueBubbles  Webhook    │      │                                    │      ↳ haiku/sonnet/opus
   Home‑Assistant  Cron    │  RuntimeAgent.turn ── round loop (≤8)     │      Ollama (local, opt)
         │                 │      │        │            │              │
@@ -163,7 +163,7 @@ flows. The authoritative node/edge list is `docs/telemetry-map-topology.json`
   scheduler  mcp‑client     ├ messages           Evaluator (12‑gate) AuditLog (in‑mem)
         │                    ├ runs/tool_calls    Companions:        GlitchTip reporter
   ── MCP ENDPOINTS ──        ├ model_selections    dspy darwinian     /healthz  /v1/components
-  h12o   home‑assistant      ├ model_usage         benchmarks
+  mcp     endpoints        ├ model_usage         benchmarks
   (external servers)         └ scheduled_jobs      Proposals → canary → promote/rollback
 
   ── CONTAINERS ──  elliott (app)   postgres (pgvector)   agent-browser (chromium)
@@ -333,7 +333,7 @@ them), so the JSON doubles as a navigable index of the codebase wiring.
 ## 8. Build plan (phases)
 
 ### 8.1 Phase 0 — deliverables scaffolding ✅ (this doc + JSON)
-Write `docs/deep-trace-plan.md` and `docs/telemetry-map-topology.json`.
+Write `docs/explanation/deep-trace-plan.md` and `docs/telemetry-map-topology.json`.
 
 ### 8.2 Phase 1 — the extension skeleton (Tier A, zero core edits)
 1. `skills/deep-trace/manifest.yaml` (`kind: extension`, `profile:

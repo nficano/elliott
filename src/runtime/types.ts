@@ -130,13 +130,13 @@ export interface TraefikSettings {
 
 export interface WebhookProvisionerSettings {
   // Public base of the hooks hostname the cloudflared tunnel routes to the
-  // runtime, e.g. https://hooks.octet.stream. Endpoint URLs are <base>/w/<slug>.
+  // runtime, e.g. https://hooks.example.com. Endpoint URLs are <base>/w/<slug>.
   readonly hooksBaseUrl: string;
 }
 
 export interface DeepTraceSettings {
   // Local hostname to publish the observability map at (dns.local +
-  // proxy.route facilities), e.g. elliott.octet.stream.
+  // proxy.route facilities), e.g. elliott.example.com.
   readonly publicHostname: string;
   // The runtime's HTTP endpoint as the reverse proxy reaches it.
   readonly serviceUrl: string;
@@ -194,37 +194,6 @@ export interface NewsBriefSettings {
   readonly rss?: NewsBriefRssSource;
   readonly newsdata?: NewsBriefApiSource;
   readonly gnews?: NewsBriefApiSource;
-}
-
-export interface PakmanSettings {
-  readonly username: string;
-  readonly password: string;
-}
-
-export interface YouTubeOAuthSettings {
-  readonly clientId: string;
-  readonly clientSecret: string;
-  readonly refreshToken: string;
-}
-
-export interface YouTubeDvrProviderRef {
-  readonly name: string;
-  readonly days: readonly string[];
-}
-
-export interface YouTubeDvrSettings {
-  readonly oauth: YouTubeOAuthSettings;
-  readonly channels: readonly string[];
-  readonly providers: readonly YouTubeDvrProviderRef[];
-  readonly timezone: string;
-  readonly windowStartHour: number;
-  readonly windowEndHour: number;
-  readonly lookbackSeconds: number;
-  readonly minDurationSeconds: number;
-  readonly pollIntervalSeconds: number;
-  readonly playlistTitleTemplate: string;
-  readonly playlistPrivacy: string;
-  readonly tool: boolean;
 }
 
 export interface GovernanceSettings {
@@ -353,13 +322,15 @@ export interface RuntimeSettings {
   readonly glitchtipDsn?: string;
   readonly postgresDsn?: string;
   readonly newsBrief?: NewsBriefSettings;
-  readonly pakman?: PakmanSettings;
-  readonly youtubeDvr?: YouTubeDvrSettings;
+  // Raw resolved `skills:` config subtree. Agent-local skills (loaded from
+  // agents/<name>/skills/) own their config schemas and decode their blocks
+  // from here; framework and registry skills use the typed fields above.
+  readonly skillConfig?: Readonly<Record<string, unknown>>;
   readonly evolution?: EvolutionConfig;
   readonly evolutionRuntime?: RuntimeEvolutionSettings;
   readonly governance?: GovernanceSettings;
   // Installable skills resolved from the nficano/skills registry. Absent when
-  // no `install:` block is configured. See docs/skills-registry.md.
+  // no `install:` block is configured. See docs/explanation/skills-registry.md.
   readonly install?: InstallSettings;
 }
 
@@ -494,7 +465,7 @@ export interface InboundMessage {
 }
 
 // Identity behind a tool invocation. `agent` is which agent owns this runtime
-// (elliott vs oslo — they share one Slack app, so per-agent attribution is the
+// (multiple agents may share one chat app, so per-agent attribution is the
 // only way to tell their actions apart in the audit trail); the remaining
 // fields describe the human/external actor that triggered the turn, when known.
 export interface GovernancePrincipal {
