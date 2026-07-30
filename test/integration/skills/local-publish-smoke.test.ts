@@ -9,7 +9,7 @@ import {
 } from "./fixtures";
 import type { FacilityGrantRow, LoadedPublishSkills } from "./types";
 
-// Tier-1 smoke for the local-publish chain: telemetry-map (consumer) acquires
+// Tier-1 smoke for the local-publish chain: deep-trace (consumer) acquires
 // proxy.route from traefik and chains the grant's lanAddress into a dns.local
 // record on pihole — the zero-config path that puts the observability map at
 // https://elliott.octet.stream/map. Pi-hole answers from a v5 cassette; the
@@ -24,7 +24,7 @@ const SERVICE_URL = "http://172.16.20.21:18082/";
 const LAN_ADDRESS = "192.0.2.10"; // fixture traefik.lanAddress
 
 const publishSettings = {
-  telemetryMap: { publicHostname: HOSTNAME, serviceUrl: SERVICE_URL },
+  deepTrace: { publicHostname: HOSTNAME, serviceUrl: SERVICE_URL },
 } as const;
 
 // v5 Pi-hole: /api/auth serves HTML (the detection signal), records come and
@@ -44,13 +44,13 @@ const loadPublishSkills = async (
   const { context, reported } = existing
     ?? await makeSmokeContext(publishSettings);
   const skills = await loadSkills(
-    ["pihole", "traefik", "telemetry-map"],
+    ["pihole", "traefik", "deep-trace"],
     context,
   );
   return { context, reported, skills };
 };
 
-describe("telemetry-map local publish (Tier 1)", () => {
+describe("deep-trace local publish (Tier 1)", () => {
   it("provisions the Traefik route and the Pi-hole record in one boot", async () => {
     const stub = piholeCassette();
     const { context, reported, skills } = await loadPublishSkills();
@@ -66,7 +66,7 @@ describe("telemetry-map local publish (Tier 1)", () => {
         "utf8",
       ),
     );
-    expect(table["telemetry-map-public"]).toEqual({
+    expect(table["deep-trace-public"]).toEqual({
       hostname: HOSTNAME,
       serviceUrl: SERVICE_URL,
     });
@@ -88,7 +88,7 @@ describe("telemetry-map local publish (Tier 1)", () => {
     const byFacility = Object.fromEntries(
       grants.grants.map((item) => [item.facilityId, item]),
     );
-    expect(byFacility["proxy.route"]?.consumer).toBe("telemetry-map");
+    expect(byFacility["proxy.route"]?.consumer).toBe("deep-trace");
     expect(byFacility["dns.local"]?.grant.values).toEqual({
       domain: HOSTNAME,
       ip: LAN_ADDRESS,
@@ -118,11 +118,11 @@ describe("telemetry-map local publish (Tier 1)", () => {
       };
     };
 
-    const router = config.http.routers["elliott-telemetry-map-public"];
+    const router = config.http.routers["elliott-deep-trace-public"];
     expect(router?.rule).toBe(`Host(\`${HOSTNAME}\`)`);
     expect(router?.tls.certResolver).toBe("letsencrypt");
     expect(
-      config.http.services["elliott-telemetry-map-public"]?.loadBalancer
+      config.http.services["elliott-deep-trace-public"]?.loadBalancer
         .servers,
     ).toEqual([{ url: SERVICE_URL }]);
   });
@@ -132,7 +132,7 @@ describe("telemetry-map local publish (Tier 1)", () => {
     const { skills } = await loadPublishSkills();
     const recorder = makeGatewayEvents();
 
-    const alias = skills.get("telemetry-map")?.routes?.find(
+    const alias = skills.get("deep-trace")?.routes?.find(
       (route) => route.path === "/map",
     );
     if (alias === undefined) throw new Error("map alias route missing");
@@ -163,13 +163,13 @@ describe("telemetry-map local publish (Tier 1)", () => {
     piholeCassette();
     const { context, reported } = await makeSmokeContext(publishSettings);
     // No traefik package loaded: proxy.route has no provider.
-    const skills = await loadSkills(["pihole", "telemetry-map"], context);
+    const skills = await loadSkills(["pihole", "deep-trace"], context);
 
-    const map = skills.get("telemetry-map");
+    const map = skills.get("deep-trace");
     expect(map?.routes?.some((route) => route.path === "/map")).toBe(true);
     expect(
       reported.some((item) =>
-        item.includes("telemetry-map:publish")
+        item.includes("deep-trace:publish")
         && item.includes("proxy.route")
       ),
     ).toBe(true);
@@ -187,14 +187,14 @@ describe("telemetry-map local publish (Tier 1)", () => {
       },
     });
     const skills = await loadSkills(
-      ["pihole", "traefik", "telemetry-map"],
+      ["pihole", "traefik", "deep-trace"],
       context,
     );
 
     expect(skills.size).toBe(3);
     expect(
       reported.some((item) =>
-        item.includes("telemetry-map:publish")
+        item.includes("deep-trace:publish")
         && item.includes("lan_address")
       ),
     ).toBe(true);

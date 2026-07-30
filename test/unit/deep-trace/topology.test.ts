@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { loadTopology } from "../../../skills/telemetry-map/src/topology";
+import { loadTopology } from "../../../skills/deep-trace/src/topology";
 
 const root = path.resolve(import.meta.dir, "../../..");
 const topologyPath = path.join(root, "docs/elliott-topology.enriched.json");

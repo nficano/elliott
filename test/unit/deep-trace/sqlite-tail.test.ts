@@ -3,11 +3,11 @@ import { afterEach, describe, expect, it } from "bun:test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { SqliteTail } from "../../../skills/telemetry-map/src/sqlite-tail";
+import { SqliteTail } from "../../../skills/deep-trace/src/sqlite-tail";
 import type {
   DbSnapshot,
   TailDelta,
-} from "../../../skills/telemetry-map/src/types";
+} from "../../../skills/deep-trace/src/types";
 
 const cleanups: (() => Promise<void>)[] = [];
 
@@ -16,7 +16,7 @@ afterEach(async () => {
 });
 
 const makeDbFile = async (): Promise<string> => {
-  const dir = await mkdtemp(path.join(tmpdir(), "telemetry-map-tail-"));
+  const dir = await mkdtemp(path.join(tmpdir(), "deep-trace-tail-"));
   cleanups.push(() => rm(dir, { recursive: true, force: true }));
   return path.join(dir, "sessions.sqlite");
 };
@@ -152,7 +152,7 @@ describe("SqliteTail with a live database", () => {
 describe("SqliteTail without a database", () => {
   it("silently skips ticks while the file is absent", async () => {
     const file = path.join(
-      await mkdtemp(path.join(tmpdir(), "telemetry-map-none-")),
+      await mkdtemp(path.join(tmpdir(), "deep-trace-none-")),
       "missing.sqlite",
     );
     const { tail, snapshots, errors } = collect(file);

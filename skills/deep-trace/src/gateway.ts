@@ -6,11 +6,11 @@ import type {
 import type { InboundMessage } from "../../../src/runtime/types";
 
 // A minimal gateway that captures agent responses for the /send route.
-// It registers under the name "telemetry-map" so #replyGateway in app.ts
+// It registers under the name "deep-trace" so #replyGateway in app.ts
 // routes replies here instead of to Slack; `send` is a no-op because
 // beginResponse intercepts before the fallback send path is reached.
-export class TelemetryMapGateway implements GatewayBinding {
-  readonly name = "telemetry-map";
+export class DeepTraceGateway implements GatewayBinding {
+  readonly name = "deep-trace";
   readonly #pending = new Map<string, (answer: string) => void>();
 
   status(): string {

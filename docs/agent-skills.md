@@ -71,7 +71,7 @@ renders the same `.env`).
 
 Move from `skills/` to `tide-pods/agents/oslo/skills/`: pihole,
 traefik, news-brief, pakman-latest-episode, youtube-dvr, subscription-usage
-(telemetry-map debatable — observability may stay framework). Their settings
+(deep-trace debatable — observability may stay framework). Their settings
 loaders (`settings-skills.ts`, pihole/traefik in `settings-tools.ts`) move
 to an agent-settings module in the same pass, and their `BUNDLED_CATALOG`
 entries become an agent manifest.

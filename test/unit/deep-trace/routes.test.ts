@@ -2,8 +2,8 @@ import { afterEach, describe, expect, it } from "bun:test";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { register } from "../../../skills/telemetry-map/src/index";
-import type { MapSnapshot } from "../../../skills/telemetry-map/src/types";
+import { register } from "../../../skills/deep-trace/src/index";
+import type { MapSnapshot } from "../../../skills/deep-trace/src/types";
 import { standaloneFacilityDirectory } from "../../../src/runtime/skills/facilities";
 import type {
   GatewayEvents,
@@ -27,7 +27,7 @@ const makeContext = async (
   packages: readonly SkillPackageView[] = [],
 ): Promise<{ context: SkillContext; reported: unknown[]; }> => {
   const stateDirectory = await mkdtemp(
-    path.join(tmpdir(), "telemetry-map-routes-"),
+    path.join(tmpdir(), "deep-trace-routes-"),
   );
   cleanups.push(() => rm(stateDirectory, { recursive: true, force: true }));
   const reported: unknown[] = [];
@@ -75,13 +75,13 @@ const dispatch = async (
   return route!.handle(new Request(url, { method, ...init }), events);
 };
 
-describe("telemetry-map registration", () => {
+describe("deep-trace registration", () => {
   it("registers one capture gateway, one background service, and the route table", async () => {
     const registration = await makeRegistration();
     expect(registration.gateways?.length).toBe(1);
-    expect(registration.gateways?.[0]?.name).toBe("telemetry-map");
+    expect(registration.gateways?.[0]?.name).toBe("deep-trace");
     expect(registration.services?.length).toBe(1);
-    expect(registration.services?.[0]?.name).toBe("telemetry-map");
+    expect(registration.services?.[0]?.name).toBe("deep-trace");
     expect(registration.tools).toBeUndefined();
     const table = (registration.routes ?? []).map(
       (route) => `${route.method} ${route.path}`,
@@ -380,7 +380,7 @@ describe("GET /v1/observability/map/stream", () => {
     const reader = response.body!.getReader();
     const { value } = await reader.read();
     expect(new TextDecoder().decode(value)).toBe(
-      ": telemetry-map stream open\n\n",
+      ": deep-trace stream open\n\n",
     );
     await reader.cancel();
   });
@@ -487,8 +487,8 @@ describe("POST /v1/observability/map/send", () => {
     expect(await response.json()).toEqual({ answer: "echo: hello map" });
     expect(seen.length).toBe(1);
     expect(seen[0]).toMatchObject({
-      gateway: "telemetry-map",
-      channel: "telemetry-map:interactive",
+      gateway: "deep-trace",
+      channel: "deep-trace:interactive",
       sender: "map-observer",
       text: "hello map",
     });
@@ -523,7 +523,7 @@ describe("POST /v1/observability/map/send", () => {
   });
 });
 
-describe("telemetry-map service", () => {
+describe("deep-trace service", () => {
   it("starts, reports aggregator health, and stops cleanly", async () => {
     const registration = await makeRegistration();
     const service = registration.services![0]!;

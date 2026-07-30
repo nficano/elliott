@@ -7,7 +7,7 @@ import path from "node:path";
 // must keep this surface identical (ids may differ only if the parity suite
 // is updated in the same change).
 const root = path.resolve(import.meta.dir, "../../..");
-const uiPath = path.join(root, "skills/telemetry-map/src/ui.html");
+const uiPath = path.join(root, "skills/deep-trace/src/ui.html");
 
 const source = { html: "" };
 
@@ -15,7 +15,7 @@ beforeAll(async () => {
   source.html = await readFile(uiPath, "utf8");
 });
 
-describe("telemetry-map UI document", () => {
+describe("deep-trace UI document", () => {
   it("is a standalone HTML document with the explorer title", () => {
     expect(source.html).toStartWith("<!DOCTYPE html>");
     expect(source.html).toContain(
@@ -31,7 +31,7 @@ describe("telemetry-map UI document", () => {
   });
 });
 
-describe("telemetry-map UI interaction surface", () => {
+describe("deep-trace UI interaction surface", () => {
   it("renders the isometric scene on an accessible canvas", () => {
     expect(source.html).toContain("<canvas id=\"scene\"");
     expect(source.html).toMatch(

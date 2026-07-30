@@ -39,7 +39,7 @@ and the runtime loads them all through `loadBundledPackages` →
 `loadSkillRegistrations` (`src/runtime/skills/loader.ts`). Because the seam is
 uniform, a **single harness** can load every skill the way `app.ts` does, then
 exercise each binding type generically. This is already proven — the
-telemetry-map e2e harness (`skills/telemetry-map/e2e/harness.ts`) hand-builds a
+deep-trace e2e harness (`skills/deep-trace/e2e/harness.ts`) hand-builds a
 `SkillContext` and drives the real registration. A throwaway probe that ran the
 *whole* catalog this way loaded 25/25 skills with 0 `report()` errors and 0
 schema problems, confirming the approach generalizes.
@@ -140,7 +140,7 @@ the **narrowest** seam.
 | youtube-dvr | tool+svc | stub YouTube API | poll → playlist add | oauth refresh failure |
 | gateway-slack | gateway | fake transport | onMessage → send | non-owner dropped |
 | gateway-bluebubbles/email/webhook | gateway | fake transport / Request | inbound → reply | sender not allowlisted |
-| telemetry-map | route+svc | real Bun.serve loopback | `/state` serves live pack | (covered by 77+24 existing) |
+| deep-trace | route+svc | real Bun.serve loopback | `/state` serves live pack | (covered by 77+24 existing) |
 | mcp-client | mcp | in-proc fake server | discover + call | server down handled |
 
 Prompt-only skills (code-review, debugging, research) and evaluators register

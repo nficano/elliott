@@ -14,7 +14,7 @@
     "**/coverage",
     "native/hot-core/target",
     "bun.lock",
-    "skills/telemetry-map/app"
+    "skills/deep-trace/app"
   ],
   "plugins": [
     "https://plugins.dprint.dev/typescript-0.93.3.wasm",

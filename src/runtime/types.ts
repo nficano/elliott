@@ -134,7 +134,7 @@ export interface WebhookProvisionerSettings {
   readonly hooksBaseUrl: string;
 }
 
-export interface TelemetryMapSettings {
+export interface DeepTraceSettings {
   // Local hostname to publish the observability map at (dns.local +
   // proxy.route facilities), e.g. elliott.octet.stream.
   readonly publicHostname: string;
@@ -346,7 +346,7 @@ export interface RuntimeSettings {
   readonly pihole?: PiholeSettings;
   readonly traefik?: TraefikSettings;
   readonly webhookProvisioner?: WebhookProvisionerSettings;
-  readonly telemetryMap?: TelemetryMapSettings;
+  readonly deepTrace?: DeepTraceSettings;
   readonly subscriptionUsage?: SubscriptionUsageSettings;
   readonly webhookSecret?: string;
   readonly mcp: readonly McpEndpointSettings[];
@@ -512,7 +512,7 @@ export interface TurnObserver {
 
 // --- In-process telemetry (observability map) ---------------------------------
 // A cheap, always-on pub/sub surface that mirrors turn activity to local
-// subscribers (the telemetry-map extension). It never persists and never leaves
+// subscribers (the deep-trace extension). It never persists and never leaves
 // the process; durable evidence still lives in sessions.sqlite.
 
 export type TelemetryEventType =

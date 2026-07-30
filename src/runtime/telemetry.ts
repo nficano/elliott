@@ -11,7 +11,7 @@ import type {
 const RING_CAPACITY = 512;
 
 // A dependency-free, in-process event bus. Core emits turn activity here; the
-// telemetry-map extension subscribes. Failures in one subscriber never affect
+// deep-trace extension subscribes. Failures in one subscriber never affect
 // the emitter or other subscribers, and nothing is ever persisted.
 class RuntimeTelemetryBus implements TelemetryBus {
   readonly promptsEnabled: boolean;

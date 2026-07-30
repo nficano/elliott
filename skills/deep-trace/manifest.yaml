@@ -1,7 +1,7 @@
 apiVersion: elliott/v1
 kind: extension
 profile: extension-standard
-metadata: { namespace: core, name: telemetry-map, version: 1.0.0 }
+metadata: { namespace: core, name: deep-trace, version: 1.0.0 }
 spec:
   document: EXTENSION.md
   protocols: [health.checker]
@@ -29,4 +29,4 @@ spec:
       - { from: runtime.http, to: self, kind: data, protocol: in-process route dispatch, label: serve map routes }
       - { from: self, to: container.elliott, kind: health, protocol: in-process (bundled skill), label: runs inside }
   exports:
-    - { ref: extension/telemetry-map, implementation: src/index.ts }
+    - { ref: extension/deep-trace, implementation: src/index.ts }

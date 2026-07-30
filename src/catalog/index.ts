@@ -329,7 +329,7 @@ export const BUNDLED_CATALOG: readonly BundledComponentDescriptor[] = Object
       untrustedOutput: true,
     }),
     descriptor({
-      name: "telemetry-map",
+      name: "deep-trace",
       kind: "extension",
       protocols: ["health.checker"],
       egress: egressClass("none"),

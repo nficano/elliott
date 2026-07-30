@@ -18,9 +18,9 @@ import {
   stringAt,
 } from "./settings";
 import {
+  optionalDeepTrace,
   optionalNewsBrief,
   optionalPakman,
-  optionalTelemetryMap,
   optionalYouTubeDvr,
 } from "./settings-skills";
 import {
@@ -242,7 +242,7 @@ const optionalSettings = (
   ...optionalPihole(resolved, secrets),
   ...optionalTraefik(resolved),
   ...optionalWebhookProvisioner(resolved),
-  ...optionalTelemetryMap(resolved),
+  ...optionalDeepTrace(resolved),
   ...optionalSubscriptionUsage(resolved, secrets),
   ...optionalStringProperty("glitchtipDsn", resolved, [
     "observability",

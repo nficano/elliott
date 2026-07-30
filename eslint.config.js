@@ -54,9 +54,9 @@ export default tseslint.config(
       ".repos/**",
       "**/.venv/**",
       "native/hot-core/target/**",
-      // The telemetry-map Nuxt app carries its own Vue-aware ESLint config
-      // (skills/telemetry-map/app/eslint.config.js) mirroring these rules.
-      "skills/telemetry-map/app/**",
+      // The deep-trace Nuxt app carries its own Vue-aware ESLint config
+      // (skills/deep-trace/app/eslint.config.js) mirroring these rules.
+      "skills/deep-trace/app/**",
       // One-off topology generator predating this config's .mjs coverage; it
       // fails the project-service parse and is not runtime code.
       "scripts/gen-topology.mjs",

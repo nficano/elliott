@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "bun:test";
-import { Aggregator } from "../../../skills/telemetry-map/src/aggregator";
-import { streamResponse } from "../../../skills/telemetry-map/src/sse";
+import { Aggregator } from "../../../skills/deep-trace/src/aggregator";
+import { streamResponse } from "../../../skills/deep-trace/src/sse";
 import { envelope, FakeTelemetryBus, mapMeta, resetSeq } from "./helpers";
 
 const decoder = new TextDecoder();
@@ -43,7 +43,7 @@ describe("streamResponse headers", () => {
 describe("streamResponse framing", () => {
   it("opens with the stream-open comment", async () => {
     const { reader } = makeStream();
-    expect(await readChunk(reader)).toBe(": telemetry-map stream open\n\n");
+    expect(await readChunk(reader)).toBe(": deep-trace stream open\n\n");
   });
 
   it("frames each telemetry event as event: <type> plus JSON data", async () => {

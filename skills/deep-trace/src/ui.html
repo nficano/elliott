@@ -910,7 +910,7 @@ function buildExplorerPack(raw){
       {from:"provider.litellm",to:"runtime.agentLoop",action:"Return completion content and any tool calls",data:["response"],transport:"HTTPS",result:"The turn resolves or begins another tool round."},
       {from:"runtime.agentLoop",to:"obs.map",action:"Capture the gateway response for the waiting /send request",data:["answer"],transport:"in-process",result:"The answer appears in the Ask Elliott panel."},
     ],
-    consistencyNotes:["The request and response seam follows telemetry-map index.ts and gateway.ts."],
+    consistencyNotes:["The request and response seam follows deep-trace index.ts and gateway.ts."],
     failurePoints:["The request times out after 180 seconds and leaves the trace visible for inspection."],
   });
   return {

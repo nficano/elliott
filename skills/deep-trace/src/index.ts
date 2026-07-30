@@ -18,7 +18,7 @@ import { Aggregator } from "./aggregator";
 import { appDistRoutes } from "./app-dist";
 import { assetRoutes } from "./assets";
 import { mergeTopology } from "./auto-topology";
-import { TelemetryMapGateway } from "./gateway";
+import { DeepTraceGateway } from "./gateway";
 import { mapAliasRoute, publishMap } from "./publish";
 import { SqliteTail } from "./sqlite-tail";
 import { streamResponse } from "./sse";
@@ -33,7 +33,7 @@ const SEND_TIMEOUT_MS = 180_000;
 export const register = async (
   context: SkillContext,
 ): Promise<SkillRegistration> => {
-  const gateway = new TelemetryMapGateway();
+  const gateway = new DeepTraceGateway();
   const aggregator = new Aggregator({
     environment: context.settings.environment,
     release: context.settings.release,
@@ -52,7 +52,7 @@ export const register = async (
         });
       }
     },
-    (error) => context.report(error, "telemetry-map:tail"),
+    (error) => context.report(error, "deep-trace:tail"),
   );
   // When the Nuxt rewrite is built (app/dist), it serves the explorer UI and
   // the legacy single-file document stays reachable at /legacy; without a
@@ -86,7 +86,7 @@ const uiResponse = async (): Promise<Response> => {
       headers: { "content-type": "text/html; charset=utf-8" },
     });
   } catch {
-    return new Response("telemetry-map UI asset is missing", {
+    return new Response("deep-trace UI asset is missing", {
       status: HTTP_NOT_FOUND,
     });
   }
@@ -106,7 +106,7 @@ const topologyResponse = async (context: SkillContext): Promise<Response> => {
       grants: await readStoredGrants(context.stateDirectory),
     });
   } catch (error) {
-    context.report(error, "telemetry-map:topology");
+    context.report(error, "deep-trace:topology");
   }
   return new Response(body, {
     status: HTTP_OK,
@@ -128,7 +128,7 @@ const turnResponse = (aggregator: Aggregator, request: Request): Response => {
 const sendResponse = async (
   request: Request,
   events: GatewayEvents,
-  gateway: TelemetryMapGateway,
+  gateway: DeepTraceGateway,
 ): Promise<Response> => {
   let body: { text?: unknown; sender?: unknown; };
   try {
@@ -149,7 +149,7 @@ const sendResponse = async (
   const sender = typeof body.sender === "string" && body.sender
     ? body.sender
     : "map-observer";
-  const channel = "telemetry-map:interactive";
+  const channel = "deep-trace:interactive";
   const messageId = crypto.randomUUID();
 
   const timeoutPromise = new Promise<string>((resolve) =>
@@ -162,7 +162,7 @@ const sendResponse = async (
   const answerPromise = gateway.captureResponse(channel, () => {
     void events.onMessage({
       id: messageId,
-      gateway: "telemetry-map",
+      gateway: "deep-trace",
       channel,
       sender,
       text,
@@ -195,7 +195,7 @@ const routeE = (
 
 const routes = (input: {
   readonly aggregator: Aggregator;
-  readonly gateway: TelemetryMapGateway;
+  readonly gateway: DeepTraceGateway;
   readonly ui: () => Promise<Response>;
   readonly context: SkillContext;
 }): readonly RouteBinding[] => {
@@ -235,7 +235,7 @@ const service = (
   let timer: ReturnType<typeof setInterval> | undefined;
   let ticks = 0;
   return {
-    name: "telemetry-map",
+    name: "deep-trace",
     start: () => {
       aggregator.start(runtimeTelemetry);
       tail.tick();

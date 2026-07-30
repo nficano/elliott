@@ -2,7 +2,7 @@ import type { TelemetryEnvelope } from "../../../src/runtime/types";
 import type { Aggregator } from "./aggregator";
 
 const encoder = new TextEncoder();
-const OPENING_COMMENT = ": telemetry-map stream open\n\n";
+const OPENING_COMMENT = ": deep-trace stream open\n\n";
 
 const frame = (event: TelemetryEnvelope): Uint8Array =>
   encoder.encode(`event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`);

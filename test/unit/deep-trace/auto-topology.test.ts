@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { mergeTopology } from "../../../skills/telemetry-map/src/auto-topology";
+import { mergeTopology } from "../../../skills/deep-trace/src/auto-topology";
 import type {
   SkillPackageView,
   StoredGrant,
