@@ -3,6 +3,7 @@ import * as Effect from "effect/Effect";
 import { access, readFile } from "node:fs/promises";
 import path from "node:path";
 import { parse } from "yaml";
+import { parseInstallSettings } from "../install/index";
 import { decodeEvolutionConfig } from "../learning/evolution/config";
 import { isJsonRecord } from "../providers/http";
 import {
@@ -12,15 +13,16 @@ import {
   optionalGoogle,
   optionalNumberAt,
   optionalSlack,
+  optionalStringAt,
   optionalStringProperty,
   optionalValue,
   stringArrayAt,
   stringAt,
 } from "./settings";
 import {
+  optionalDeepTrace,
   optionalNewsBrief,
   optionalPakman,
-  optionalTelemetryMap,
   optionalYouTubeDvr,
 } from "./settings-skills";
 import {
@@ -37,6 +39,7 @@ import {
 } from "./settings-tools";
 import type {
   GovernanceSettings,
+  InstallSettings,
   RuntimeEvolutionSettings,
   RuntimeSettings,
   SecretResolver,
@@ -87,7 +90,18 @@ export const loadRuntimeSettings = async (
     ...(evolution !== undefined && { evolution }),
     ...runtimeEvolutionSettings(),
     ...governanceSettings(resolved),
+    ...installSettings(resolved),
   };
+};
+
+// Parse the `install:` block (installable skills) off the resolved config.
+// Absent block → no install settings; grammar/duplicate errors are fatal.
+const installSettings = (
+  resolved: unknown,
+): { readonly install?: InstallSettings; } => {
+  const block = isJsonRecord(resolved) ? resolved["install"] : undefined;
+  const parsed = parseInstallSettings(block);
+  return parsed === undefined ? {} : { install: parsed };
 };
 
 // Governance is always present so audit + identity run for every agent. The
@@ -211,9 +225,13 @@ const coreSettings = (
     llmBaseUrl: stringAt(resolved, ["llm", "base_url"]),
     llmApiKey: stringAt(resolved, ["llm", "api_key"]),
     stateDirectory: path.join(root, ".elliott-runtime"),
+    // The browser skill moved to the nficano/skills registry; its config block
+    // is optional now. The field stays on RuntimeSettings (transitional, like
+    // the other moved-skill settings loaders) and tolerates an absent block so
+    // a built-ins-only elliott still boots.
     browser: {
-      baseUrl: stringAt(resolved, ["browser", "daemon_url"]),
-      token: stringAt(resolved, ["browser", "token"]),
+      baseUrl: optionalStringAt(resolved, ["browser", "daemon_url"]) ?? "",
+      token: optionalStringAt(resolved, ["browser", "token"]) ?? "",
       allowedDomains: stringArrayAt(resolved, ["browser", "allowed_domains"]),
     },
     mcp: [],
@@ -242,7 +260,7 @@ const optionalSettings = (
   ...optionalPihole(resolved, secrets),
   ...optionalTraefik(resolved),
   ...optionalWebhookProvisioner(resolved),
-  ...optionalTelemetryMap(resolved),
+  ...optionalDeepTrace(resolved),
   ...optionalSubscriptionUsage(resolved, secrets),
   ...optionalStringProperty("glitchtipDsn", resolved, [
     "observability",

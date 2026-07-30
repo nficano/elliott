@@ -1,4 +1,4 @@
-// Core ontology and object model — TDD §1, §2.
+// Core ontology and object model — TDD §7.3, §7.4.
 
 import type * as Brand from "effect/Brand";
 
@@ -19,8 +19,8 @@ export type ComponentKind =
   | "model-profile"
   | "scheduler";
 
-/** Kinds that participate in security decisions. Subject to org pinning (§3)
- *  and elevated isolation minimums (§2a). */
+/** Kinds that participate in security decisions. Subject to org pinning (§7.5)
+ *  and elevated isolation minimums (§7.4a). */
 export type SecurityCriticalKind =
   | "policy"
   | "evaluator"
@@ -34,7 +34,7 @@ export type IsolationLevel =
   | "container"
   | "remote";
 
-/** Monotonic counters owned by the kernel. See §0d and §1a. */
+/** Monotonic counters owned by the kernel. See §7.2d and §7.3a. */
 export type Epoch = Brand.Branded<number, "Epoch">;
 
 export interface EpochVector {
@@ -75,7 +75,7 @@ export interface Scope {
   readonly id: ScopeId;
 }
 
-/** Placeholder until the runtime schema adapter is chosen (§17b). */
+/** Placeholder until the runtime schema adapter is chosen (TDD Q-02, §16). */
 export type JsonSchema = Readonly<Record<string, unknown>>;
 
 export interface ProtocolDescriptor {
@@ -86,7 +86,7 @@ export interface ProtocolDescriptor {
 export interface CapabilityRequest {
   readonly capability: string;
   readonly resources: readonly string[];
-  /** JIT operator approval on first use — least-privilege pressure, §1. */
+  /** JIT operator approval on first use — least-privilege pressure, §7.3. */
   readonly deferred?: boolean;
 }
 
@@ -159,7 +159,7 @@ export interface ComponentInstance {
   readonly grants: GrantHandle;
   readonly snapshot: SnapshotId;
   readonly lifecycle: LifecycleState;
-  /** Placement decided by the kernel per §2b; never self-selected. */
+  /** Placement decided by the kernel per §7.4b; never self-selected. */
   readonly placement: PlacementRef;
   readonly transport?: ComponentTransport;
 }
@@ -174,7 +174,7 @@ export interface ComponentInspection {
   readonly view: InspectionView;
 }
 
-/** Restricted, kernel-provided context. No ambient authority (§0f, §9). */
+/** Restricted, kernel-provided context. No ambient authority (§7.2f, §7.11). */
 export interface ComponentContext {
   readonly scope: Scope;
   readonly principal: PrincipalId;

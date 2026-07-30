@@ -134,7 +134,7 @@ export interface WebhookProvisionerSettings {
   readonly hooksBaseUrl: string;
 }
 
-export interface TelemetryMapSettings {
+export interface DeepTraceSettings {
   // Local hostname to publish the observability map at (dns.local +
   // proxy.route facilities), e.g. elliott.octet.stream.
   readonly publicHostname: string;
@@ -346,7 +346,7 @@ export interface RuntimeSettings {
   readonly pihole?: PiholeSettings;
   readonly traefik?: TraefikSettings;
   readonly webhookProvisioner?: WebhookProvisionerSettings;
-  readonly telemetryMap?: TelemetryMapSettings;
+  readonly deepTrace?: DeepTraceSettings;
   readonly subscriptionUsage?: SubscriptionUsageSettings;
   readonly webhookSecret?: string;
   readonly mcp: readonly McpEndpointSettings[];
@@ -358,6 +358,32 @@ export interface RuntimeSettings {
   readonly evolution?: EvolutionConfig;
   readonly evolutionRuntime?: RuntimeEvolutionSettings;
   readonly governance?: GovernanceSettings;
+  // Installable skills resolved from the nficano/skills registry. Absent when
+  // no `install:` block is configured. See docs/skills-registry.md.
+  readonly install?: InstallSettings;
+}
+
+export interface InstallEntrySettings {
+  readonly name: string;
+  readonly version?: string;
+  readonly required: boolean;
+}
+
+export interface InstallSettings {
+  readonly registry: string;
+  readonly refresh: boolean;
+  readonly skills: readonly InstallEntrySettings[];
+}
+
+// One line of the /healthz install section: whether each requested skill
+// resolved, and from where. A required skill that is not `ok` flips readiness.
+export interface InstallHealth {
+  readonly skill: string;
+  readonly requested: string;
+  readonly resolved?: string;
+  readonly state: "ok" | "cached-fallback" | "failed";
+  readonly required: boolean;
+  readonly error?: string;
 }
 
 export interface ToolDefinition {
@@ -512,7 +538,7 @@ export interface TurnObserver {
 
 // --- In-process telemetry (observability map) ---------------------------------
 // A cheap, always-on pub/sub surface that mirrors turn activity to local
-// subscribers (the telemetry-map extension). It never persists and never leaves
+// subscribers (the deep-trace extension). It never persists and never leaves
 // the process; durable evidence still lives in sessions.sqlite.
 
 export type TelemetryEventType =
@@ -561,6 +587,9 @@ export interface RuntimeHealth {
   readonly tools: number;
   readonly gateways: Readonly<Record<string, string>>;
   readonly services: Readonly<Record<string, Readonly<Record<string, number>>>>;
+  // Present only when an `install:` block is configured; one entry per requested
+  // installable skill.
+  readonly install?: readonly InstallHealth[];
 }
 
 export interface RuntimeStartedEvent {

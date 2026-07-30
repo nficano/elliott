@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "build": {
+    "observedAt": "2026-07-29T22:16:46Z",
+    "platform": "linux/arm64",
+    "optimizerRuntimeSourceDigest": "sha256:ffc45c83c653a9b20d56af6d6b583d4d022bc90e07999a085d267718ad5a05af",
+    "distribution": "local-oci",
+    "publishedRegistry": null
+  },
+  "images": {
+    "evaluator-dspy": {
+      "localReference": "elliott/evaluator-dspy@sha256:20dda80b74813bacf606f581c6fc31736d2eb4c3740cae3db7bf785a48a10c04",
+      "ociManifestDigest": "sha256:20dda80b74813bacf606f581c6fc31736d2eb4c3740cae3db7bf785a48a10c04",
+      "sourceDigest": "sha256:616419f76c5562aba07897c255fc66f50fc672bfe742ae0d26e9f10c1ea90651",
+      "artifact": ".artifacts/darwin/evaluator-dspy.oci.tar",
+      "dependency": {
+        "name": "dspy",
+        "version": "3.2.1",
+        "lock": "darwin/optimizers/dspy/uv.lock"
+      },
+      "fixtureSmokePassed": true
+    },
+    "evaluator-darwinian": {
+      "localReference": "elliott/evaluator-darwinian@sha256:462ca94d9682b15ac6fb31a31db705f792f7d51855947f748c11a66da08bac52",
+      "ociManifestDigest": "sha256:462ca94d9682b15ac6fb31a31db705f792f7d51855947f748c11a66da08bac52",
+      "sourceDigest": "sha256:398f619789e376bfe7af6b9635d36d933bcc101154c484993276b4b334bad745",
+      "artifact": ".artifacts/darwin/evaluator-darwinian.oci.tar",
+      "dependency": {
+        "name": "darwinian-evolver",
+        "source": "https://github.com/imbue-ai/darwinian_evolver",
+        "revision": "7f12365d2059c47e29068a5a6f498a293148d2a9",
+        "license": "AGPL-3.0"
+      },
+      "fixtureSmokePassed": true,
+      "correspondingSourcePath": "/usr/share/darwinian-evolver/source"
+    },
+    "evaluator-agent-benchmarks": {
+      "localReference": "elliott/evaluator-agent-benchmarks@sha256:83b8680e5b70759140a9baa26aad11cd5242253695cd3ccb6b5904ad937e4a6c",
+      "ociManifestDigest": "sha256:83b8680e5b70759140a9baa26aad11cd5242253695cd3ccb6b5904ad937e4a6c",
+      "sourceDigest": "sha256:ca28f4ed30c51e9fafdcf3d27ad4065445d6445ce0e40eff8ca5d946c514cc65",
+      "artifact": ".artifacts/darwin/evaluator-agent-benchmarks.oci.tar",
+      "dependencyLock": "darwin/evaluators/agent-benchmarks/benchmark/drivers.json",
+      "fixtureSmokePassed": true
+    }
+  }
+}

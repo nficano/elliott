@@ -1,4 +1,4 @@
-// Policy deciders — TDD §1, §3. policy.decider components are
+// Policy deciders — TDD §7.3, §7.5. policy.decider components are
 // SecurityCriticalKind: org-pinned, process isolation minimum.
 
 export { GrantManager } from "../grants/manager";

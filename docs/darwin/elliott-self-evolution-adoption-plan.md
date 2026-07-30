@@ -2,7 +2,7 @@
 
 **Status:** Implementation plan<br>
 **Target:** Elliott framework and its Elliott consumer agent<br>
-**Elliott architecture source:** [Technical Design Document, Revision 6](../elliott-tdd.md)<br>
+**Elliott architecture source:** [Technical Design Document, Revision 7](../elliott-tdd.md)<br>
 **Upstream source:** [Hermes Agent Self-Evolution `PLAN.md` at commit `0a929e3`](https://github.com/NousResearch/hermes-agent-self-evolution/blob/0a929e3aa20e15cf04dc7c28492a7d41a5139125/PLAN.md)<br>
 **Source review date:** 2026-07-23
 
@@ -546,7 +546,7 @@ Start with isolated component implementation code. Expand by risk class after th
 
 Frozen by default:
 
-- Component ref, kind, manifest, capability request, egress, isolation, companion images, Protocol IDs, exports, public signatures, and schema contracts.
+- Component ref, kind, manifest, capability request, egress, isolation, Darwin images, Protocol IDs, exports, public signatures, and schema contracts.
 - Error-handling and security-check call sites identified by static policy.
 - Test fixtures and evaluator code.
 

@@ -7,11 +7,6 @@ store:
   pool: { max: 10 }
   vectors: { dim: 768, type: vector }
 
-browser:
-  daemon_url: http://agent-browser:3000
-  token: ${VAULT:secret/services/oslo#browser_token}
-  allowed_domains: []
-
 llm:
   base_url: https://api.litellm.octet.stream/v1
   api_key: ${VAULT:secret/services/oslo#litellm_key}
@@ -42,35 +37,6 @@ notify:
   webhook_url: https://api.octet.stream/api/notify
   default_channels: [slack]
 
-channels:
-  slack:
-    enabled: true
-    bot_token: ${VAULT:secret/services/oslo#slack_bot_token}
-    app_token: ${VAULT:secret/services/oslo#slack_app_token}
-    # Optional user OAuth token for user-consented private-channel and DM search.
-    # user_token: ${VAULT:secret/services/oslo#slack_user_token}
-    owner_id: "U0BJU9L5QMP"
-    default_channel: "#the-end"
-    # Answer top-level channel messages in the channel instead of a thread.
-    # DMs and messages already inside a thread always keep threading.
-    # Defaults to true (threaded replies) when omitted.
-    # reply_in_thread: false
-  bluebubbles:
-    enabled: false
-    server_url: http://host.docker.internal:1234
-    default_recipient: ""
-    allowed_recipients: []
-  email:
-    enabled: false
-    smtp_host: smtp.example.com
-    smtp_port: 465
-    username: ""
-    from: ""
-    allowed_recipients: []
-  home_assistant:
-    enabled: false
-    base_url: http://172.16.10.235:8123
-
 tools:
   files:
     enabled: true
@@ -83,106 +49,14 @@ tools:
     enabled: false
     user: elliott
     hosts: []
-  pihole:
-    # dns-01 LXC (forest: docs/servers.md). Registers once the
-    # pihole_password secret resolves (see secrets.yaml); until then the
-    # skill is skipped at boot. Currently Pi-hole v5 — the skill detects the
-    # API generation, so upgrading the box to v6 needs no change here.
-    enabled: true
-    base_url: http://172.16.10.205
-  subscription_usage:
-    # Subscription rate-limit meters for Claude (Pro/Max) and Codex (ChatGPT)
-    # plans, plus LiteLLM proxy spend. Each account points at a secrets.yaml
-    # key holding the OAuth credential JSON (Claude: the "Claude
-    # Code-credentials" Keychain payload; Codex: ~/.codex/auth.json).
-    # Accounts whose secret is missing are skipped at boot, so seed Vault and
-    # restart to light one up. LiteLLM spend needs litellm_admin_key.
-    enabled: true
-    claude_accounts:
-      - { name: personal, secret: claude_oauth_personal }
-    codex_accounts:
-      - { name: personal, secret: codex_oauth_personal }
-    litellm:
-      base_url: https://api.litellm.octet.stream
-  traefik:
-    # proxy-01 LXC. Traefik polls Elliott's dynamic-config route via its
-    # HTTP provider (forest: compose/traefik/data/traefik.yml providers.http
-    # -> http://172.16.20.21:18082/v1/traefik/dynamic). Entrypoint and
-    # resolver names match proxy-01's static config (https / letsencrypt,
-    # Cloudflare DNS-01 wildcard for *.octet.stream). The dashboard API sits
-    # behind Authentik, so live router status degrades to a note.
-    # lan_address is proxy-01's LAN IP, surfaced in proxy.route facility
-    # grants so consumers can chain a dns.local record at the proxy.
-    enabled: true
-    api_url: https://traefik.octet.stream
-    cert_resolver: letsencrypt
-    entry_point: https
-    lan_address: 172.16.10.200
 
 skills:
-  telemetry_map:
+  deep_trace:
     # Publish the observability map on the LAN through the facility seam:
     # proxy.route (Traefik HTTPS route) chained into dns.local (Pi-hole A
     # record at the proxy). https://elliott.octet.stream/map redirects into
-    # the map. Dormant until pihole/traefik register (see their gates).
+    # the map. Dormant until the proxy.route/dns.local providers (traefik +
+    # pihole) are installed from the nficano/skills registry.
     enabled: true
     public_hostname: elliott.octet.stream
     service_url: http://172.16.20.21:18082
-  news_brief:
-    enabled: true
-    alerts: false
-    keywords:
-      - breaking
-      - killed
-      - dead
-      - attack
-      - explosion
-      - shooting
-      - war
-      - election
-      - resign
-      - indicted
-      - court
-      - ruling
-      - strike
-      - outage
-      - recall
-      - evacuate
-    reddit:
-      enabled: true
-      multireddit: user/nficano/m/breakingnewsalerts
-    rss:
-      enabled: true
-  youtube_dvr:
-    enabled: true
-    # Handles recorded directly via the YouTube Data API. Ported from
-    # oslo's youtube_channels; per-channel day limits are dropped since the
-    # DVR only appends videos that actually land in the poll window.
-    channels:
-      - "@briantylercohen"
-      - "@2lazy2tryYT"
-      - "@destiny"
-      - "@adammockler"
-      - "@ponderingpolitics"
-      - "@PBoyle"
-      - "@TimDillonShow"
-      - "@Coffeezilla"
-      - "@coffeezillaextras"
-      - "@SilverCymbal"
-      - "@SecularTalk"
-    # In-process source providers for shows the Data API doesn't surface.
-    providers:
-      - { name: pakman, days: [monday, tuesday, wednesday, thursday, friday] }
-
-gateways:
-  webhook_provisioner:
-    # ingress.webhook facility (docs/skill-facilities.md). hooks_base_url is
-    # the public hooks hostname the cloudflared tunnel routes at the runtime;
-    # endpoint URLs are <base>/w/<slug>. Requires webhook_signing_secret for
-    # the internal delivery hop.
-    enabled: true
-    hooks_base_url: https://hooks.octet.stream
-  cloudflared:
-    # ready_url points at the local cloudflared metrics /ready endpoint;
-    # unset means the health checker stays dormant.
-    ready_url: ""

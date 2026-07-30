@@ -1,4 +1,4 @@
-// The universal base object — TDD §2.
+// The universal base object — TDD §7.4.
 
 import { ComponentKindMismatchError } from "../errors";
 import type {

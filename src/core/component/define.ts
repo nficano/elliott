@@ -1,4 +1,4 @@
-// Static component module definition — TDD §3. Discovery never imports
+// Static component module definition — TDD §7.5. Discovery never imports
 // executable code; defineComponent is evaluated only inside isolated workers.
 
 import type { ComponentDefinition, ComponentModule } from "../types";

@@ -328,7 +328,7 @@
       "name": "Companions: dspy · darwinian · benchmarks (sealed OCI, reached over HTTP)",
       "kind": "evaluator",
       "runtime": "config-gated",
-      "source": "companions/optimizers/dspy/worker.py, companions/optimizers/darwinian/worker.py, companions/evaluators/agent-benchmarks/evaluation/; .artifacts/evolution-companions/*.oci.tar; endpoints src/runtime/evolution.ts:285,302,351,373"
+      "source": "darwin/optimizers/dspy/worker.py, darwin/optimizers/darwinian/worker.py, darwin/evaluators/agent-benchmarks/evaluation/; .artifacts/darwin/*.oci.tar; endpoints src/runtime/evolution.ts:285,302,351,373"
     },
 
     {
@@ -736,7 +736,7 @@
       "kind": "learn",
       "protocol": "http (POST to sealed OCI workers; conditional on *_URL config)",
       "label": "optimize / compare / baseline",
-      "evidence": "src/learning/evolution/evaluation/http.ts:25 (POST /v1/baseline,/v1/compare); companions/*/*_worker.py"
+      "evidence": "src/learning/evolution/evaluation/http.ts:25 (POST /v1/baseline,/v1/compare); darwin/*/*_worker.py"
     },
     {
       "id": "e.eval.proposals",

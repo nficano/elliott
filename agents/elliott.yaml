@@ -8,24 +8,13 @@ spec:
   persona: assets/prompts/elliott.md
   modelProfile: fast
   components:
-    - core/gateway/gateway-slack
-    - core/gateway/gateway-gmail
-    - core/gateway/gateway-email
-    - core/gateway/gateway-bluebubbles
-    - core/gateway/gateway-webhook
-    - core/gateway/gateway-home-assistant
     - core/mcp-endpoint/mcp-client
-    - core/tool/search-duckduckgo
-    - core/tool/search-brave
-    - core/tool/web-firecrawl
-    - core/tool/web-parallel
-    - core/extension/browser
     - core/tool/fetch
     - core/tool/files
     - core/tool/terminal
     - core/tool/ssh
-    - core/extension/cloudflared
     - core/scheduler/scheduler
+    - core/extension/deep-trace
   mcp:
     - id: h12o
       url: https://mcp.octet.stream/mcp

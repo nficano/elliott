@@ -6,6 +6,7 @@ import {
   valueAt,
 } from "./settings";
 import type {
+  DeepTraceSettings,
   NewsBriefApiSource,
   NewsBriefGuardianSource,
   NewsBriefRedditSource,
@@ -13,7 +14,6 @@ import type {
   NewsBriefRssSource,
   NewsBriefSettings,
   PakmanSettings,
-  TelemetryMapSettings,
   YouTubeDvrProviderRef,
   YouTubeDvrSettings,
   YouTubeOAuthSettings,
@@ -69,10 +69,15 @@ export const optionalNewsBrief = (
 // Publishing the observability map on the LAN needs both halves of the
 // address: the hostname to claim and where the reverse proxy finds the
 // runtime. Either one missing keeps the publish dormant.
-export const optionalTelemetryMap = (
+//
+// The skill was renamed telemetry_map -> deep_trace. For one release the loader
+// accepts BOTH config keys: it prefers skills.deep_trace and falls back to the
+// legacy skills.telemetry_map (with a deprecation warning) so the live map does
+// not go dark on the flag day. Drop the legacy branch a release later.
+export const optionalDeepTrace = (
   resolved: unknown,
-): { readonly telemetryMap?: TelemetryMapSettings; } => {
-  const base = ["skills", "telemetry_map"];
+): { readonly deepTrace?: DeepTraceSettings; } => {
+  const base = deepTraceConfigBase(resolved);
   if (!flagAt(resolved, [...base, "enabled"])) return {};
   const publicHostname = optionalStringAt(resolved, [
     ...base,
@@ -80,7 +85,18 @@ export const optionalTelemetryMap = (
   ]);
   const serviceUrl = optionalStringAt(resolved, [...base, "service_url"]);
   if (publicHostname === undefined || serviceUrl === undefined) return {};
-  return { telemetryMap: { publicHostname, serviceUrl } };
+  return { deepTrace: { publicHostname, serviceUrl } };
+};
+
+// Prefer the new key; fall back to the legacy one only when the new key is
+// absent, warning once so operators migrate their config.
+const deepTraceConfigBase = (resolved: unknown): readonly string[] => {
+  const base = ["skills", "deep_trace"];
+  if (valueAt(resolved, base) !== undefined) return base;
+  const legacy = ["skills", "telemetry_map"];
+  if (valueAt(resolved, legacy) === undefined) return base;
+  console.warn("skills.telemetry_map is deprecated; use skills.deep_trace.");
+  return legacy;
 };
 
 const newsReddit = (

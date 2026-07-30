@@ -65,6 +65,12 @@ const discoverPackageDirectories = async (
   return nested.flat();
 };
 
+// Load one package from an exact directory (e.g. an installed skill's
+// <cache>/<name>/<version>). Unlike loadPackagesFrom this does NOT recurse, so
+// it must never be pointed at a cache root holding many versions.
+export const loadPackageAt = (directory: string): Promise<BundledPackage> =>
+  loadPackage(directory);
+
 const loadPackage = async (directory: string): Promise<BundledPackage> => {
   const raw = await readFile(path.join(directory, "manifest.yaml"), "utf8");
   const value: unknown = parse(raw);

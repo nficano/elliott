@@ -20,13 +20,13 @@ describe("Phase 2 data plane", () => {
       false,
     );
     expect(
-      BUNDLED_CATALOG.find((item) => item.name === "search-duckduckgo")
+      BUNDLED_CATALOG.find((item) => item.name === "fetch")
         ?.secretRefs,
     ).toEqual([]);
     expect(
-      BUNDLED_CATALOG.find((item) => item.name === "gateway-bluebubbles")
+      BUNDLED_CATALOG.find((item) => item.name === "ssh")
         ?.isolation,
-    ).toBe("remote");
+    ).toBe("container");
   });
 
   it("pins MCP virtual children to an approved catalog snapshot", async () => {

@@ -2,7 +2,7 @@
   "version": "1.2.0-generated",
   "title": "Elliott Runtime — Connection Graph (generated)",
   "generatedFrom": "scripts/gen-topology.mjs: docs/topology.spine.json + skills/**/manifest.yaml spec.topology + agents/elliott.yaml mcp[] + config/elliott.yaml gates",
-  "note": "Auto-generated structural connection graph. Nodes/uniform-edges derive from each module's manifest; the runtime spine is hand-authored. `runtime` here is a static approximation (secret-gated => config-gated); the live telemetry-map extension resolves actual liveness.",
+  "note": "Auto-generated structural connection graph. Nodes/uniform-edges derive from each module's manifest; the runtime spine is hand-authored. `runtime` here is a static approximation (secret-gated => config-gated); the live deep-trace extension resolves actual liveness.",
   "nodeKinds": [
     "secret-source",
     "gateway",
@@ -262,20 +262,17 @@
       "source": "deploy/docker-compose.yml:65"
     },
     {
-      "id": "tool.browser",
-      "name": "browser (skills/browser/src/index.ts)",
-      "kind": "tool",
+      "id": "obs.map",
+      "name": "deep-trace (skills/deep-trace/src/index.ts)",
+      "kind": "observability",
       "runtime": "live",
-      "domain": "external-integrations",
-      "source": "skills/browser/src/index.ts",
+      "domain": "observability",
+      "source": "skills/deep-trace/src/index.ts",
       "classifications": {
-        "trustZone": "egress",
-        "dataClassification": "untrusted-external",
+        "trustZone": "edge",
+        "dataClassification": "operational-metadata",
         "criticality": "supporting"
-      },
-      "egressTargets": [
-        "browserless companion daemon"
-      ]
+      }
     },
     {
       "id": "evaluator.benchmarks",
@@ -355,99 +352,6 @@
       }
     },
     {
-      "id": "tool.imessage",
-      "name": "gateway-bluebubbles (skills/gateway/bluebubbles/src/index.ts)",
-      "kind": "tool",
-      "runtime": "config-gated",
-      "domain": "external-integrations",
-      "source": "skills/gateway/bluebubbles/src/index.ts",
-      "classifications": {
-        "trustZone": "egress",
-        "dataClassification": "owner-pii",
-        "criticality": "supporting"
-      },
-      "egressTargets": [
-        "BlueBubbles server"
-      ]
-    },
-    {
-      "id": "tool.email",
-      "name": "gateway-email (skills/gateway/email/src/index.ts)",
-      "kind": "tool",
-      "runtime": "config-gated",
-      "domain": "external-integrations",
-      "source": "skills/gateway/email/src/index.ts",
-      "classifications": {
-        "trustZone": "egress",
-        "dataClassification": "owner-pii",
-        "criticality": "supporting"
-      },
-      "egressTargets": [
-        "SMTP"
-      ]
-    },
-    {
-      "id": "tool.gmail",
-      "name": "gateway-gmail (skills/gateway/gmail/src/index.ts)",
-      "kind": "tool",
-      "runtime": "config-gated",
-      "domain": "external-integrations",
-      "source": "skills/gateway/gmail/src/index.ts",
-      "classifications": {
-        "trustZone": "egress",
-        "dataClassification": "owner-pii",
-        "criticality": "supporting"
-      },
-      "egressTargets": [
-        "Gmail API"
-      ]
-    },
-    {
-      "id": "tool.homeassistant",
-      "name": "gateway-home-assistant (skills/gateway/home-assistant/src/index.ts)",
-      "kind": "tool",
-      "runtime": "config-gated",
-      "domain": "external-integrations",
-      "source": "skills/gateway/home-assistant/src/index.ts",
-      "classifications": {
-        "trustZone": "egress",
-        "dataClassification": "owner-pii",
-        "criticality": "supporting"
-      },
-      "egressTargets": [
-        "Home Assistant REST"
-      ]
-    },
-    {
-      "id": "gateway.slack",
-      "name": "gateway-slack (skills/gateway/slack/src/index.ts)",
-      "kind": "gateway",
-      "runtime": "live",
-      "domain": "ingress",
-      "source": "skills/gateway/slack/src/index.ts",
-      "classifications": {
-        "trustZone": "external-untrusted",
-        "dataClassification": "untrusted-external",
-        "criticality": "path-critical"
-      },
-      "egressTargets": [
-        "Slack (Socket Mode + Web API)"
-      ]
-    },
-    {
-      "id": "gateway.webhook",
-      "name": "gateway-webhook (skills/gateway/webhook/src/index.ts)",
-      "kind": "gateway",
-      "runtime": "config-gated",
-      "domain": "ingress",
-      "source": "skills/gateway/webhook/src/index.ts",
-      "classifications": {
-        "trustZone": "external-untrusted",
-        "dataClassification": "untrusted-external",
-        "criticality": "supporting"
-      }
-    },
-    {
       "id": "mcp.client",
       "name": "mcp-client (skills/mcp-client/src/index.ts)",
       "kind": "mcp-endpoint",
@@ -464,58 +368,6 @@
       ]
     },
     {
-      "id": "extension.news-brief",
-      "name": "news-brief (skills/news-brief/src/index.ts)",
-      "kind": "tool",
-      "runtime": "live",
-      "domain": "external-integrations",
-      "source": "skills/news-brief/src/index.ts",
-      "classifications": {
-        "trustZone": "egress",
-        "dataClassification": "untrusted-external",
-        "criticality": "supporting"
-      },
-      "egressTargets": [
-        "Reddit",
-        "The Guardian",
-        "RSS wires",
-        "NewsData.io",
-        "GNews"
-      ]
-    },
-    {
-      "id": "tool.pakman",
-      "name": "pakman-latest-episode (skills/pakman-latest-episode/src/index.ts)",
-      "kind": "tool",
-      "runtime": "config-gated",
-      "domain": "external-integrations",
-      "source": "skills/pakman-latest-episode/src/index.ts",
-      "classifications": {
-        "trustZone": "egress",
-        "dataClassification": "untrusted-external",
-        "criticality": "supporting"
-      },
-      "egressTargets": [
-        "David Pakman member site"
-      ]
-    },
-    {
-      "id": "tool.pihole",
-      "name": "pihole (skills/pihole/src/index.ts)",
-      "kind": "tool",
-      "runtime": "config-gated",
-      "domain": "local-network",
-      "source": "skills/pihole/src/index.ts",
-      "classifications": {
-        "trustZone": "lan",
-        "dataClassification": "operational-metadata",
-        "criticality": "supporting"
-      },
-      "egressTargets": [
-        "Pi-hole FTL API"
-      ]
-    },
-    {
       "id": "service.scheduler",
       "name": "scheduler (skills/scheduler/src/index.ts)",
       "kind": "service",
@@ -527,38 +379,6 @@
         "dataClassification": "user-content",
         "criticality": "supporting"
       }
-    },
-    {
-      "id": "tool.search-brave",
-      "name": "search-brave (skills/search/brave/src/index.ts)",
-      "kind": "tool",
-      "runtime": "config-gated",
-      "domain": "external-integrations",
-      "source": "skills/search/brave/src/index.ts",
-      "classifications": {
-        "trustZone": "egress",
-        "dataClassification": "untrusted-external",
-        "criticality": "supporting"
-      },
-      "egressTargets": [
-        "Brave Search API"
-      ]
-    },
-    {
-      "id": "tool.search-duckduckgo",
-      "name": "search-duckduckgo (skills/search/duckduckgo/src/index.ts)",
-      "kind": "tool",
-      "runtime": "live",
-      "domain": "external-integrations",
-      "source": "skills/search/duckduckgo/src/index.ts",
-      "classifications": {
-        "trustZone": "egress",
-        "dataClassification": "untrusted-external",
-        "criticality": "supporting"
-      },
-      "egressTargets": [
-        "DuckDuckGo"
-      ]
     },
     {
       "id": "tool.ssh",
@@ -577,37 +397,6 @@
       ]
     },
     {
-      "id": "tool.subscription-usage",
-      "name": "subscription-usage (skills/subscription-usage/src/index.ts)",
-      "kind": "tool",
-      "runtime": "config-gated",
-      "domain": "external-integrations",
-      "source": "skills/subscription-usage/src/index.ts",
-      "classifications": {
-        "trustZone": "egress",
-        "dataClassification": "operational-metadata",
-        "criticality": "supporting"
-      },
-      "egressTargets": [
-        "Anthropic OAuth API",
-        "ChatGPT backend API",
-        "LiteLLM proxy"
-      ]
-    },
-    {
-      "id": "obs.map",
-      "name": "telemetry-map (skills/telemetry-map/src/index.ts)",
-      "kind": "observability",
-      "runtime": "live",
-      "domain": "observability",
-      "source": "skills/telemetry-map/src/index.ts",
-      "classifications": {
-        "trustZone": "edge",
-        "dataClassification": "operational-metadata",
-        "criticality": "supporting"
-      }
-    },
-    {
       "id": "tool.terminal",
       "name": "terminal (skills/terminal/src/index.ts)",
       "kind": "tool",
@@ -619,84 +408,6 @@
         "dataClassification": "internal",
         "criticality": "supporting"
       }
-    },
-    {
-      "id": "tool.traefik",
-      "name": "traefik (skills/traefik/src/index.ts)",
-      "kind": "tool",
-      "runtime": "config-gated",
-      "domain": "local-network",
-      "source": "skills/traefik/src/index.ts",
-      "classifications": {
-        "trustZone": "lan",
-        "dataClassification": "operational-metadata",
-        "criticality": "supporting"
-      },
-      "egressTargets": [
-        "Traefik API"
-      ]
-    },
-    {
-      "id": "tool.firecrawl",
-      "name": "web-firecrawl (skills/web/firecrawl/src/index.ts)",
-      "kind": "tool",
-      "runtime": "config-gated",
-      "domain": "external-integrations",
-      "source": "skills/web/firecrawl/src/index.ts",
-      "classifications": {
-        "trustZone": "egress",
-        "dataClassification": "untrusted-external",
-        "criticality": "supporting"
-      },
-      "egressTargets": [
-        "Firecrawl API"
-      ]
-    },
-    {
-      "id": "tool.parallel",
-      "name": "web-parallel (skills/web/parallel/src/index.ts)",
-      "kind": "tool",
-      "runtime": "config-gated",
-      "domain": "external-integrations",
-      "source": "skills/web/parallel/src/index.ts",
-      "classifications": {
-        "trustZone": "egress",
-        "dataClassification": "untrusted-external",
-        "criticality": "supporting"
-      },
-      "egressTargets": [
-        "Parallel API"
-      ]
-    },
-    {
-      "id": "extension.webhook-provisioner",
-      "name": "webhook-provisioner (skills/webhook-provisioner/src/index.ts)",
-      "kind": "extension",
-      "runtime": "config-gated",
-      "domain": "ingress",
-      "source": "skills/webhook-provisioner/src/index.ts",
-      "classifications": {
-        "trustZone": "external-untrusted",
-        "dataClassification": "untrusted-external",
-        "criticality": "supporting"
-      }
-    },
-    {
-      "id": "service.youtube-dvr",
-      "name": "youtube-dvr (skills/youtube-dvr/src/index.ts)",
-      "kind": "service",
-      "runtime": "config-gated",
-      "domain": "external-integrations",
-      "source": "skills/youtube-dvr/src/index.ts",
-      "classifications": {
-        "trustZone": "egress",
-        "dataClassification": "owner-pii",
-        "criticality": "supporting"
-      },
-      "egressTargets": [
-        "YouTube Data API",
-        "Google OAuth"
-      ]
     },
     {
       "id": "mcp.h12o",
@@ -984,20 +695,44 @@
       "evidence": "deploy/docker-compose.yml:27,65-75"
     },
     {
-      "id": "e.gen.runtime.toolExec--tool.browser",
-      "from": "runtime.toolExec",
-      "to": "tool.browser",
+      "id": "e.gen.obs.telemetry--obs.map",
+      "from": "obs.telemetry",
+      "to": "obs.map",
       "kind": "data",
-      "protocol": "in-process (ToolDefinition.execute)",
-      "label": "execute"
+      "protocol": "in-process subscribe -> SSE",
+      "label": "subscribe -> stream"
     },
     {
-      "id": "e.gen.tool.browser--container.browser",
-      "from": "tool.browser",
-      "to": "container.browser",
+      "id": "e.gen.obs.map--obs.telemetry",
+      "from": "obs.map",
+      "to": "obs.telemetry",
+      "kind": "control",
+      "protocol": "in-process (bus.emit)",
+      "label": "emit db.write/heartbeat"
+    },
+    {
+      "id": "e.gen.database.sessions--obs.map",
+      "from": "database.sessions",
+      "to": "obs.map",
       "kind": "data",
-      "protocol": "http /content,/scrape (daemon->Chrome CDP)",
-      "label": "render/scrape"
+      "protocol": "sqlite (readonly tail)",
+      "label": "read-only tail"
+    },
+    {
+      "id": "e.gen.runtime.http--obs.map",
+      "from": "runtime.http",
+      "to": "obs.map",
+      "kind": "data",
+      "protocol": "in-process route dispatch",
+      "label": "serve map routes"
+    },
+    {
+      "id": "e.gen.obs.map--container.elliott",
+      "from": "obs.map",
+      "to": "container.elliott",
+      "kind": "health",
+      "protocol": "in-process (bundled skill)",
+      "label": "runs inside"
     },
     {
       "id": "e.gen.evaluator.gauntlet--evaluator.benchmarks",
@@ -1040,113 +775,9 @@
       "label": "execute"
     },
     {
-      "id": "e.gen.runtime.toolExec--tool.imessage",
-      "from": "runtime.toolExec",
-      "to": "tool.imessage",
-      "kind": "data",
-      "protocol": "in-process (ToolDefinition.execute)",
-      "label": "execute"
-    },
-    {
-      "id": "e.gen.runtime.toolExec--tool.email",
-      "from": "runtime.toolExec",
-      "to": "tool.email",
-      "kind": "data",
-      "protocol": "in-process (ToolDefinition.execute)",
-      "label": "execute"
-    },
-    {
-      "id": "e.gen.runtime.toolExec--tool.gmail",
-      "from": "runtime.toolExec",
-      "to": "tool.gmail",
-      "kind": "data",
-      "protocol": "in-process (ToolDefinition.execute)",
-      "label": "execute"
-    },
-    {
-      "id": "e.gen.runtime.toolExec--tool.homeassistant",
-      "from": "runtime.toolExec",
-      "to": "tool.homeassistant",
-      "kind": "data",
-      "protocol": "in-process (ToolDefinition.execute)",
-      "label": "execute"
-    },
-    {
-      "id": "e.gen.gateway.slack--runtime.inbound",
-      "from": "gateway.slack",
-      "to": "runtime.inbound",
-      "kind": "data",
-      "protocol": "in-process (GatewayEvents.onMessage)",
-      "label": "inbound -> turn"
-    },
-    {
-      "id": "e.gen.gateway.slack--memory.evidence",
-      "from": "gateway.slack",
-      "to": "memory.evidence",
-      "kind": "persist",
-      "protocol": "in-process (onFeedback -> #handleFeedback -> recordFeedback)",
-      "label": "feedback -> feedback table"
-    },
-    {
-      "id": "e.gen.runtime.http--gateway.webhook",
-      "from": "runtime.http",
-      "to": "gateway.webhook",
-      "kind": "control",
-      "protocol": "in-process (route dispatch)",
-      "label": "dispatch route"
-    },
-    {
-      "id": "e.gen.gateway.webhook--runtime.inbound",
-      "from": "gateway.webhook",
-      "to": "runtime.inbound",
-      "kind": "data",
-      "protocol": "in-process (GatewayEvents.onMessage)",
-      "label": "payload -> turn"
-    },
-    {
       "id": "e.gen.runtime.toolExec--mcp.client",
       "from": "runtime.toolExec",
       "to": "mcp.client",
-      "kind": "data",
-      "protocol": "in-process (ToolDefinition.execute)",
-      "label": "execute"
-    },
-    {
-      "id": "e.gen.runtime.toolExec--extension.news-brief",
-      "from": "runtime.toolExec",
-      "to": "extension.news-brief",
-      "kind": "data",
-      "protocol": "in-process (ToolDefinition.execute)",
-      "label": "execute"
-    },
-    {
-      "id": "e.gen.extension.news-brief--gateway.slack",
-      "from": "extension.news-brief",
-      "to": "gateway.slack",
-      "kind": "data",
-      "protocol": "in-process (context.deliver -> #deliver -> primaryGateway.send)",
-      "label": "breaking alert (outbound)"
-    },
-    {
-      "id": "e.gen.runtime.toolExec--tool.pakman",
-      "from": "runtime.toolExec",
-      "to": "tool.pakman",
-      "kind": "data",
-      "protocol": "in-process (ToolDefinition.execute)",
-      "label": "execute"
-    },
-    {
-      "id": "e.gen.tool.pakman--service.youtube-dvr",
-      "from": "tool.pakman",
-      "to": "service.youtube-dvr",
-      "kind": "data",
-      "protocol": "in-process (source provider resolve)",
-      "label": "latest full-episode URL"
-    },
-    {
-      "id": "e.gen.runtime.toolExec--tool.pihole",
-      "from": "runtime.toolExec",
-      "to": "tool.pihole",
       "kind": "data",
       "protocol": "in-process (ToolDefinition.execute)",
       "label": "execute"
@@ -1160,30 +791,6 @@
       "label": "execute"
     },
     {
-      "id": "e.gen.service.scheduler--gateway.slack",
-      "from": "service.scheduler",
-      "to": "gateway.slack",
-      "kind": "data",
-      "protocol": "in-process (context.deliver -> #deliver -> primaryGateway.send)",
-      "label": "due reminder (outbound)"
-    },
-    {
-      "id": "e.gen.runtime.toolExec--tool.search-brave",
-      "from": "runtime.toolExec",
-      "to": "tool.search-brave",
-      "kind": "data",
-      "protocol": "in-process (ToolDefinition.execute)",
-      "label": "execute"
-    },
-    {
-      "id": "e.gen.runtime.toolExec--tool.search-duckduckgo",
-      "from": "runtime.toolExec",
-      "to": "tool.search-duckduckgo",
-      "kind": "data",
-      "protocol": "in-process (ToolDefinition.execute)",
-      "label": "execute"
-    },
-    {
       "id": "e.gen.runtime.toolExec--tool.ssh",
       "from": "runtime.toolExec",
       "to": "tool.ssh",
@@ -1192,132 +799,12 @@
       "label": "execute"
     },
     {
-      "id": "e.gen.runtime.toolExec--tool.subscription-usage",
-      "from": "runtime.toolExec",
-      "to": "tool.subscription-usage",
-      "kind": "data",
-      "protocol": "in-process (ToolDefinition.execute)",
-      "label": "execute"
-    },
-    {
-      "id": "e.gen.obs.telemetry--obs.map",
-      "from": "obs.telemetry",
-      "to": "obs.map",
-      "kind": "data",
-      "protocol": "in-process subscribe -> SSE",
-      "label": "subscribe -> stream"
-    },
-    {
-      "id": "e.gen.obs.map--obs.telemetry",
-      "from": "obs.map",
-      "to": "obs.telemetry",
-      "kind": "control",
-      "protocol": "in-process (bus.emit)",
-      "label": "emit db.write/heartbeat"
-    },
-    {
-      "id": "e.gen.database.sessions--obs.map",
-      "from": "database.sessions",
-      "to": "obs.map",
-      "kind": "data",
-      "protocol": "sqlite (readonly tail)",
-      "label": "read-only tail"
-    },
-    {
-      "id": "e.gen.runtime.http--obs.map",
-      "from": "runtime.http",
-      "to": "obs.map",
-      "kind": "data",
-      "protocol": "in-process route dispatch",
-      "label": "serve map routes"
-    },
-    {
-      "id": "e.gen.obs.map--container.elliott",
-      "from": "obs.map",
-      "to": "container.elliott",
-      "kind": "health",
-      "protocol": "in-process (bundled skill)",
-      "label": "runs inside"
-    },
-    {
       "id": "e.gen.runtime.toolExec--tool.terminal",
       "from": "runtime.toolExec",
       "to": "tool.terminal",
       "kind": "data",
       "protocol": "in-process (ToolDefinition.execute)",
       "label": "execute"
-    },
-    {
-      "id": "e.gen.runtime.toolExec--tool.traefik",
-      "from": "runtime.toolExec",
-      "to": "tool.traefik",
-      "kind": "data",
-      "protocol": "in-process (ToolDefinition.execute)",
-      "label": "execute"
-    },
-    {
-      "id": "e.gen.tool.traefik--runtime.http",
-      "from": "tool.traefik",
-      "to": "runtime.http",
-      "kind": "data",
-      "protocol": "in-process route dispatch",
-      "label": "serve /v1/traefik/dynamic"
-    },
-    {
-      "id": "e.gen.runtime.toolExec--tool.firecrawl",
-      "from": "runtime.toolExec",
-      "to": "tool.firecrawl",
-      "kind": "data",
-      "protocol": "in-process (ToolDefinition.execute)",
-      "label": "execute"
-    },
-    {
-      "id": "e.gen.runtime.toolExec--tool.parallel",
-      "from": "runtime.toolExec",
-      "to": "tool.parallel",
-      "kind": "data",
-      "protocol": "in-process (ToolDefinition.execute)",
-      "label": "execute"
-    },
-    {
-      "id": "e.gen.runtime.http--extension.webhook-provisioner",
-      "from": "runtime.http",
-      "to": "extension.webhook-provisioner",
-      "kind": "control",
-      "protocol": "in-process (route dispatch)",
-      "label": "dispatch route"
-    },
-    {
-      "id": "e.gen.extension.webhook-provisioner--runtime.inbound",
-      "from": "extension.webhook-provisioner",
-      "to": "runtime.inbound",
-      "kind": "data",
-      "protocol": "in-process (GatewayEvents.onMessage)",
-      "label": "payload -> turn"
-    },
-    {
-      "id": "e.gen.extension.webhook-provisioner--runtime.http",
-      "from": "extension.webhook-provisioner",
-      "to": "runtime.http",
-      "kind": "data",
-      "protocol": "loopback POST with internal HMAC hop",
-      "label": "forward verified webhook payloads"
-    },
-    {
-      "id": "e.gen.runtime.toolExec--service.youtube-dvr",
-      "from": "runtime.toolExec",
-      "to": "service.youtube-dvr",
-      "kind": "data",
-      "protocol": "in-process (ToolDefinition.execute)",
-      "label": "execute"
-    },
-    {
-      "id": "e.gen.service.youtube-dvr--youtube.data-api",
-      "from": "service.youtube-dvr",
-      "to": "youtube.data-api",
-      "kind": "data",
-      "protocol": "https (OAuth refresh token)",
-      "label": "create/append dated playlist"
     },
     {
       "id": "e.gen.mcp.client--mcp.h12o",

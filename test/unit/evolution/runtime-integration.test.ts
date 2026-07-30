@@ -11,7 +11,6 @@ import {
 } from "../../../src/learning/evolution/application/arguments";
 import {
   makeActiveEvolutionPromptDecorator,
-  makeActiveEvolutionSkillDecorator,
   makeActiveEvolutionToolDecorator,
   makeEvolutionRuntimeToolTargetResolver,
   makeFileEvolutionTargetCatalog,
@@ -221,8 +220,6 @@ describe("runtime evolution integration", () => {
     );
     expect(resolver("duckduckgo_search").map((item) => item.targetRef))
       .toEqual([
-        "core/code/duckduckgo-parser",
-        "core/code/duckduckgo-tool",
         "core/tool/description-catalog",
       ]);
   });
@@ -309,95 +306,6 @@ describe("runtime evolution integration", () => {
     expect(observed[0]).toStartWith("baseline persona");
     expect(observed[1]).toStartWith("baseline persona");
     expect(observed[2]).toStartWith("candidate persona");
-  });
-
-  it("publishes zero-authority skill revisions as session-pinned prompt sources", async () => {
-    const root = path.resolve(import.meta.dir, "../../..");
-    const active: {
-      current: { digest: string; content: string; } | undefined;
-    } = { current: undefined };
-    const skillSource = await makeActiveEvolutionSkillDecorator(root, {
-      contentForTarget: (targetRef) =>
-        targetRef === "core/skill/code-review"
-          ? active.current
-          : undefined,
-    });
-    const observed: string[] = [];
-    const agent = new RuntimeAgent(
-      {
-        complete: async (request) => {
-          observed.push(request.system);
-          return { text: "ok", toolCalls: [] };
-        },
-      },
-      () => `persona\n\n${skillSource()}`,
-      [],
-    );
-    await agent.turn("existing", "first");
-    active.current = {
-      digest: "sha256:skill-candidate",
-      content: "candidate code-review procedure",
-    };
-    await agent.turn("existing", "second");
-    await agent.turn("new", "first");
-    expect(observed[0]).toContain("# Code review");
-    expect(observed[0]).toContain("# Research");
-    expect(observed[0]).toContain("# Debugging");
-    expect(observed[1]).toContain("# Code review");
-    expect(observed[1]).not.toContain("candidate code-review procedure");
-    expect(observed[2]).toContain("candidate code-review procedure");
-  });
-
-  it("materializes a sealed C1 code checkout and canonical baseline", async () => {
-    const root = path.resolve(import.meta.dir, "../../..");
-    const result = await Effect.runPromise(
-      makeFileEvolutionTargetCatalog(root).resolve(
-        "core/code/duckduckgo-parser",
-      ),
-    );
-    expect(result.target.targetClass).toBe("code");
-    expect(result.target.baselineDigest).toBe(
-      hashBytes(result.baselineContent),
-    );
-    expect(result.codeSandbox?.networkEnabled).toBeFalse();
-    expect(result.codeSandbox?.repositoryCredentialsMounted).toBeFalse();
-    expect(result.codeSandbox?.targetFiles).toEqual([
-      "skills/search/duckduckgo/src/parser.ts",
-    ]);
-    expect(result.codeSandbox?.testCommands).toEqual([
-      ["bun", "test", "skills/search/duckduckgo/evals/parser.test.ts"],
-    ]);
-    expect(result.baselineContent).toContain(
-      "\"skills/search/duckduckgo/src/parser.ts\"",
-    );
-  });
-
-  it("materializes a contained C2 tool implementation target", async () => {
-    const root = path.resolve(import.meta.dir, "../../..");
-    const result = await Effect.runPromise(
-      makeFileEvolutionTargetCatalog(root).resolve(
-        "core/code/duckduckgo-tool",
-      ),
-    );
-    expect(result.target).toMatchObject({
-      targetClass: "code",
-      riskClass: "C2",
-      mutationPath: "skills/search/duckduckgo/src/index.ts",
-      allowedMutationPaths: ["skills/search/duckduckgo/src/index.ts"],
-    });
-    expect(result.codeSandbox).toMatchObject({
-      networkEnabled: false,
-      repositoryCredentialsMounted: false,
-      activeTreeWritable: false,
-      targetFiles: ["skills/search/duckduckgo/src/index.ts"],
-      testCommands: [[
-        "bun",
-        "test",
-        "skills/search/duckduckgo/evals/tool.test.ts",
-      ]],
-    });
-    expect(result.codeSandbox?.checkoutFiles.map((file) => file.path))
-      .toContain("src/runtime/skills/http.ts");
   });
 
   it("rejects newly introduced unsafe code before isolated execution", async () => {

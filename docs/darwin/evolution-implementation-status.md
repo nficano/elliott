@@ -1,7 +1,7 @@
 # Elliott self-evolution implementation status
 
 **Audit date:** 2026-07-24<br>
-**Architecture:** [Elliott TDD, Revision 6](../elliott-tdd.md)<br>
+**Architecture:** [Elliott TDD, Revision 7](../elliott-tdd.md)<br>
 **Adoption plan:** [Elliott Self-Evolution Adoption Plan](./elliott-self-evolution-adoption-plan.md)
 
 ## Result
@@ -14,7 +14,7 @@ runtime evidence collection, weak-signal triage, and operator-only release
 control.
 
 The implementation does not claim a production evolution result. The
-Elliott-native control plane and its three companion images now build and run
+Elliott-native control plane and its three Darwin images now build and run
 locally. Final production acceptance still requires registry publication,
 authorized model and benchmark routes, human review, and four real releases.
 Those are deployment activities, not results that CI can synthesize.
@@ -37,8 +37,8 @@ Those are deployment activities, not results that CI can synthesize.
 | Code adapter and sandbox | `targets/code.ts`, `engine/isolation.ts`, `application/code-sandbox.ts`, pre-shortlist `application/code-checker.ts` |
 | GEPA and MIPROv2 boundary | `skills/evaluator/dspy/` |
 | Darwinian boundary | `skills/evaluator/darwinian/` |
-| Independent evaluation and broad benchmark boundary | `skills/evaluator/agent-benchmarks/`, `companions/evaluators/agent-benchmarks/evaluation/` |
-| Reproducible companion images | `companions/`, `companions/images.lock.json` |
+| Independent evaluation and broad benchmark boundary | `skills/evaluator/agent-benchmarks/`, `darwin/evaluators/agent-benchmarks/evaluation/` |
+| Reproducible Darwin images | `darwin/`, `darwin/images.lock.json` |
 | Proposal and release transaction | `release/`, including post-release regression monitoring and operator-rollback notification |
 | Optional Git projection | `release/git-cli-projection.ts`, using an isolated temporary clone and effect-gating publication intent |
 | Production acceptance | Schema, decoder, fail-closed auditor, and operator command in `model/acceptance.ts`, `acceptance/`, and `scripts/audit-evolution-acceptance.ts` |
@@ -287,7 +287,7 @@ Observed repository-gate result:
 - Footprint check: passed.
 - Rust hot-core tests: 2 passed, 0 failed.
 
-The separately executed companion build and smoke gates also passed:
+The separately executed Darwin build and smoke gates also passed:
 
 - Companion TypeScript lint/type checks and Python adapter tests: passed.
 - Native Linux ARM64 OCI builds: 3 passed.
@@ -300,7 +300,7 @@ scheduler recovery, schema-bound engine smoke tests, cross-language wire
 fixtures, real process pause/resume/cancel, trusted code guards, and
 deterministic property/fuzz corpora.
 
-## Local companion image evidence
+## Local Darwin image evidence
 
 | Image | Observed OCI manifest digest |
 | :--- | :--- |

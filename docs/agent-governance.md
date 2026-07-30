@@ -45,7 +45,7 @@ a third party onto elliott's most security-critical seam.
   true default-deny capability enforcement on a specific high-risk tool later.
 - **Defense in depth, not replacement.** The existing per-skill guards (SSH
   host allow-list, SMTP recipient allow-list, terminal command allow-list) stay.
-  Governance is a centralized layer *above* them, not a substitute — a denied
+  Governance is a centralized layer _above_ them, not a substitute — a denied
   SSH host is still rejected inside the skill even if policy allowed the tool.
 - **Digests only.** Invocation records store `argumentsDigest` /
   `resultDigest`, never raw arguments or output, preserving the runtime's
@@ -63,7 +63,7 @@ a third party onto elliott's most security-critical seam.
 2. Appends a `tool.invocation` record (`effect-gating`, durable) carrying the
    agent, actor, `argumentsDigest`, and the decision.
 3. On deny, throws `GovernanceDeniedError` — which `RuntimeAgent.#execute`
-   already turns into an ordinary "[error]" tool message, so the model learns it
+   already turns into an ordinary `[error]` tool message, so the model learns it
    cannot take the action without the process crashing.
 4. On allow, runs the real tool, then appends a `tool.result` record
    (`observational`) with the `resultDigest`.
@@ -95,14 +95,14 @@ curl -X POST -H "authorization: Bearer $TOKEN" -H "content-type: application/jso
 The toolkit's threat model, used here as a conformance checklist. Each mapped
 control is asserted in `test/conformance/g26-agent-governance.test.ts`.
 
-| Threat theme | Control in elliott | Enforcement point |
-| --- | --- | --- |
-| Excessive agency / tool misuse | Deterministic policy deny + runtime disable + freeze | `ToolGovernor.#decide` |
-| Identity spoofing / attribution | `GovernancePrincipal` (agent + actor) bound to every record | `#invocationDraft` |
-| Repudiation / insufficient logging | Hash-chained, Merkle-cross-linked, durable audit trail | `AuditLog` + `FileCommitAdapter` |
-| Privilege escalation via control surface | Bearer-guarded, timing-safe kill-switch route | `makeGovernanceControlPlane` |
-| Sensitive information disclosure | Digest-only records; secret-egress guard on broker path | `#invocationDraft` / `OpaqueSecretStore` |
-| Unbounded consumption | (existing) model watchdog + round/output caps | `RuntimeAgent`, `ModelCallWatchdog` |
+| Threat theme                             | Control in elliott                                          | Enforcement point                        |
+| ---------------------------------------- | ----------------------------------------------------------- | ---------------------------------------- |
+| Excessive agency / tool misuse           | Deterministic policy deny + runtime disable + freeze        | `ToolGovernor.#decide`                   |
+| Identity spoofing / attribution          | `GovernancePrincipal` (agent + actor) bound to every record | `#invocationDraft`                       |
+| Repudiation / insufficient logging       | Hash-chained, Merkle-cross-linked, durable audit trail      | `AuditLog` + `FileCommitAdapter`         |
+| Privilege escalation via control surface | Bearer-guarded, timing-safe kill-switch route               | `makeGovernanceControlPlane`             |
+| Sensitive information disclosure         | Digest-only records; secret-egress guard on broker path     | `#invocationDraft` / `OpaqueSecretStore` |
+| Unbounded consumption                    | (existing) model watchdog + round/output caps               | `RuntimeAgent`, `ModelCallWatchdog`      |
 
 ## SSH: default-deny capability grants through the real broker
 
@@ -114,7 +114,7 @@ seeds a grant whose resources are exactly the configured host allowlist, then
 routes the tool's execution through `CapabilityBroker.execute`: the broker
 materializes a grant for `(ssh.exec, <host>)` and throws `Capability denied` for
 any host not covered. Wired in `ElliottRuntime.#installCapabilityGates`
-(applied *before* the governor, so a call produces a layered trail:
+(applied _before_ the governor, so a call produces a layered trail:
 `tool.invocation` → `broker.dispatch` → real SSH → `broker.result` →
 `tool.result`).
 
@@ -126,7 +126,7 @@ depth, no regression. Tests: `test/unit/capability-gate.test.ts`.
 
 ## Prompt-injection benchmark for self-evolution
 
-A self-modifying agent must never *evolve away* its own injection resistance, and
+A self-modifying agent must never _evolve away_ its own injection resistance, and
 the evolution engine must not be steered into promoting an artifact that is
 itself an injection payload. A native, deterministic benchmark
 (`src/learning/evolution/benchmarks/prompt-injection.ts` + `-corpus.ts`) scans an

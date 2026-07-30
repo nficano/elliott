@@ -1,1 +1,1 @@
-# Conformance gates G1–G25 (TDD §13). One test module per gate.
+# Conformance gates G1–G26 (TDD §7.15). G9/G10 share one module.
