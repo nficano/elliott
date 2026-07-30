@@ -120,7 +120,7 @@ tools:
     lan_address: 172.16.10.200
 
 skills:
-  telemetry_map:
+  deep_trace:
     # Publish the observability map on the LAN through the facility seam:
     # proxy.route (Traefik HTTPS route) chained into dns.local (Pi-hole A
     # record at the proxy). https://elliott.octet.stream/map redirects into

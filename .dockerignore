@@ -17,8 +17,8 @@ test
 *.log
 .env
 docs/blockers.md
-skills/telemetry-map/app/.nuxt
-skills/telemetry-map/app/.output
-skills/telemetry-map/app/storybook-static
-skills/telemetry-map/app/test-results
-skills/telemetry-map/app/playwright-report
+skills/deep-trace/app/.nuxt
+skills/deep-trace/app/.output
+skills/deep-trace/app/storybook-static
+skills/deep-trace/app/test-results
+skills/deep-trace/app/playwright-report

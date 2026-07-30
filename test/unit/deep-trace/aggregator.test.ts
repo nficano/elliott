@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "bun:test";
-import { Aggregator } from "../../../skills/telemetry-map/src/aggregator";
-import type { DbSnapshot } from "../../../skills/telemetry-map/src/types";
+import { Aggregator } from "../../../skills/deep-trace/src/aggregator";
+import type { DbSnapshot } from "../../../skills/deep-trace/src/types";
 import type { TelemetryEnvelope } from "../../../src/runtime/types";
 import { FakeTelemetryBus, mapMeta, resetSeq } from "./helpers";
 

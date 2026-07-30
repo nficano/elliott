@@ -9,6 +9,7 @@ const root = path.resolve(import.meta.dir, "../..");
 const IMPLEMENTED = [
   "browser",
   "cloudflared",
+  "deep-trace",
   "evaluator-agent-benchmarks",
   "evaluator-darwinian",
   "evaluator-dspy",
@@ -29,7 +30,6 @@ const IMPLEMENTED = [
   "search-duckduckgo",
   "ssh",
   "subscription-usage",
-  "telemetry-map",
   "terminal",
   "traefik",
   "web-firecrawl",
@@ -91,7 +91,7 @@ describe("Elliott bundled component packages", () => {
 
   it("carries each manifest's spec.topology block for map auto-registration", async () => {
     const packages = await loadBundledPackages(root);
-    const map = packages.find((item) => item.name === "telemetry-map");
+    const map = packages.find((item) => item.name === "deep-trace");
     expect(map?.topology).toMatchObject({
       node: expect.objectContaining({ id: "obs.map" }),
     });
@@ -102,15 +102,15 @@ describe("Elliott bundled component packages", () => {
   it("joins catalog and registrations into SkillContext package views", async () => {
     const packages = await loadBundledPackages(root);
     const views = collectPackageViews(packages, [{
-      name: "telemetry-map",
+      name: "deep-trace",
       registration: {
-        gateways: [{ name: "telemetry-map" }],
+        gateways: [{ name: "deep-trace" }],
         routes: [{ method: "GET", path: "/x" }],
-        services: [{ name: "telemetry-map" }],
+        services: [{ name: "deep-trace" }],
       } as never,
     }]);
     expect(views.length).toBe(packages.length);
-    const map = views.find((item) => item.name === "telemetry-map");
+    const map = views.find((item) => item.name === "deep-trace");
     expect(map).toMatchObject({
       kind: "extension",
       registered: true,

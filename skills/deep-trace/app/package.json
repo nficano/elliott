@@ -1,5 +1,5 @@
 {
-  "name": "telemetry-map-app",
+  "name": "deep-trace-app",
   "private": true,
   "version": "1.0.0",
   "description": "Nuxt rewrite of the Elliott telemetry map explorer UI.",

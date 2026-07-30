@@ -7,8 +7,8 @@
 > **extension** that rides the existing runtime container and is served over HTTP.
 
 **Status:** design complete, feasibility **confirmed**. Deliverables:
-`docs/telemetry-map-plan.md` (this file), `docs/telemetry-map-topology.json` (the
-machine‑readable connection graph), and `skills/telemetry-map/` (the extension).
+`docs/deep-trace-plan.md` (this file), `docs/telemetry-map-topology.json` (the
+machine‑readable connection graph), and `skills/deep-trace/` (the extension).
 
 ---
 
@@ -199,7 +199,7 @@ secret`), `label`, `animatable` (bool), `wire` (e.g. `http`, `sqlite`, `jsonrpc`
 ## 5. Extension architecture
 
 ```
-skills/telemetry-map/
+skills/deep-trace/
 ├── manifest.yaml        # kind: extension, profile: extension-standard, egress: none
 ├── EXTENSION.md          # model-visible doc (required by the bundled loader)
 └── src/
@@ -226,9 +226,9 @@ src/runtime/model/client.ts# +emit model.request (the prompt!) / model.response
   - `GET  /v1/observability/map/stream` → **SSE** live feed (telemetry bus + tail).
   - `GET  /v1/observability/map/turn?id=<runId>` → one turn's detail (prompt,
     router decision, rounds, tool calls) — prompt text only if the bus captured it.
-- **service** `telemetry-map`: starts the SQLite tail loop + subscribes to the
+- **service** `deep-trace`: starts the SQLite tail loop + subscribes to the
   telemetry bus; `health()` surfaces `{subscribers, events, dbRows, lastTurnAgeMs}`
-  into `/healthz` → `services["telemetry-map"]`.
+  into `/healthz` → `services["deep-trace"]`.
 
 Everything is self‑contained: no external CDN (Elliott's egress model + the map's
 `egress: none`), so the UI inlines its CSS/JS and draws the isometric scene on a
@@ -333,12 +333,12 @@ them), so the JSON doubles as a navigable index of the codebase wiring.
 ## 8. Build plan (phases)
 
 ### 8.1 Phase 0 — deliverables scaffolding ✅ (this doc + JSON)
-Write `docs/telemetry-map-plan.md` and `docs/telemetry-map-topology.json`.
+Write `docs/deep-trace-plan.md` and `docs/telemetry-map-topology.json`.
 
 ### 8.2 Phase 1 — the extension skeleton (Tier A, zero core edits)
-1. `skills/telemetry-map/manifest.yaml` (`kind: extension`, `profile:
+1. `skills/deep-trace/manifest.yaml` (`kind: extension`, `profile:
    extension-standard`, `document: EXTENSION.md`, `egress:{class:none}`,
-   `isolation: container`, `exports:[{ref:extension/telemetry-map,
+   `isolation: container`, `exports:[{ref:extension/deep-trace,
    implementation:src/index.ts}]`), mirroring `skills/cloudflared/manifest.yaml`.
 2. `EXTENSION.md` (required doc).
 3. `src/index.ts` `register()` → routes (UI, topology, state, stream) + service.
@@ -365,7 +365,7 @@ shared `Bun.serve` (`8080` → published `127.0.0.1:18082`). Concretely:
 - No Dockerfile/compose change is required (skills are copied into the image;
   `.dockerignore` does not exclude `skills/`).
 - Reachable at `http://127.0.0.1:18082/v1/observability/map` after a normal deploy.
-- Optional convenience: `deploy/compose.telemetry-map.override.yml` publishing a
+- Optional convenience: `deploy/compose.deep-trace.override.yml` publishing a
   friendly host port (e.g. `127.0.0.1:18090→8080` is the same server, so we instead
   just document the existing `18082`), and a one‑liner in the deploy Slack announce.
 
@@ -381,7 +381,7 @@ shared `Bun.serve` (`8080` → published `127.0.0.1:18082`). Concretely:
 3. **Live boot smoke** — boot the runtime with dummy env for the required Vault
    fields (`litellm_key`, `browser_token`, `postgres_dsn`, `glitchtip_dsn`,
    `slack_*` set to placeholders so `resolveTree` succeeds), then
-   `curl /healthz` (expect `services["telemetry-map"]`), `curl
+   `curl /healthz` (expect `services["deep-trace"]`), `curl
    /v1/observability/map/topology`, and load `/v1/observability/map` in a browser.
 4. **End‑to‑end animation** — inject a synthetic inbound turn through the bus and
    confirm the UI lights the gateway→runtime→router→provider→tool→db lanes and the

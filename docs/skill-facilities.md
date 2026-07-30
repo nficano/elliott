@@ -11,7 +11,7 @@ Status: phase 1 landed · 2026-07-29 (proposed 2026-07-28)
 > "is the seam webhook-shaped?" open question — `dns.local@1`
 > (`skills/pihole`) and `proxy.route@1` (`skills/traefik`). Consumers:
 > `gateway-slack` acquires a Slack interactivity endpoint;
-> `skills/telemetry-map` chains `proxy.route` → `dns.local` to publish the
+> `skills/deep-trace` chains `proxy.route` → `dns.local` to publish the
 > observability map at a LAN hostname. Two deltas from the text below:
 > `FacilityDirectory` also exposes consumer-scoped `release(grantId)`, and
 > the grant store keys on (consumer, facility, name) so one consumer can

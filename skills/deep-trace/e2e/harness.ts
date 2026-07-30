@@ -11,7 +11,7 @@ import { runtimeTelemetry } from "../../../src/runtime/telemetry";
 import type { RuntimeSettings } from "../../../src/runtime/types";
 import { register } from "../src/index";
 
-// A minimal loopback host for the telemetry-map extension: mounts its real
+// A minimal loopback host for the deep-trace extension: mounts its real
 // routes on Bun.serve with an echo agent behind /send. Used by the Playwright
 // parity suite (legacy UI at /legacy, Nuxt rewrite at the base path) and for
 // manual inspection. Never deployed.
@@ -26,7 +26,7 @@ const settings = {
 
 const registration: SkillRegistration = await register({
   settings,
-  stateDirectory: await mkdtemp(path.join(tmpdir(), "telemetry-map-e2e-")),
+  stateDirectory: await mkdtemp(path.join(tmpdir(), "deep-trace-e2e-")),
   facilities: standaloneFacilityDirectory(),
   packages: () => [],
   report: (error, mechanism) => {
@@ -117,4 +117,4 @@ const server = Bun.serve({
   },
 });
 
-console.log(`telemetry-map e2e harness listening on ${server.url.href}`);
+console.log(`deep-trace e2e harness listening on ${server.url.href}`);

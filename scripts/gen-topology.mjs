@@ -10,7 +10,7 @@
 //   bun scripts/gen-topology.mjs --check   # generate in-memory, diff vs docs/elliott-topology.json, exit 1 on structural drift
 //   bun scripts/gen-topology.mjs --write   # overwrite docs/elliott-topology.json
 //
-// Runtime counterpart: skills/telemetry-map/src/auto-topology.ts derives the
+// Runtime counterpart: skills/deep-trace/src/auto-topology.ts derives the
 // same node/uniform-edge shapes from loaded packages when serving /topology —
 // keep the dispatch->edge semantics here and there in step.
 import { readdir, readFile, writeFile } from "node:fs/promises";
@@ -255,7 +255,7 @@ const out = {
   generatedFrom:
     "scripts/gen-topology.mjs: docs/topology.spine.json + skills/**/manifest.yaml spec.topology + agents/elliott.yaml mcp[] + config/elliott.yaml gates",
   note:
-    "Auto-generated structural connection graph. Nodes/uniform-edges derive from each module's manifest; the runtime spine is hand-authored. `runtime` here is a static approximation (secret-gated => config-gated); the live telemetry-map extension resolves actual liveness.",
+    "Auto-generated structural connection graph. Nodes/uniform-edges derive from each module's manifest; the runtime spine is hand-authored. `runtime` here is a static approximation (secret-gated => config-gated); the live deep-trace extension resolves actual liveness.",
   nodeKinds: [...NODE_KINDS],
   edgeKinds: [...EDGE_KINDS],
   nodes: graph.nodes.map(({ ...n }) => n),
