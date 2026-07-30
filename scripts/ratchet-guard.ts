@@ -10,6 +10,8 @@
  * (fresh clone without origin/main, root commit).
  */
 
+import process from "node:process";
+
 const GATE_PATH = "scripts/coverage-gate.ts";
 const SHORT_REF_LENGTH = 12;
 const FLOORS = [
@@ -44,10 +46,10 @@ const floorsOf = (source: string): ReadonlyMap<string, number> => {
   return floors;
 };
 
-const pass = (note: string): never => {
+function pass(note: string): never {
   console.log(`✓ ratchet guard: ${note}`);
   process.exit(0);
-};
+}
 
 const baseRef = resolveBaseRef();
 if (baseRef === undefined) {

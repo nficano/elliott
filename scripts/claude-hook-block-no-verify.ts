@@ -11,6 +11,8 @@
  * Exit 2 blocks the tool call and shows stderr to the model; exit 0 allows.
  */
 
+import process from "node:process";
+
 const BLOCK_EXIT_CODE = 2;
 
 const SINGLE_QUOTED = /'[^']*'/g;

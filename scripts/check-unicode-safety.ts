@@ -11,6 +11,8 @@
  * ASCII — a literal occurrence would trip the scan itself.
  */
 
+import process from "node:process";
+
 const HEX_RADIX = 16;
 const HEX_PAD = 4;
 
