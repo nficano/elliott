@@ -179,7 +179,7 @@ implicitly.
 4 feeds registered facilities into the kernel's `ComponentRegistry` so
 `ComponentDiscovery.search/inspect` and `GET /v1/components` report them —
 one registration, two views. Until then the runtime directory is the sole
-authority, which matches how `docs/elliott-tdd.md` §3/§9 machinery is being
+authority, which matches how `docs/elliott-tdd.md` §7.5/§7.11 machinery is being
 adopted incrementally elsewhere.
 
 ## The `ingress.webhook` facility

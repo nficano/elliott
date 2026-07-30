@@ -1,4 +1,4 @@
-// Introspection surface (`dir()` / `help()` analog) — TDD §1, §3b.
+// Introspection surface (`dir()` / `help()` analog) — TDD §7.3, §7.5b.
 
 import type {
   ComponentInspection,

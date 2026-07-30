@@ -3,7 +3,7 @@
 This directory is the first-party component catalog shipped by Elliott.
 Packages may live directly under `skills/` or in a category directory. Every
 directory containing `manifest.yaml` is one complete Elliott component package
-following the standard layout (TDD §16b): the manifest declares its authority
+following the standard layout (TDD §7.18b): the manifest declares its authority
 and runtime posture, the kind-specific Markdown document describes its
 model-visible behavior, and `src/` carries the executable implementation where
 one exists.

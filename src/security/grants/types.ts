@@ -1,4 +1,4 @@
-// GrantSets, GrantHandles, and epoch-invalidated resolution — TDD §1, §1a.
+// GrantSets, GrantHandles, and epoch-invalidated resolution — TDD §7.3, §7.3a.
 // Capabilities compose by intersection; resource limits compose by
 // element-wise minimum. Budgets are not capabilities.
 
@@ -27,7 +27,7 @@ export interface GrantSet {
 }
 
 /** Cached per GrantHandle, tagged with the epoch vector of contributing
- *  scopes; a vector mismatch forces full seven-source re-resolution (§1a). */
+ *  scopes; a vector mismatch forces full seven-source re-resolution (§7.3a). */
 export interface ResolvedGrantEntry {
   readonly handle: GrantHandle;
   readonly grantSet: GrantSet;
@@ -35,7 +35,7 @@ export interface ResolvedGrantEntry {
   readonly revoked: boolean;
 }
 
-/** Per-capability explanation of which policy source removed it — §1
+/** Per-capability explanation of which policy source removed it — §7.3
  *  `grants.explain`; always computed fresh, never from the cache. */
 export interface GrantExplanation {
   readonly capability: string;

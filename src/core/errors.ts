@@ -1,4 +1,4 @@
-// Typed kernel errors — TDD §1, §2, §5d.
+// Typed kernel errors — TDD §7.3, §7.4, §7.7d.
 
 import type {
   ComponentKind,
@@ -28,7 +28,7 @@ export class LifecycleTransitionError extends Error {
   }
 }
 
-/** Raised on the next brokered call after a handle is revoked (§1a, G6). */
+/** Raised on the next brokered call after a handle is revoked (§7.3a, G6). */
 export class GrantRevokedError extends Error {
   constructor(public readonly handle: string) {
     super(`Grant handle revoked: ${handle}`);
@@ -36,7 +36,7 @@ export class GrantRevokedError extends Error {
   }
 }
 
-/** Empty candidate set fails closed, never relaxes a filter (§5d, G9). */
+/** Empty candidate set fails closed, never relaxes a filter (§7.7d, G9). */
 export class NoEligibleRouteError extends Error {
   constructor(
     public readonly emptiedBy: string,

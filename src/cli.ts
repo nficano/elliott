@@ -2,6 +2,7 @@
 
 import { pathToFileURL } from "node:url";
 import { scaffoldConsumerAgent } from "./agent/index";
+import { runSkillsCli } from "./install/cli";
 import {
   executeEvolutionCli,
   makeHttpEvolutionCliBackend,
@@ -27,6 +28,7 @@ const scaffold = async (arguments_: readonly string[]): Promise<boolean> => {
 
 const main = async (arguments_: readonly string[]): Promise<void> => {
   if (await scaffold(arguments_)) return;
+  if (await runSkillsCli(arguments_, process.cwd())) return;
   const endpoint = Bun.env["ELLIOTT_CONTROL_PLANE_URL"];
   if (endpoint === undefined) {
     throw new Error(

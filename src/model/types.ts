@@ -1,4 +1,4 @@
-// Provider-neutral model protocol and orthogonal routing — TDD §4, §5.
+// Provider-neutral model protocol and orthogonal routing — TDD §7.6, §7.7.
 
 import type { DataClassification, Digest } from "../core/types";
 
@@ -15,7 +15,7 @@ export type ModelCapability =
   | "prompt-caching"
   | "long-context";
 
-/** Reserved profiles order capability/cost only, never latency (§5a). Custom
+/** Reserved profiles order capability/cost only, never latency (§7.7a). Custom
  *  profiles are namespaced so a typo cannot mint a reserved-looking one. */
 export type ReservedProfile = "fast" | "balanced" | "deep";
 export type ModelProfileId = ReservedProfile | `custom:${string}`;
@@ -25,7 +25,7 @@ export interface ModelCatalogEntry {
   readonly capabilities: readonly ModelCapability[];
   readonly maxInputTokens: number;
   readonly maxOutputTokens: number;
-  /** Unknown cost is treated as +Infinity by the resolver (§5d), never zero. */
+  /** Unknown cost is treated as +Infinity by the resolver (§7.7d), never zero. */
   readonly costPerThousandInputTokensUsd?: number;
   readonly costPerThousandOutputTokensUsd?: number;
   /** Display/cross-check only. Enforcement uses the kernel ResidencyGrant. */
@@ -83,11 +83,11 @@ export interface ModelProviderProtocol {
   health(): Promise<HealthStatus>;
 }
 
-/** A task expresses intent across the three orthogonal axes (§5b). */
+/** A task expresses intent across the three orthogonal axes (§7.7b). */
 export interface ModelTask {
   readonly profile: ReservedProfile;
   /** Advisory floor only. The kernel dispatches at
-   *  max(declared, frame high-water mark); see §5d step 2. */
+   *  max(declared, frame high-water mark); see §7.7d step 2. */
   readonly declaredClassification: DataClassification;
   readonly operation: "chat" | "embedding" | "speech-to-text";
   readonly requires: readonly ModelCapability[];

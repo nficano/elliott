@@ -4,8 +4,10 @@ import path from "node:path";
 import {
   loadAgentSkillPackages,
   loadBundledPackages,
+  loadPackageAt,
 } from "../catalog/bundled";
 import type { BundledPackage } from "../catalog/types";
+import { runInstall } from "../install/index";
 import type { AgentKernel } from "../kernel";
 import type { EvolutionControlPlaneBinding } from "../learning/evolution/cli";
 import { SessionStore } from "../memory/session-store/index";
@@ -51,11 +53,26 @@ import { runtimeTelemetry, telemetryTurnObserver } from "./telemetry";
 import type {
   GovernancePrincipal,
   InboundMessage,
+  InstallHealth,
   RuntimeHealth,
   RuntimeRoots,
   RuntimeSettings,
   ToolDefinition,
 } from "./types";
+
+// The settings a skill's register() may see. Control-plane secrets — the
+// governance kill-switch bearer and the evolution control tokens — are stripped
+// so installed (arbitrary) code cannot read them at import time. See
+// docs/skills-registry.md §6/§13.
+const skillFacingSettings = (settings: RuntimeSettings): RuntimeSettings => {
+  // `rest` drops both control-plane blocks; governance is re-added with only its
+  // deny list (never the kill-switch token). evolutionRuntime stays dropped.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { governance, evolutionRuntime, ...rest } = settings;
+  return governance === undefined
+    ? rest
+    : { ...rest, governance: { deny: governance.deny } };
+};
 
 const resolveRoots = (roots: string | RuntimeRoots): RuntimeRoots =>
   typeof roots === "string"
@@ -83,6 +100,8 @@ export class ElliottRuntime {
   #evolutionEvidence: RuntimeEvolutionEvidence | undefined;
   #packages: readonly BundledPackage[] = [];
   #packageViews: readonly SkillPackageView[] = [];
+  #installHealth: readonly InstallHealth[] | undefined;
+  #installReady = true;
   #gateways: readonly GatewayBinding[] = [];
   #routes: readonly RouteBinding[] = [];
   #services: readonly ServiceBinding[] = [];
@@ -129,10 +148,13 @@ export class ElliottRuntime {
       settings.release,
     );
     await this.#kernel.start();
+    const installed = await this.#installSkills(settings);
     this.#packages = [
       ...await loadBundledPackages(this.#frameworkRoot),
+      ...installed,
       // The agent's own custom skills load through the same package seam;
-      // duplicate tool names across the two roots fail fast in collectTools.
+      // duplicate tool names across the roots fail fast in collectTools, and a
+      // name shared by a bundled and an installed skill is caught there too.
       ...await loadAgentSkillPackages(this.#agentRoot, this.#agentName),
     ];
     const skills = await loadSkillRegistrations(
@@ -227,7 +249,9 @@ export class ElliottRuntime {
   health(): RuntimeHealth {
     const settings = this.#settings;
     return {
-      ready: this.#ready,
+      // A boot that dropped a required (gateway) install is not healthy, even
+      // if the HTTP server is up — the deploy gate keys on this.
+      ready: this.#ready && this.#installReady,
       release: settings?.release ?? "starting",
       skills: this.#packages.length,
       tools: this.#toolCount,
@@ -240,6 +264,8 @@ export class ElliottRuntime {
           service.health?.() ?? {},
         ]),
       ),
+      ...(this.#installHealth !== undefined
+        && { install: this.#installHealth }),
     };
   }
 
@@ -300,9 +326,51 @@ export class ElliottRuntime {
     };
   }
 
+  // Resolve + materialize installable skills, load each cached directory as a
+  // package, and record the /healthz install section. A required skill that
+  // fails to install flips readiness; environmental failures degrade to cache.
+  async #installSkills(
+    settings: RuntimeSettings,
+  ): Promise<readonly BundledPackage[]> {
+    const install = settings.install;
+    if (install === undefined || install.skills.length === 0) return [];
+    const result = await runInstall({
+      agentRoot: this.#agentRoot,
+      settings: install,
+      // Production leaves refresh false and boots frozen off the baked cache;
+      // dev opts into boot-time latest re-resolution with refresh: true.
+      mode: install.refresh ? "refresh" : "frozen",
+      ...(Bun.env["GITHUB_TOKEN"] !== undefined
+        && { token: Bun.env["GITHUB_TOKEN"] }),
+    });
+    this.#installHealth = result.outcomes.map((outcome) => ({
+      skill: outcome.skill,
+      requested: outcome.requested,
+      state: outcome.state,
+      required: outcome.required,
+      ...(outcome.resolved !== undefined && { resolved: outcome.resolved }),
+      ...(outcome.error !== undefined && { error: outcome.error }),
+    }));
+    this.#installReady = result.outcomes.every(
+      (outcome) => !(outcome.required && outcome.state === "failed"),
+    );
+    for (const outcome of result.outcomes) {
+      if (outcome.state === "failed") {
+        this.#capture(
+          new Error(`install ${outcome.skill}: ${outcome.error ?? "failed"}`),
+          "install",
+        );
+      }
+    }
+    const packages = await Promise.all(
+      result.directories.map((directory) => loadPackageAt(directory)),
+    );
+    return packages;
+  }
+
   #skillContext(settings: RuntimeSettings): SkillContextSeed {
     return {
-      settings,
+      settings: skillFacingSettings(settings),
       stateDirectory: path.join(this.#agentRoot, ".elliott-runtime"),
       // Lazy on purpose: the views are collected right after registration, so
       // register()-time callers see an empty list while routes and services
@@ -339,10 +407,18 @@ export class ElliottRuntime {
     }
   }
 
+  // Soft delivery: with no primary gateway (e.g. every gateway now lives in the
+  // registry and none is installed), record one report and return rather than
+  // throwing — callers like the scheduler fire on a loop and a throw here would
+  // re-report forever. See docs/skills-registry.md §2.
   async #deliver(text: string): Promise<void> {
     const primary = this.#primaryGateway();
     if (primary?.send === undefined) {
-      throw new Error("No gateway is available for delivery");
+      this.#capture(
+        new Error("delivery unavailable: no gateway installed"),
+        "deliver",
+      );
+      return;
     }
     await primary.send(primary.defaultChannel ?? "", text);
   }

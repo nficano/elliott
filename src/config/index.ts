@@ -1,4 +1,4 @@
-// Configuration: postures (§0e) and transactional activation (§11b).
+// Configuration: postures (§7.2e) and transactional activation (§7.13b).
 
 export { ConfigurationActivationManager } from "./activation/index";
 export type * from "./activation/types";

@@ -1,7 +1,7 @@
 # Elliott self-evolution implementation status
 
 **Audit date:** 2026-07-24<br>
-**Architecture:** [Elliott TDD, Revision 6](../elliott-tdd.md)<br>
+**Architecture:** [Elliott TDD, Revision 7](../elliott-tdd.md)<br>
 **Adoption plan:** [Elliott Self-Evolution Adoption Plan](./elliott-self-evolution-adoption-plan.md)
 
 ## Result

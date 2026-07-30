@@ -3,6 +3,7 @@ import * as Effect from "effect/Effect";
 import { access, readFile } from "node:fs/promises";
 import path from "node:path";
 import { parse } from "yaml";
+import { parseInstallSettings } from "../install/index";
 import { decodeEvolutionConfig } from "../learning/evolution/config";
 import { isJsonRecord } from "../providers/http";
 import {
@@ -37,6 +38,7 @@ import {
 } from "./settings-tools";
 import type {
   GovernanceSettings,
+  InstallSettings,
   RuntimeEvolutionSettings,
   RuntimeSettings,
   SecretResolver,
@@ -87,7 +89,18 @@ export const loadRuntimeSettings = async (
     ...(evolution !== undefined && { evolution }),
     ...runtimeEvolutionSettings(),
     ...governanceSettings(resolved),
+    ...installSettings(resolved),
   };
+};
+
+// Parse the `install:` block (installable skills) off the resolved config.
+// Absent block → no install settings; grammar/duplicate errors are fatal.
+const installSettings = (
+  resolved: unknown,
+): { readonly install?: InstallSettings; } => {
+  const block = isJsonRecord(resolved) ? resolved["install"] : undefined;
+  const parsed = parseInstallSettings(block);
+  return parsed === undefined ? {} : { install: parsed };
 };
 
 // Governance is always present so audit + identity run for every agent. The

@@ -181,11 +181,11 @@ Elliott is implemented across three cumulative phases (nothing in a later phase 
 - **Phase 2 — data plane breadth (complete):** memory providers, gateway and MCP pipelines, companions, sanitizer pipeline, `hardened`/`regulated` postures, scheduler, and bundled catalog.
 - **Phase 3 — control plane (complete):** Proposal-based learning with separated authorities, transactional configuration activation, curator/learn loops, and compaction gates.
 
-Conformance gates **G1–G25** each map to a design-document section and live under [`test/conformance`](test/conformance).
+Conformance gates **G1–G26** each map to a design-document section and live under [`test/conformance`](test/conformance).
 
 ## Documentation
 
-The authoritative design is the [Technical Design Document](docs) (Revision 6) — threat model, the component ontology, orthogonal routing, context-aware IFC, and the full conformance gate list.
+The authoritative design is the [Technical Design Document](docs/elliott-tdd.md) (Revision 7) — threat model, the component ontology, orthogonal routing, context-aware IFC, and the full conformance gate list.
 
 ## Built with
 
