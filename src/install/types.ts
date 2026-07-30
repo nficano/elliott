@@ -1,5 +1,5 @@
 // Installable skills: types for the nficano/skills registry.
-// See docs/skills-registry.md. Installation is a build/CLI-time step producing
+// See docs/explanation/skills-registry.md. Installation is a build/CLI-time step producing
 // a committed, authoritative lockfile; boot-time refresh runs only where state
 // is writable. The lock (exact version + content digest) is the pin.
 

@@ -26,7 +26,7 @@ export interface BundledExport {
 // A facility this package's registration provides (manifest spec.provides).
 // Packages that provide facilities register before everything else so
 // consumers can acquire grants during their own register(). See
-// docs/skill-facilities.md.
+// docs/explanation/skill-facilities.md.
 export interface FacilityRef {
   readonly facility: string;
   readonly version: number;

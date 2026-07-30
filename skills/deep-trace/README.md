@@ -92,7 +92,8 @@ Toggle via `deploy/compose.deep-trace.override.yml`.
 
 ## Design
 
-See [`docs/deep-trace-plan.md`](../../docs/deep-trace-plan.md) for the full
+See [`docs/explanation/deep-trace-plan.md`](../../docs/explanation/deep-trace-plan.md) for the full
 feasibility study and architecture, and
-[`docs/telemetry-map-topology.json`](../../docs/telemetry-map-topology.json) for the
-machine-readable node/edge graph (served verbatim at `/topology`).
+[`docs/elliott-topology.enriched.json`](../../docs/elliott-topology.enriched.json) for the
+machine-readable node/edge graph (served, with live packages merged in, at
+`/topology`).

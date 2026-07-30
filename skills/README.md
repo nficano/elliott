@@ -29,7 +29,7 @@ manifest identities or component references:
 - `evaluator/{agent-benchmarks,darwinian,dspy}`
 
 The framework ships built-ins only. Everything else is installed from the
-`nficano/skills` registry (see [`docs/skills-registry.md`](../docs/skills-registry.md)).
+`nficano/skills` registry (see [`docs/explanation/skills-registry.md`](../docs/explanation/skills-registry.md)).
 The built-in set is:
 
 - Retrieval: `fetch`
@@ -42,5 +42,5 @@ The built-in set is:
 Executable entries ship a registration module. Several executable entries stay
 dormant until the operator provisions a secret or flips an enable flag (e.g.
 `terminal` and `ssh` require an explicit allowlist). See
-[`docs/blockers.md`](../docs/blockers.md) for the current activation state of
+[`docs/reference/blockers.md`](../docs/reference/blockers.md) for the current activation state of
 each.

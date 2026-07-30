@@ -46,8 +46,7 @@ jobs:
       - run: cargo fmt --manifest-path native/hot-core/Cargo.toml --all -- --check
       - run: cargo clippy --manifest-path native/hot-core/Cargo.toml --workspace --all-targets -- -D warnings
 
-  # Deploy retired (phase 2): elliott is now a framework consumed as a package.
-  # The deployable is the tide-pods pod repo (github.com/nficano/tide-pods),
-  # which boots elliott's runtime with its own agentRoot and owns the spruce
-  # deploy job + the self-hosted `spruce-deploy` runner. elliott CI now only
-  # tests. See docs/agent-skills.md.
+  # Deploy retired: elliott is a framework consumed as a package. The
+  # deployable is a consumer agent (pod) repo, which boots elliott's runtime
+  # with its own agentRoot and owns its deploy job. elliott CI only tests.
+  # See docs/explanation/agent-skills.md.

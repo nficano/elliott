@@ -23,7 +23,7 @@ export const loadBundledPackages = (
 // Agent-level custom skills: same package format and loader as the bundled
 // framework skills, but scoped to one agent under agents/<name>/skills/.
 // An agent without a skills directory simply has none. See
-// docs/agent-skills.md.
+// docs/explanation/agent-skills.md.
 export const loadAgentSkillPackages = async (
   root: string,
   agent: string,

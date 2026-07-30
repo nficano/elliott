@@ -9,7 +9,7 @@
   <img alt="Effect" src="https://img.shields.io/badge/Effect-4.0_beta-6E56CF?logo=effect&logoColor=white">
   <img alt="Bun" src="https://img.shields.io/badge/Bun-test_runner-F9F1E1?logo=bun&logoColor=black">
   <img alt="Status" src="https://img.shields.io/badge/status-Phases_1--3_complete-brightgreen">
-  <img alt="License" src="https://img.shields.io/badge/license-UNLICENSED-lightgrey">
+  <img alt="License" src="https://img.shields.io/badge/license-MIT-green">
 </p>
 
 <em>Skills, tools, gateways, MCP endpoints, memory, model providers, evaluators — every one of them is a Component.<br>
@@ -158,20 +158,26 @@ bun run lint       # eslint (with custom Effect + IFC rules)
 bun run format     # dprint fmt
 ```
 
+Full walkthroughs: [installation](docs/getting-started/installation.md) ·
+[quickstart](docs/getting-started/quickstart.md) ·
+[build your first skill](docs/tutorials/your-first-skill.md)
+
 ## Bundled skills and gateways
 
-Elliott's first-party components live in [`skills/`](skills). The directory
-contains the complete packages for web search and browsing, MCP, Slack,
-Home Assistant, Gmail/email, BlueBubbles, webhooks, local files and execution,
-SSH, fetch, cloudflared, and scheduling. Each package includes a
-`manifest.yaml` authority manifest and its standard kind document.
+Elliott's framework-shipped components live in [`skills/`](skills):
+deep-trace (observability map), evaluator, fetch, files, mcp-client,
+scheduler, ssh, and terminal. Each package is a `manifest.yaml` authority
+manifest, a standard kind document, and an exported `register()`
+([build one](docs/tutorials/your-first-skill.md)).
 
-The production entry point is Elliott-native: it discovers those packages,
-connects configured MCP endpoints, exposes their tools to the model, and runs
-the Slack Socket Mode gateway. The Slack package includes an importable
-[`agent_view` manifest](skills/gateway/slack/slack-app-manifest.yaml) with
-native streaming, task progress, contextual search, onboarding, feedback, and
-thread controls. No second agent framework is vendored or loaded.
+Additional skills install from the public `nficano/skills` registry at
+build/CLI time with a digest lock
+([how](docs/guides/install-registry-skills.md)), and agent-specific skills
+live in your agent repository
+([why](docs/explanation/agent-skills.md)). The production entry point is
+Elliott-native: it discovers packages, connects configured MCP endpoints,
+exposes their tools to the model, and runs the registered gateways. No
+second agent framework is vendored or loaded.
 
 ## Project status
 
@@ -185,7 +191,14 @@ Conformance gates **G1–G26** each map to a design-document section and live un
 
 ## Documentation
 
-The authoritative design is the [Technical Design Document](docs/elliott-tdd.md) (Revision 7) — threat model, the component ontology, orthogonal routing, context-aware IFC, and the full conformance gate list.
+Docs are organized by what you are trying to do ([Diátaxis](https://diataxis.fr)) — start at the [documentation landing page](docs/index.md):
+
+- **[Getting started](docs/getting-started/installation.md)** — install it and see it run
+- **[Tutorials](docs/tutorials/your-first-skill.md)** — learn by building (your first skill)
+- **[How-to guides](docs/index.md#how-to-guides)** — task recipes: agent repos, registry skills, allowlists, facilities
+- **[Reference](docs/index.md#reference)** — CLI, configuration, the `register()` seam, `manifest.yaml`
+- **[Explanation](docs/explanation/architecture.md)** — architecture, [design decisions](docs/explanation/design-decisions.md), and the authoritative [Technical Design Document](docs/explanation/elliott-tdd.md) (Revision 7): threat model, component ontology, orthogonal routing, context-aware IFC, and the full conformance gate list
+- **[Contributing](CONTRIBUTING.md)** — development setup, testing, quality gates
 
 ## Built with
 

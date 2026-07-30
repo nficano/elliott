@@ -1,4 +1,4 @@
-// Public surface of the installable-skills subsystem. See docs/skills-registry.md.
+// Public surface of the installable-skills subsystem. See docs/explanation/skills-registry.md.
 
 import { readFile } from "node:fs/promises";
 import path from "node:path";

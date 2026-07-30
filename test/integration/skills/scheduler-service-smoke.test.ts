@@ -5,7 +5,7 @@ import { loadOneSkill, makeSmokeContext, toolByName } from "./fixtures";
 // The reminder store is real (backed by the fixture's mkdtemp stateDirectory),
 // so the set/list/cancel round-trip and the validation error paths run for
 // real; the service is checked for a clean start/stop lifecycle. See
-// docs/skill-e2e-smoke-strategy.md.
+// docs/contributing/skill-e2e-smoke-strategy.md.
 
 describe("scheduler tool logic (Tier 1)", () => {
   it("sets, lists, and cancels a reminder against the real store", async () => {

@@ -10,7 +10,7 @@ import {
 // cassette (see fixtures.stubFetch) so these are deterministic and offline,
 // while still driving the real request() helper (SSRF guard + ok-check) and the
 // tool's own request-building and response-parsing. See
-// docs/skill-e2e-smoke-strategy.md.
+// docs/contributing/skill-e2e-smoke-strategy.md.
 
 afterEach(() => {
   mock.restore();

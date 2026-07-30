@@ -16,7 +16,7 @@ import { makeSmokeContext, repoRoot } from "./fixtures";
 // counts below are a deliberate snapshot: adding or removing a tool/gateway/
 // route/service is expected to update this test, which surfaces the change in
 // review rather than letting it drift silently. See
-// docs/skill-e2e-smoke-strategy.md.
+// docs/contributing/skill-e2e-smoke-strategy.md.
 
 // Framework built-ins only (fetch, evaluator/*, files, mcp-client, scheduler,
 // ssh, terminal, deep-trace). Everything else installs from the nficano/skills

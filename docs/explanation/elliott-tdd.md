@@ -13,7 +13,7 @@
 | Created | 2026-07-22 |
 | Last updated | 2026-07-29 |
 | Target implementation start | Started 2026-07-22; Phases 1–3 are implemented |
-| Related docs | [README](../README.md), [Agent governance](agent-governance.md), [Skill facilities](skill-facilities.md), [Skill smoke strategy](skill-e2e-smoke-strategy.md), [Evolution production acceptance](darwin/evolution-production-acceptance.md), [Evolution completion audit](darwin/evolution-completion-audit.md) |
+| Related docs | [README](../../README.md), [Agent governance](agent-governance.md), [Skill facilities](skill-facilities.md), [Skill smoke strategy](../contributing/skill-e2e-smoke-strategy.md), [Evolution production acceptance](darwin/evolution-production-acceptance.md), [Evolution completion audit](darwin/evolution-completion-audit.md) |
 | Slack channel / issue tracker epic | N/A because no project channel or epic is recorded in this repository |
 
 ### Revision history
@@ -2396,10 +2396,10 @@ Providers, gateways, databases, and companions remain replaceable Components. A 
 
 ### E. References and prior art
 
-- Repository [README](../README.md)
+- Repository [README](../../README.md)
 - [Agent governance](agent-governance.md)
 - [Skill facilities](skill-facilities.md)
-- [Skill E2E smoke strategy](skill-e2e-smoke-strategy.md)
+- [Skill E2E smoke strategy](../contributing/skill-e2e-smoke-strategy.md)
 - [Evolution implementation status](darwin/evolution-implementation-status.md)
 - [Evolution production acceptance](darwin/evolution-production-acceptance.md)
 - [Evolution completion audit](darwin/evolution-completion-audit.md)
