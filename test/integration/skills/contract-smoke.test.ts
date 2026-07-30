@@ -18,15 +18,17 @@ import { makeSmokeContext, repoRoot } from "./fixtures";
 // review rather than letting it drift silently. See
 // docs/skill-e2e-smoke-strategy.md.
 
+// Framework built-ins only (fetch, evaluator/*, files, mcp-client, scheduler,
+// ssh, terminal, deep-trace). Everything else installs from the nficano/skills
+// registry, so no gateways/facilities ship in the framework anymore. The single
+// gateway and all routes come from deep-trace (the observability map + its /map
+// alias); the two services are scheduler and deep-trace's SQLite tail.
 const EXPECTED = {
-  tools: 41,
-  gateways: 4,
-  // 38 static routes + the facility-driven three: the /map alias, the
-  // provisioner's /w/<slug> verification route for slack-interactivity, and
-  // gateway-slack's /v1/ingress/<slug> consumer route.
-  routes: 41,
-  services: 6,
-  facilities: 3,
+  tools: 9,
+  gateways: 1,
+  routes: 35,
+  services: 2,
+  facilities: 0,
 } as const;
 
 describe("skill contract smoke (Tier 0)", () => {

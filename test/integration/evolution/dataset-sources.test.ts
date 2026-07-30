@@ -44,6 +44,47 @@ const goldenCases = () =>
       allowedEffects: [],
     }));
 
+// Curated code-defect reproductions, written to a temp fixture so the
+// target-specific YAML source path stays covered without depending on any
+// skill that now lives in the nficano/skills registry.
+const CODE_REPRODUCTIONS = `- id: code-redirect-destination
+  groupId: defect-redirect-destination
+  input:
+    reproduction: Parse a redirect URL containing an encoded public destination.
+  expected:
+    behavior: Return the decoded HTTP or HTTPS destination and sanitized text.
+  rubric: Preserve redirect decoding without accepting non-public protocols.
+  classification: internal
+  sourceDigests: [sha256:code-reproduction-v1]
+  timeoutMilliseconds: 120000
+  maximumCostUsd: 0
+  allowedEffects: [process.execute:test-allowlist]
+- id: code-active-markup
+  groupId: defect-active-markup
+  input:
+    reproduction: Parse a result whose text contains script, style, and nested tags.
+  expected:
+    behavior: Remove active markup and return normalized visible text only.
+  rubric: Preserve visible text while preventing active HTML in tool output.
+  classification: internal
+  sourceDigests: [sha256:code-reproduction-v1]
+  timeoutMilliseconds: 120000
+  maximumCostUsd: 0
+  allowedEffects: [process.execute:test-allowlist]
+- id: code-malformed-result
+  groupId: defect-malformed-result
+  input:
+    reproduction: Parse missing, truncated, or non-HTTP links among valid results.
+  expected:
+    behavior: Ignore malformed entries without returning unsafe destinations.
+  rubric: Fail safely and preserve valid deterministic results where possible.
+  classification: internal
+  sourceDigests: [sha256:code-reproduction-v1]
+  timeoutMilliseconds: 120000
+  maximumCostUsd: 0
+  allowedEffects: [process.execute:test-allowlist]
+`;
+
 describe("runtime evolution dataset sources", () => {
   it("seals deterministic synthetic, golden, target-specific, and benchmark sources", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "elliott-datasets-"));
@@ -190,11 +231,13 @@ describe("runtime evolution dataset sources", () => {
   });
 
   it("combines curated reproductions with generated code edge cases", async () => {
-    const root = path.resolve(import.meta.dir, "../../..");
+    const root = await mkdtemp(path.join(tmpdir(), "elliott-code-source-"));
+    roots.push(root);
+    await writeFile(path.join(root, "evolution.yaml"), CODE_REPRODUCTIONS);
     const codeTarget = EvolutionTarget.make({
       ...target(),
       targetClass: "code",
-      componentRef: "core/code/duckduckgo-parser",
+      componentRef: "workspace/code/parser",
     });
     const factory = makeFileEvolutionDatasetFactory(
       root,
@@ -202,7 +245,7 @@ describe("runtime evolution dataset sources", () => {
       {
         defaultSources: {
           [codeTarget.componentRef]: [
-            "target-specific:skills/search/duckduckgo/evals/evolution.yaml",
+            "target-specific:evolution.yaml",
             "synthetic:3",
           ],
         },

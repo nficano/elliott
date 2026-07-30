@@ -3,7 +3,7 @@
   "build": {
     "observedAt": "2026-07-29T22:16:46Z",
     "platform": "linux/arm64",
-    "optimizerRuntimeSourceDigest": "sha256:3f761df5f550bbdbe6a796151286a5f149f8398e7dd9fdab97fae4fd07d7c42d",
+    "optimizerRuntimeSourceDigest": "sha256:ffc45c83c653a9b20d56af6d6b583d4d022bc90e07999a085d267718ad5a05af",
     "distribution": "local-oci",
     "publishedRegistry": null
   },
@@ -37,7 +37,7 @@
     "evaluator-agent-benchmarks": {
       "localReference": "elliott/evaluator-agent-benchmarks@sha256:83b8680e5b70759140a9baa26aad11cd5242253695cd3ccb6b5904ad937e4a6c",
       "ociManifestDigest": "sha256:83b8680e5b70759140a9baa26aad11cd5242253695cd3ccb6b5904ad937e4a6c",
-      "sourceDigest": "sha256:dbb789c3111d30b050b7ee44c2e2c4194057baa78cc6cc1ebaf6b81d84128fe3",
+      "sourceDigest": "sha256:ca28f4ed30c51e9fafdcf3d27ad4065445d6445ce0e40eff8ca5d946c514cc65",
       "artifact": ".artifacts/darwin/evaluator-agent-benchmarks.oci.tar",
       "dependencyLock": "darwin/evaluators/agent-benchmarks/benchmark/drivers.json",
       "fixtureSmokePassed": true

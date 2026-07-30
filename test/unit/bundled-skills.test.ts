@@ -7,35 +7,16 @@ import { collectPackageViews } from "../../src/runtime/skills/loader";
 const root = path.resolve(import.meta.dir, "../..");
 
 const IMPLEMENTED = [
-  "browser",
-  "cloudflared",
   "deep-trace",
   "evaluator-agent-benchmarks",
   "evaluator-darwinian",
   "evaluator-dspy",
   "fetch",
   "files",
-  "gateway-bluebubbles",
-  "gateway-email",
-  "gateway-gmail",
-  "gateway-home-assistant",
-  "gateway-slack",
-  "gateway-webhook",
   "mcp-client",
-  "news-brief",
-  "pakman-latest-episode",
-  "pihole",
   "scheduler",
-  "search-brave",
-  "search-duckduckgo",
   "ssh",
-  "subscription-usage",
   "terminal",
-  "traefik",
-  "web-firecrawl",
-  "web-parallel",
-  "webhook-provisioner",
-  "youtube-dvr",
 ];
 
 describe("Elliott bundled component packages", () => {
@@ -48,15 +29,8 @@ describe("Elliott bundled component packages", () => {
       .map((item) => item.name)
       .sort((left, right) => left.localeCompare(right));
     expect(packageNames).toEqual(catalogNames);
-    expect(packageNames).toContain("gateway-slack");
-    expect(packageNames).toContain("gateway-home-assistant");
     expect(packageNames).toContain("mcp-client");
-    expect(
-      path.relative(
-        path.join(root, "skills"),
-        packages.find((item) => item.name === "gateway-slack")?.directory ?? "",
-      ),
-    ).toBe(path.join("gateway", "slack"));
+    expect(packageNames).toContain("deep-trace");
     expect(
       path.relative(
         path.join(root, "skills"),
@@ -96,7 +70,7 @@ describe("Elliott bundled component packages", () => {
       node: expect.objectContaining({ id: "obs.map" }),
     });
     const withTopology = packages.filter((item) => item.topology !== undefined);
-    expect(withTopology.length).toBeGreaterThan(20);
+    expect(withTopology.length).toBe(packages.length);
   });
 
   it("joins catalog and registrations into SkillContext package views", async () => {
@@ -125,10 +99,9 @@ describe("Elliott bundled component packages", () => {
     expect(map?.topology).toMatchObject({
       node: expect.objectContaining({ id: "obs.map" }),
     });
-    const traefik = views.find((item) => item.name === "traefik");
-    expect(traefik?.provides).toContain("proxy.route");
-    expect(traefik?.registered).toBe(false);
-    expect(traefik?.bindings.tools).toBe(0);
+    const fetchView = views.find((item) => item.name === "fetch");
+    expect(fetchView?.registered).toBe(false);
+    expect(fetchView?.bindings.tools).toBe(0);
   });
 
   it("runs without a vendored secondary agent framework", async () => {

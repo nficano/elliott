@@ -27,22 +27,20 @@ Category directories remove repeated package-name prefixes without changing
 manifest identities or component references:
 
 - `evaluator/{agent-benchmarks,darwinian,dspy}`
-- `gateway/{bluebubbles,email,gmail,home-assistant,slack,webhook}`
-- `search/{brave,duckduckgo}`
-- `web/{firecrawl,parallel}`
 
-Standalone bundled components remain directly under `skills/`:
+The framework ships built-ins only. Everything else is installed from the
+`nficano/skills` registry (see [`docs/skills-registry.md`](../docs/skills-registry.md)).
+The built-in set is:
 
-- Agent instruction sources: `code-review`, `research`, `debugging`
-- Browser and retrieval: `browser`, `fetch`
-- Connectivity: `mcp-client`, `cloudflared`
+- Retrieval: `fetch`
+- Connectivity: `mcp-client`
 - Local execution: `files`, `terminal`, `ssh`
 - Automation: `scheduler`
+- Evolution: `evaluator/{dspy,darwinian,agent-benchmarks}`
+- Observability: `deep-trace`
 
-Executable entries ship a registration module. Zero-authority prompt sources
-need no executable module. Several executable entries stay dormant until the
-operator provisions a secret or flips an enable flag (e.g. `terminal` and
-`ssh` require an explicit allowlist; `gateway-email` requires SMTP
-credentials and a recipient allowlist). See
+Executable entries ship a registration module. Several executable entries stay
+dormant until the operator provisions a secret or flips an enable flag (e.g.
+`terminal` and `ssh` require an explicit allowlist). See
 [`docs/blockers.md`](../docs/blockers.md) for the current activation state of
 each.

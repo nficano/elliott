@@ -13,6 +13,7 @@ import {
   optionalGoogle,
   optionalNumberAt,
   optionalSlack,
+  optionalStringAt,
   optionalStringProperty,
   optionalValue,
   stringArrayAt,
@@ -224,9 +225,13 @@ const coreSettings = (
     llmBaseUrl: stringAt(resolved, ["llm", "base_url"]),
     llmApiKey: stringAt(resolved, ["llm", "api_key"]),
     stateDirectory: path.join(root, ".elliott-runtime"),
+    // The browser skill moved to the nficano/skills registry; its config block
+    // is optional now. The field stays on RuntimeSettings (transitional, like
+    // the other moved-skill settings loaders) and tolerates an absent block so
+    // a built-ins-only elliott still boots.
     browser: {
-      baseUrl: stringAt(resolved, ["browser", "daemon_url"]),
-      token: stringAt(resolved, ["browser", "token"]),
+      baseUrl: optionalStringAt(resolved, ["browser", "daemon_url"]) ?? "",
+      token: optionalStringAt(resolved, ["browser", "token"]) ?? "",
       allowedDomains: stringArrayAt(resolved, ["browser", "allowed_domains"]),
     },
     mcp: [],
