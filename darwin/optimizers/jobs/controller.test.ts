@@ -37,7 +37,9 @@ describe("TypeScript darwin job controller", () => {
     const token = result["resumeToken"];
     expect(typeof token).toBe("string");
 
-    for (let attempt = 0; attempt < 20 && result["paused"]; attempt += 1) {
+    // Generous slice budget: CI runners need bun cold-start plus the
+    // worker's 200ms of work delivered in 30ms wall-clock slices.
+    for (let attempt = 0; attempt < 200 && result["paused"]; attempt += 1) {
       result = record(await jobs.resume(String(token)));
     }
     expect(result["paused"]).toBe(false);
