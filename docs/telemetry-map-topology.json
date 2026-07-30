@@ -445,7 +445,7 @@
       "kind": "evaluator",
       "layer": "learning",
       "title": "Companions: dspy · darwinian · benchmarks",
-      "source": "companions/; .artifacts/evolution-companions/*.oci.tar",
+      "source": "darwin/; .artifacts/darwin/*.oci.tar",
       "iso": { "col": 9, "row": 4 },
       "taps": ["health:services"],
       "detail": "Sealed OCI images. dspy=text optimize (GEPA/MIPROv2); darwinian=code evolve; benchmarks=sealed compare + regression gates."
@@ -922,7 +922,7 @@
       "wire": "http",
       "label": "optimize / compare",
       "animatable": true,
-      "evidence": "companions/*/worker.py"
+      "evidence": "darwin/*/worker.py"
     },
     {
       "id": "e.eval.proposals",

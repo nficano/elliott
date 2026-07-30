@@ -5,6 +5,11 @@ import type {
 } from "../model/index";
 import { acceptanceFinding } from "./finding";
 
+// The `companion.*` requirement-ID strings emitted here (and the auditCompanion
+// /auditAcceptanceCompanions names) are legacy wire identifiers kept for
+// stored-evidence and report compatibility after the companions -> darwin
+// rename. Acceptance reports and their tests assert these literals, so they must
+// not change to "darwin.*".
 const auditCompanion = (
   evidence: EvolutionCompanionDeploymentEvidence,
 ) => {

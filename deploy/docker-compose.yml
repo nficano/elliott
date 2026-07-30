@@ -300,8 +300,8 @@ services:
     container_name: elliott-evolution-benchmarks
     restart: unless-stopped
     environment:
-      ELLIOTT_COMPANION_FIXTURE: "1"
-      ELLIOTT_COMPANION_TOKEN: ${ELLIOTT_EVOLUTION_EVALUATOR_TOKEN:?rendered from Vault}
+      ELLIOTT_DARWIN_FIXTURE: "1"
+      ELLIOTT_DARWIN_TOKEN: ${ELLIOTT_EVOLUTION_EVALUATOR_TOKEN:?rendered from Vault}
     networks: [evolution]
     read_only: true
     tmpfs:

@@ -19,6 +19,10 @@ export const EvolutionAcceptanceTargetClassSchema = Schema.Literals([
   "code",
 ]);
 
+// Legacy wire name kept for stored-evidence compatibility. The evolution layer
+// directory was renamed companions -> darwin, but this Effect schema class tag
+// (and its string tag below) are persisted in serialized acceptance manifests,
+// so they must not change. Do not rename to "Darwin".
 export class EvolutionCompanionDeploymentEvidence
   extends Schema.Class<EvolutionCompanionDeploymentEvidence>(
     "EvolutionCompanionDeploymentEvidence",
@@ -171,6 +175,8 @@ export class EvolutionProductionAcceptanceManifest
     schemaVersion: Schema.Literal(2),
     environment: Schema.String,
     observedAt: Schema.String,
+    // Legacy wire field name kept for stored-evidence compatibility (see the
+    // companions -> darwin rename); serialized manifests carry this key.
     companions: Schema.Array(EvolutionCompanionDeploymentEvidence),
     executors: Schema.Array(EvolutionExecutorDeploymentEvidence),
     routes: EvolutionRouteSeparationEvidence,
