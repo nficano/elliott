@@ -1256,7 +1256,7 @@
       "name": "Companions: dspy · darwinian · benchmarks (sealed OCI, reached over HTTP)",
       "kind": "evaluator",
       "runtime": "config-gated",
-      "source": "companions/optimizers/dspy/worker.py, companions/optimizers/darwinian/worker.py, companions/evaluators/agent-benchmarks/evaluation/; .artifacts/evolution-companions/*.oci.tar; endpoints src/runtime/evolution.ts:285,302,351,373",
+      "source": "darwin/optimizers/dspy/worker.py, darwin/optimizers/darwinian/worker.py, darwin/evaluators/agent-benchmarks/evaluation/; .artifacts/darwin/*.oci.tar; endpoints src/runtime/evolution.ts:285,302,351,373",
       "domain": "self-evolution",
       "classifications": {
         "trustZone": "egress",
@@ -1269,9 +1269,9 @@
         "scalability": "sealed OCI workers reached over HTTP",
         "failureMode": "each engine/evaluator is 'unavailable' unless its *_URL env is set, degrading to typed errors (evolution.ts:280-351)"
       },
-      "interface": "Sealed OCI companion workers over HTTP: dspy (ELLIOTT_EVOLUTION_DSPY_URL), darwinian (ELLIOTT_EVOLUTION_DARWINIAN_URL), evaluator/benchmarks (ELLIOTT_EVOLUTION_EVALUATOR_URL), candidate-check, canary. POST /v1/baseline, /v1/compare, /v1/canary, optimization endpoints (evolution.ts:280-386; companions/*/*_worker.py).",
+      "interface": "Sealed OCI companion workers over HTTP: dspy (ELLIOTT_EVOLUTION_DSPY_URL), darwinian (ELLIOTT_EVOLUTION_DARWINIAN_URL), evaluator/benchmarks (ELLIOTT_EVOLUTION_EVALUATOR_URL), candidate-check, canary. POST /v1/baseline, /v1/compare, /v1/canary, optimization endpoints (evolution.ts:280-386; darwin/*/*_worker.py).",
       "characteristics": [
-        "Companion images are sealed OCI tarballs (.artifacts/evolution-companions/*.oci.tar); reached only over their configured URLs.",
+        "Companion images are sealed OCI tarballs (.artifacts/darwin/*.oci.tar); reached only over their configured URLs.",
         "Each is independently gated: a missing *_URL yields an unavailable engine/evaluator/benchmark-runner rather than a hard failure (evolution.ts:280-351; evolution-scheduler.ts:387-391).",
         "isolation:'container' with maximumCandidates budgets from config.budgets.perRun (evolution.ts:288-312)."
       ]
@@ -2378,7 +2378,7 @@
       "kind": "learn",
       "protocol": "http (POST to sealed OCI workers; conditional on *_URL config)",
       "label": "optimize / compare / baseline",
-      "evidence": "src/learning/evolution/evaluation/http.ts:25 (POST /v1/baseline,/v1/compare); companions/*/*_worker.py",
+      "evidence": "src/learning/evolution/evaluation/http.ts:25 (POST /v1/baseline,/v1/compare); darwin/*/*_worker.py",
       "contract": {
         "payload": "POST /v1/baseline,/v1/compare (evaluator), optimize (dspy/darwinian), /v1/canary -- JSON request/report",
         "synchrony": "sync (await fetch/Effect)",

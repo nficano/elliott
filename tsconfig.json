@@ -25,7 +25,7 @@
   "include": [
     "src/**/*.ts",
     "skills/**/*.ts",
-    "companions/**/*.ts",
+    "darwin/**/*.ts",
     "scripts/**/*.ts"
   ],
   "exclude": ["skills/telemetry-map/app"]

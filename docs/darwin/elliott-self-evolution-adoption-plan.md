@@ -546,7 +546,7 @@ Start with isolated component implementation code. Expand by risk class after th
 
 Frozen by default:
 
-- Component ref, kind, manifest, capability request, egress, isolation, companion images, Protocol IDs, exports, public signatures, and schema contracts.
+- Component ref, kind, manifest, capability request, egress, isolation, Darwin images, Protocol IDs, exports, public signatures, and schema contracts.
 - Error-handling and security-check call sites identified by static policy.
 - Test fixtures and evaluator code.
 

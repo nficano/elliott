@@ -9,7 +9,7 @@
 The Elliott-native implementation and its local conformance evidence are
 complete enough to run the planned workflow, but the plan's definition of full
 adoption is not yet satisfied. The repository-wide gate passes, all G1–G25 and
-SE1–SE15 tests pass locally, the three isolated companion images build and
+SE1–SE15 tests pass locally, the three isolated Darwin images build and
 smoke, and the four target adapters are connected to the consumer runtime.
 
 Full adoption still requires deployment-controlled facts that this repository
@@ -115,7 +115,7 @@ Every TDD gate has a dedicated conformance test and passed in the
 - Rust hot core: 2 tests passed, 0 failed.
 - G1–G25 and SE1–SE15: passed.
 
-The Linux ARM64 companion build and hardened fixture smokes also passed:
+The Linux ARM64 Darwin build and hardened fixture smokes also passed:
 
 | Component | OCI manifest digest |
 | :--- | :--- |
@@ -131,7 +131,7 @@ These are observed local OCI artifacts. The lock explicitly records
 The following exact evidence is absent and must not be inferred from fixtures:
 
 1. Registry publication, multi-platform build as required, vulnerability
-   scanning, and deployment verification of all three companion images.
+   scanning, and deployment verification of all three Darwin images.
 2. Organizational approval for distributing Darwinian under AGPL-3.0,
    including corresponding source and notices.
 3. Bearer-protected loopback candidate-check, evaluation-case, broad benchmark,

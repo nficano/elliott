@@ -7,58 +7,58 @@ from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
-LOCK_PATH = ROOT / "companions" / "images.lock.json"
+LOCK_PATH = ROOT / "darwin" / "images.lock.json"
 IMAGE_PATTERN = re.compile(r"^\s+image:\s+(\S+)\s*$", re.MULTILINE)
 SOURCE_FILES = {
     "optimizer-runtime": [
-        "companions/runtime/http.ts",
-        "companions/runtime/smoke.ts",
-        "companions/runtime/wire.ts",
-        "companions/optimizers/contract.ts",
-        "companions/optimizers/server.ts",
-        "companions/optimizers/jobs/controller.ts",
-        "companions/optimizers/jobs/support.ts",
-        "companions/optimizers/python/worker.py",
+        "darwin/runtime/http.ts",
+        "darwin/runtime/smoke.ts",
+        "darwin/runtime/wire.ts",
+        "darwin/optimizers/contract.ts",
+        "darwin/optimizers/server.ts",
+        "darwin/optimizers/jobs/controller.ts",
+        "darwin/optimizers/jobs/support.ts",
+        "darwin/optimizers/python/worker.py",
         *sorted(
             str(path.relative_to(ROOT))
             for path in (ROOT / "src").rglob("*.ts")
         ),
     ],
     "evaluator-dspy": [
-        "companions/optimizers/dspy/Dockerfile",
-        "companions/optimizers/dspy/pyproject.toml",
-        "companions/optimizers/dspy/uv.lock",
-        "companions/optimizers/dspy/worker.py",
+        "darwin/optimizers/dspy/Dockerfile",
+        "darwin/optimizers/dspy/pyproject.toml",
+        "darwin/optimizers/dspy/uv.lock",
+        "darwin/optimizers/dspy/worker.py",
         "package.json",
         "bun.lock",
     ],
     "evaluator-darwinian": [
-        "companions/optimizers/darwinian/Dockerfile",
-        "companions/optimizers/darwinian/problem.py",
-        "companions/optimizers/darwinian/worker.py",
+        "darwin/optimizers/darwinian/Dockerfile",
+        "darwin/optimizers/darwinian/problem.py",
+        "darwin/optimizers/darwinian/worker.py",
         "package.json",
         "bun.lock",
     ],
     "evaluator-agent-benchmarks": [
-        "companions/evaluators/agent-benchmarks/Dockerfile",
-        "companions/evaluators/agent-benchmarks/benchmark/config.ts",
-        "companions/evaluators/agent-benchmarks/benchmark/driver.ts",
-        "companions/evaluators/agent-benchmarks/benchmark/drivers.json",
-        "companions/evaluators/agent-benchmarks/benchmark/index.ts",
-        "companions/evaluators/agent-benchmarks/benchmark/result.ts",
-        "companions/evaluators/agent-benchmarks/benchmark/snapshot-executor.ts",
-        "companions/evaluators/agent-benchmarks/candidate/check.ts",
-        "companions/evaluators/agent-benchmarks/evaluation/baseline.ts",
-        "companions/evaluators/agent-benchmarks/evaluation/benchmarks.ts",
-        "companions/evaluators/agent-benchmarks/evaluation/compare.ts",
-        "companions/evaluators/agent-benchmarks/evaluation/executor.ts",
-        "companions/evaluators/agent-benchmarks/evaluation/index.ts",
-        "companions/evaluators/agent-benchmarks/evaluation/metrics.ts",
-        "companions/evaluators/agent-benchmarks/evaluation/validation.ts",
-        "companions/evaluators/agent-benchmarks/server.ts",
-        "companions/runtime/http.ts",
-        "companions/runtime/smoke.ts",
-        "companions/runtime/wire.ts",
+        "darwin/evaluators/agent-benchmarks/Dockerfile",
+        "darwin/evaluators/agent-benchmarks/benchmark/config.ts",
+        "darwin/evaluators/agent-benchmarks/benchmark/driver.ts",
+        "darwin/evaluators/agent-benchmarks/benchmark/drivers.json",
+        "darwin/evaluators/agent-benchmarks/benchmark/index.ts",
+        "darwin/evaluators/agent-benchmarks/benchmark/result.ts",
+        "darwin/evaluators/agent-benchmarks/benchmark/snapshot-executor.ts",
+        "darwin/evaluators/agent-benchmarks/candidate/check.ts",
+        "darwin/evaluators/agent-benchmarks/evaluation/baseline.ts",
+        "darwin/evaluators/agent-benchmarks/evaluation/benchmarks.ts",
+        "darwin/evaluators/agent-benchmarks/evaluation/compare.ts",
+        "darwin/evaluators/agent-benchmarks/evaluation/executor.ts",
+        "darwin/evaluators/agent-benchmarks/evaluation/index.ts",
+        "darwin/evaluators/agent-benchmarks/evaluation/metrics.ts",
+        "darwin/evaluators/agent-benchmarks/evaluation/validation.ts",
+        "darwin/evaluators/agent-benchmarks/server.ts",
+        "darwin/runtime/http.ts",
+        "darwin/runtime/smoke.ts",
+        "darwin/runtime/wire.ts",
         "package.json",
         "bun.lock",
         *sorted(
@@ -138,7 +138,7 @@ def main() -> int:
         json.loads(
             (
                 ROOT
-                / "companions/evaluators/agent-benchmarks/benchmark/drivers.json"
+                / "darwin/evaluators/agent-benchmarks/benchmark/drivers.json"
             ).read_text(encoding="utf-8")
         ).get("drivers"),
         "benchmark drivers",

@@ -1,6 +1,6 @@
 # Darwinian Evolver distribution review
 
-**Scope:** Elliott's `evaluator-darwinian` Component and companion image<br>
+**Scope:** Elliott's `evaluator-darwinian` Component and Darwin image<br>
 **Dependency license:** AGPL-3.0, as identified by the adopted upstream plan<br>
 **Decision:** Keep Darwinian Evolver outside the Elliott process and package<br>
 **Pinned revision:** `7f12365d2059c47e29068a5a6f498a293148d2a9`<br>
@@ -20,9 +20,9 @@ The local build copies the complete pinned source tree, license, dependency
 lock, and build metadata into
 `/usr/share/darwinian-evolver/source`. Elliott's TypeScript package does not
 import or link that code. The image is recorded separately in
-`companions/images.lock.json`.
+`darwin/images.lock.json`.
 
-Anyone who publishes the companion image containing Darwinian Evolver must:
+Anyone who publishes the Darwin image containing Darwinian Evolver must:
 
 1. Confirm the exact upstream revision and its license with counsel.
 2. Include the required license text, notices, and corresponding source offer
