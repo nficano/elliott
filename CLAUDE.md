@@ -14,10 +14,10 @@ layers share this tree:
 - The **production runtime** (`src/runtime/*`) — the code that actually
   boots: HTTP server, agent loop, skill loader, gateways, telemetry.
 
-Deployment happens from the separate **tide-pods** repo, which consumes
-elliott as a package. Agent-specific skills belong in the agent repo
-(tide-pods), **not** in `skills/` here — `skills/` is for framework-shipped,
-generally useful capabilities. See `docs/agent-skills.md`.
+Deployment happens from a separate agent (pod) repo, which consumes
+elliott as a package. Agent-specific skills belong in that agent repo,
+**not** in `skills/` here — `skills/` is for framework-shipped,
+generally useful capabilities. See `docs/explanation/agent-skills.md`.
 
 ## Commands
 
@@ -70,7 +70,18 @@ returning bindings of five kinds: `tools`, `gateways`, `routes`, `services`,
 loader); `register()` failures are reported but boot continues degraded —
 so cover new skills with the smoke tests in `test/integration/skills/`.
 Conformance gates live in `test/conformance/` (one per TDD invariant;
-`docs/elliott-tdd.md` is the authority).
+`docs/explanation/elliott-tdd.md` is the authority).
+
+## Docs
+
+`docs/` follows Diátaxis, split by reader intent: `getting-started/`,
+`tutorials/` (learning paths), `guides/` (one task per file), `reference/`
+(dry contracts: CLI, config, APIs), `explanation/` (architecture, design
+decisions, the TDD, plans), `contributing/` (dev setup, testing, gates).
+`docs/index.md` is the landing page — add new pages to it. Behavior changes
+update the matching quadrant in the same PR. The JSON topology artifacts and
+`slack-llms.txt` at `docs/` root are data consumed by code — do not move
+them.
 
 ## Delegation completion contract
 

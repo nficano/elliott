@@ -6,10 +6,11 @@ Status: phase 1 landed · 2026-07-29 (proposed 2026-07-28)
 > `FacilityDirectory` in `src/runtime/skills/types.ts`, two-pass loader,
 > grant store in `src/runtime/skills/facilities.ts`, `spec.provides`
 > decoding) plus three facilities: `ingress.webhook@1`
-> (`skills/webhook-provisioner`, in-process verification with the
+> (the registry's `webhook-provisioner` skill, in-process verification with the
 > `hmac-sha256`/`token-query`/`slack-v2` profiles), and — answering the
 > "is the seam webhook-shaped?" open question — `dns.local@1`
-> (`skills/pihole`) and `proxy.route@1` (`skills/traefik`). Consumers:
+> (the registry's `pihole` skill) and `proxy.route@1` (its `traefik` skill;
+> both install from the skills registry). Consumers:
 > `gateway-slack` acquires a Slack interactivity endpoint;
 > `skills/deep-trace` chains `proxy.route` → `dns.local` to publish the
 > observability map at a LAN hostname. Two deltas from the text below:
@@ -402,7 +403,7 @@ authority — the doc's "Rules going forward" apply here unchanged.
   runtime already has a Postgres store — should grants live there from the
   start so `release()` and audit share infrastructure?
 - Hostname per agent (`<agent>-hooks.<zone>`) is the recommendation; confirm the
-  zone to delegate and whether tide-pods agents share one zone.
+  zone to delegate and whether multiple agents share one zone.
 - Should a second facility (`egress.proxy`? `storage.blob`?) be sketched
   before the seam freezes, to check the abstraction isn't webhook-shaped?
 - Facility versioning: integer bump per breaking change is proposed; do we

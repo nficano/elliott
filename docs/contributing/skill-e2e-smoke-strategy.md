@@ -1,6 +1,9 @@
 # Skill E2E & Smoke Test Strategy
 
-Status: Tier 0 landed (test/integration/skills/); Tiers 1-2 remain proposals
+Status: Tier 0 landed (test/integration/skills/); Tiers 1-2 remain proposals.
+Note: the per-skill tables below predate the skills registry split — most named
+skills now live in the external registry (or an agent repo), not this tree; the
+strategy still applies, the inventory is historical.
 
 ## Problem
 
@@ -66,7 +69,7 @@ A single new test file, e.g. `test/smoke/skill-contract.test.ts`, that:
    settings-gated skill actually registers. Populate: `browser`, `slack`,
    `gmail`, `bluebubbles`, `files`, `terminal`, `ssh`, `smtp`, `homeAssistant`,
    `cloudflared`, `webhookSecret`, `braveApiKey`, `firecrawlApiKey`,
-   `parallelApiKey`, `newsBrief`, `pakman`, `youtubeDvr`, `mcp`.
+   `parallelApiKey`, `newsBrief`, `mcp` (agent-local skills read the generic `skillConfig` subtree).
 2. Runs the **real** `loadBundledPackages(root)` +
    `loadSkillRegistrations(...)` with a `report` spy.
 3. Asserts:
@@ -172,9 +175,9 @@ invoke a tool with its current schema — a class of failure invisible to Tiers
 
 Deliver a synthetic `InboundMessage` through the real `GatewayEvents.onMessage`
 seam (exactly what `app.ts` wires) with a fake outbound transport, and assert an
-outbound `send()` with a non-empty answer. Note (from ops memory): Slack inbound
-is owner-gated (`event.user === ownerId`), so a *real* inbound Slack round-trip
-can only be driven by Nick messaging Elliott; the harness path covers everything
+outbound `send()` with a non-empty answer. Note: Slack inbound is owner-gated
+(`event.user === ownerId`), so a *real* inbound Slack round-trip can only be
+driven by the owner messaging the agent; the harness path covers everything
 except the socket delivery itself.
 
 ### 2c. Route e2e

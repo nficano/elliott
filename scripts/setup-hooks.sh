@@ -4,7 +4,7 @@
 # Idempotent; safe to run repeatedly.
 #
 # Guarded to be a no-op when elliott is consumed as a dependency: its `prepare`
-# lifecycle also runs inside a consumer's node_modules (e.g. tide-pods installs
+# lifecycle also runs inside a consumer's node_modules (a consumer installs
 # elliott as a git dep), and we must never repoint the consumer's hooksPath.
 set -eu
 

@@ -271,7 +271,7 @@ const optionalSettings = (
   ...optionalSkillConfig(resolved),
 });
 
-// The agent definition lives at agents/<name>/agent.yaml (the tide-pods pod
+// The agent definition lives at agents/<name>/agent.yaml (the agent-repo
 // layout); older single-root checkouts keep the flat agents/<name>.yaml. Try
 // the nested form first, fall back to flat.
 const loadAgentDefinition = async (

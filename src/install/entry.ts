@@ -6,7 +6,6 @@ import { InstallError } from "./types";
 
 const NAME = /^[a-z][a-z0-9-]*$/;
 const VERSION = /^\d+\.\d+\.\d+$/;
-const DEFAULT_REGISTRY = "nficano/skills";
 
 // A skill name is treated as "required" (its failure flips health.ready false)
 // when it is a gateway. Gateways are the agent's only way to talk to anyone, so
@@ -42,10 +41,16 @@ export const parseInstallSettings = (
   if (!isJsonRecord(value)) {
     throw new InstallError("install: block must be a mapping");
   }
+  // The registry is explicit operator intent — installing skills means
+  // trusting a repo's owner, so no silent default (the official public
+  // registry is nficano/skills).
   const registryValue = value["registry"];
-  const registry = typeof registryValue === "string"
-    ? registryValue
-    : DEFAULT_REGISTRY;
+  if (typeof registryValue !== "string" || registryValue.length === 0) {
+    throw new InstallError(
+      "install: registry is required (e.g. registry: nficano/skills)",
+    );
+  }
+  const registry = registryValue;
   const refresh = value["refresh"] === true;
   const rawSkills = value["skills"];
   if (rawSkills === undefined) {

@@ -2,10 +2,7 @@
   "folders": [
     {
       "path": ".",
-    },
-    {
-      "path": "../tide-pods",
-    },
+    }
   ],
   "settings": {
     "// Elliott YAML schemas": "Explicit associations below take priority over the JSON Schema Store catalog, which otherwise mismatches skills/**/manifest.yaml to the unrelated 'Cloud-Pipelines / Pipeline component' schema.",

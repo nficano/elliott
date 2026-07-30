@@ -47,9 +47,15 @@ describe("install block", () => {
     expect(parseInstallSettings(undefined)).toBeUndefined();
   });
 
-  it("defaults registry and refresh", () => {
-    const settings = parseInstallSettings({ skills: ["traefik"] });
-    expect(settings?.registry).toBe("nficano/skills");
+  it("requires an explicit registry and defaults refresh", () => {
+    expect(() => parseInstallSettings({ skills: ["traefik"] })).toThrow(
+      InstallError,
+    );
+    const settings = parseInstallSettings({
+      registry: "example/skills",
+      skills: ["traefik"],
+    });
+    expect(settings?.registry).toBe("example/skills");
     expect(settings?.refresh).toBe(false);
   });
 

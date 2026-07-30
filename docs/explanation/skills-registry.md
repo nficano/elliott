@@ -8,7 +8,7 @@ Elliott today loads skills from exactly two places on disk: the framework's
 agent repo's `agents/<name>/skills/` (`loadAgentSkillPackages`,
 `src/catalog/bundled.ts:27`). There is no remote acquisition, no versioning
 (`metadata.version` is schema-validated then dropped by the loader), and the
-only pin anywhere is tide-pods pinning the *entire* framework by git SHA.
+only pin anywhere is the agent repo pinning the *entire* framework by git SHA.
 
 This design adds a third package source — **installed skills** — resolved from a
 public registry repo, `github.com/nficano/skills`, with per-skill semver tags.
@@ -54,7 +54,7 @@ Non-goals (v1):
   `elliott/*` subpath exports and Bun/Node builtins (elliott itself depends only
   on `effect` + `yaml`; the audited migration set imports exactly five framework
   modules, all already exported — §5.1). Registry CI enforces this.
-- A general-purpose public ecosystem. This is Nick's registry; the trust model
+- A general-purpose public ecosystem. This is the registry owner's registry; the trust model
   assumes the registry owner is the operator and that **every published tag is
   operator-reviewed** — third-party PRs are never auto-tagged.
 
@@ -231,7 +231,7 @@ committed lock that ships to production.
 Installed packages join the same `loadSkillRegistrations` two-pass (facility
 providers first) as bundled and agent-local skills; module resolution of
 `elliott/*` from the cache dir is verified working in both dev self-reference and
-tide-pods walk-up.
+the agent-repo walk-up.
 
 ### 5.2 Frozen install (build / `--frozen`)
 
@@ -386,7 +386,7 @@ their config shape is most likely to drift ahead of the framework pin.
     gitignored sidecar.
   - **The committed lock is authoritative.** `--frozen` verifies fetched bytes
     against `digest`; a mismatch fails the build. Two containers built from the
-    same committed tide-pods get byte-identical skills regardless of what tags
+    same committed the agent repo get byte-identical skills regardless of what tags
     landed upstream since.
   - The in-container runtime lock is **never authoritative** and, in production,
     never written (read-only). Only `--refresh` (dev / CI bump job) rewrites the
@@ -453,7 +453,7 @@ hostname all key on the route — live infrastructure).
   comment (`src/sse.ts:5`, asserted at `sse.test.ts:46` + `routes.test.ts:383`).
 - Settings: config key `skills.telemetry_map` → `skills.deep_trace` in **both**
   `settings-skills.ts:72` and elliott's own `config/elliott.yaml` (~line 124)
-  and tide-pods `config/elliott.yaml:161`; `TelemetryMapSettings` →
+  and the agent repo's `config/elliott.yaml`; `TelemetryMapSettings` →
   `DeepTraceSettings`; `settings.telemetryMap` → `settings.deepTrace`. To avoid
   a silent flag-day outage of the *live* published map, the loader **accepts
   both keys for one release** (old key → deprecation warning), then drops the
@@ -507,7 +507,7 @@ manifests) keeps its name — a Chromium sidecar is not "darwin".
   breaks decoding of stored acceptance evidence for zero functional gain.
   Documented as legacy wire names.
 - **Deploy reality (review's catch): elliott no longer has a deploy pipeline
-  that rebuilds the companions.** elliott CI only tests; tide-pods' deploy builds
+  that rebuilds the companions.** elliott CI only tests; the agent repo' deploy builds
   only the consumer agent; the evolution stack came from the retired elliott compose.
   the (since-removed) legacy deploy script still `compose up`s a retired `elliott` runtime
   service that binds the same port (conflicting with the consumer agent) and mounts the agent's external
@@ -545,22 +545,22 @@ The v1 order self-destructed (bundled skills + installed skills of the same name
    `api.litellm.example.com` egress host out of the manifest into agent
    config), add CI, tag every skill at its manifest version. Moved multi-skill
    integration tests come here.
-4. **Atomic elliott removal + tide-pods cutover** (the collision-safe step). In
+4. **Atomic elliott removal + the agent repo cutover** (the collision-safe step). In
    elliott: delete the 22 migrated skill dirs, prune `BUNDLED_CATALOG` + tests +
    `spec.components` + evolution-targets, regenerate topology; land as a commit
-   `R`. In tide-pods, **in one change**: bump the elliott pin to `R` (so the
+   `R`. In the agent repo, **in one change**: bump the elliott pin to `R` (so the
    bundled copies are already gone — no collision window), add the `install:`
    block, rename `telemetry_map` → `deep_trace` config key, add
    `.elliott/skills/` to `.gitignore`, add the Dockerfile
    `elliott skills install --frozen` build step, and commit the generated
-   `skills.lock.json`. Because tide-pods only sees elliott changes when it bumps
+   `skills.lock.json`. Because the agent repo only sees elliott changes when it bumps
    the pin, "old elliott meets new config" never occurs.
 5. **Deploy + verify**: build the consumer image (frozen install bakes the cache),
    deploy to the target host, verify the `/healthz` install section is all-ok, the
    resolved gateway set is non-empty, Slack round-trips, and the deep-trace map
    publishes (new router, legacy router released by the §10 migration).
 
-Ordering invariant: elliott-side removal (step 4a) and the tide-pods pin bump
+Ordering invariant: elliott-side removal (step 4a) and the agent-repo pin bump
 that adopts it (step 4b) are bound by the SHA pin, so they are effectively
 atomic from the consumer agent's perspective; the registry (step 3) must exist and be tagged
 before step 4b, and production is never asked to fetch at runtime.
@@ -639,59 +639,20 @@ decompression bounds; registry-field-change downgrade lever (advisory now);
 full (previously undercounted) list of tests/catalog entries touched by removal.
 
 Verified-sound-as-designed (attacked, held): module resolution of `elliott/*`
-from the cache dir in both dev self-reference and tide-pods walk-up; the
+from the cache dir in both dev self-reference and the agent-repo walk-up; the
 two-pass facility loader with installed providers feeding built-in deep-trace;
 governance decorating installed tools identically; the migration needing zero
 new subpath exports; snapshot churn being benign; the app.ts:132 install slot
 being correct.
 
-## 15. Implementation status (2026-07-29)
+## 15. Implementation status
 
-Landed on branches (NOT merged to main — both elliott and tide-pods auto-deploy
-on push to main, so the cutover is left for a reviewed, deliberate deploy):
-
-- **elliott `skills-registry`** (pushed): the installer subsystem (`src/install/`
-  — settings, resolver, system-`tar` fetch/extract, cache/lock, CLI, scoped
-  `SkillContext`, soft delivery, `/healthz` install section), the deep-trace and
-  darwin renames, and the removal of the 22 migrated skills. elliott now ships
-  only the 8 built-ins (`fetch`, `evaluator/*`, `files`, `mcp-client`,
-  `scheduler`, `ssh`, `terminal`, `deep-trace`). Gates green: typecheck, lint,
-  format, 408 tests, `darwin:check`. contract-smoke counts recomputed
-  (tools 41→9, gateways 4→1, routes 41→35, services 6→2, facilities 3→0).
-- **`nficano/skills`** (public, live): 22 skills, per-skill tags
-  `<name>/v<x.y.z>` (gateway-slack at v2.0.0, rest v1.0.0), README, CI, vendored
-  schema. Verified end-to-end: unpinned `traefik` resolves to latest and pinned
-  `gateway-slack@2.0.0` resolves exactly, both fetched as real codeload pax
-  tarballs, extracted, validated, digest-locked.
-- **tide-pods `skills-registry-cutover`** (pushed): elliott pin → the
-  post-removal commit (+ surgical `bun.lock` SHA bump; git deps are
-  content-addressed), `install:` block with the consumer agent's registry skills, committed
-  `skills.lock.json`, `skills.telemetry_map`→`skills.deep_trace`,
-  `.elliott/skills/` gitignored, and the Dockerfile frozen-install build step.
-  `elliott skills install --frozen` against the committed lock materialized all
-  19 with matching digests.
-
-Open follow-ups (deploy-time, not code):
-
-1. **Merge + deploy** both branches deliberately (production auto-deploys on
-   main). The frozen build step needs network at image build; the read-only
-   runtime never fetches.
-2. **deep-trace persisted grant.** The legacy `elliott-telemetry-map-public`
-   Traefik router/grant on the deploy host's `elliott-runtime` volume needs one manual
-   release — the facility API can't cross-consumer-release (documented in
-   `skills/deep-trace/src/publish.ts`, search "deep-trace-rename").
-3. **darwin evolution stack.** Rebuild + redeploy the darwin images (new
-   `ELLIOTT_DARWIN_*` env, rebuilt OCI digests) and split the evolution compose
-   off the retired `elliott` runtime service before deploying — otherwise
-   self-evolution acceptance fails against the recomputed source lock. Do not
-   run the retired `elliott` compose service (port/volume conflict with
-   the consumer agent).
-4. **subscription-usage egress** carries `${LITELLM_HOST}` as declarative
-   metadata only; the effective host is config-driven
-   (`subscription_usage.litellm.base_url`), so nothing breaks — the scrub is
-   cosmetic.
-5. **registry CI** typecheck job needs the `ELLIOTT_DEPLOY_KEY` repo secret
-   (private elliott dep); it is already gated to skip when absent (fork-safe).
-6. **Curated topology** (`docs/elliott-topology.enriched.json`, served at
-   `/topology`) still lists the moved skills and the `evaluator.companions`
-   node id — cosmetic, ungated; the generated topology was regenerated.
+Shipped. The installer subsystem (`src/install/` — settings, resolver,
+system-`tar` fetch/extract, cache/lock, CLI, scoped `SkillContext`, soft
+delivery, `/healthz` install section), the deep-trace and darwin renames, and
+the removal of the migrated skills all landed: elliott ships only the 8
+built-ins (`fetch`, `evaluator/*`, `files`, `mcp-client`, `scheduler`, `ssh`,
+`terminal`, `deep-trace`), and everything else installs from the registry.
+Consumer agent repos pin elliott by commit, carry an `install:` block plus a
+committed `skills.lock.json`, and run `elliott skills install --frozen` at
+image build; the read-only runtime never fetches.
