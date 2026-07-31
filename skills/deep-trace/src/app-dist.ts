@@ -42,9 +42,13 @@ const fileResponse = async (file: string): Promise<Response> => {
   });
 };
 
+// Generated build files stay out of the OpenAPI document.
+const HIDDEN = { hidden: true } as const;
+
 const routeFor = (base: string, file: string): RouteBinding => ({
   method: "GET",
   path: `${base}/${file}`,
+  docs: HIDDEN,
   handle: () => fileResponse(file),
 });
 
@@ -79,7 +83,7 @@ export const appDistRoutes = async (base: string): Promise<AppDistRoutes> => {
   const index = (): Promise<Response> => fileResponse("index.html");
   const routes = [
     ...files.map((file) => routeFor(base, file)),
-    { method: "GET", path: `${base}/`, handle: () => index() },
+    { method: "GET", path: `${base}/`, docs: HIDDEN, handle: () => index() },
   ];
   return { routes, index };
 };

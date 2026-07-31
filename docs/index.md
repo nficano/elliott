@@ -57,6 +57,7 @@ Dry, complete, and meant for lookup.
 - [Configuration](reference/configuration.md)
 - [API: package exports](reference/api/package-exports.md)
 - [API: the skill `register()` seam](reference/api/skill-context.md)
+- [API: the runtime HTTP surface + OpenAPI](reference/api/http.md)
 - [API: `manifest.yaml`](reference/api/manifest.md)
 - [Bundled-component activation status](reference/blockers.md)
 

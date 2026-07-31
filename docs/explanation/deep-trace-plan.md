@@ -230,12 +230,12 @@ src/runtime/model/client.ts# +emit model.request (the prompt!) / model.response
 
 - **routes** (auto‑mounted on the existing `Bun.serve`, exact method+path match —
   `app.ts:337`):
-  - `GET  /v1/observability/map` → the isometric UI (self‑contained HTML).
-  - `GET  /v1/observability/map/topology` → the connection‑graph JSON.
-  - `GET  /v1/observability/map/state` → current snapshot (components, health,
+  - `GET  /v1/deeptrace` → the isometric UI (self‑contained HTML).
+  - `GET  /v1/deeptrace/topology` → the connection‑graph JSON.
+  - `GET  /v1/deeptrace/state` → current snapshot (components, health,
     recent turns, tool fires, model selections, db stats, evolution).
-  - `GET  /v1/observability/map/stream` → **SSE** live feed (telemetry bus + tail).
-  - `GET  /v1/observability/map/turn?id=<runId>` → one turn's detail (prompt,
+  - `GET  /v1/deeptrace/stream` → **SSE** live feed (telemetry bus + tail).
+  - `GET  /v1/deeptrace/turn?id=<runId>` → one turn's detail (prompt,
     router decision, rounds, tool calls) — prompt text only if the bus captured it.
 - **service** `deep-trace`: starts the SQLite tail loop + subscribes to the
   telemetry bus; `health()` surfaces `{subscribers, events, dbRows, lastTurnAgeMs}`
@@ -317,7 +317,7 @@ The map is a troubleshooting lens, so it deliberately follows Elliott's posture:
 
 `topology/elliott-topology.enriched.json` is the machine‑readable "what connects to what"
 that the goal asked for, and is _the same file the extension serves_ at
-`/v1/observability/map/topology`. Schema:
+`/v1/deeptrace/topology`. Schema:
 
 ```jsonc
 {
@@ -412,7 +412,7 @@ shared `Bun.serve` (`8080` → published `127.0.0.1:18082`). Concretely:
 
 - No Dockerfile/compose change is required (skills are copied into the image;
   `.dockerignore` does not exclude `skills/`).
-- Reachable at `http://127.0.0.1:18082/v1/observability/map` after a normal deploy.
+- Reachable at `http://127.0.0.1:18082/v1/deeptrace` after a normal deploy.
 - Optional convenience: `deploy/compose.deep-trace.override.yml` publishing a
   friendly host port (e.g. `127.0.0.1:18090→8080` is the same server, so we instead
   just document the existing `18082`), and a one‑liner in the deploy Slack announce.
@@ -430,7 +430,7 @@ shared `Bun.serve` (`8080` → published `127.0.0.1:18082`). Concretely:
    fields (`litellm_key`, `browser_token`, `postgres_dsn`, `glitchtip_dsn`,
    `slack_*` set to placeholders so `resolveTree` succeeds), then
    `curl /healthz` (expect `services["deep-trace"]`), `curl
-/v1/observability/map/topology`, and load `/v1/observability/map` in a browser.
+/v1/deeptrace/topology`, and load `/v1/deeptrace` in a browser.
 4. **End‑to‑end animation** — inject a synthetic inbound turn through the bus and
    confirm the UI lights the gateway→runtime→router→provider→tool→db lanes and the
    turn detail shows the (gated) prompt + router decision.

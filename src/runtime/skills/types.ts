@@ -38,11 +38,49 @@ export interface GatewayBinding {
   stop(): void | Promise<void>;
 }
 
+// OpenAPI-facing documentation for one route, surfaced in the runtime's
+// generated /openapi.json. Everything is optional: an undocumented route still
+// appears in the document with a generic operation, while `hidden` keeps a
+// route (static assets, hashed build files) out of it entirely.
+export interface RouteQueryParameter {
+  readonly name: string;
+  readonly description: string;
+  readonly required: boolean;
+}
+
+export interface RouteRequestBodyDocs {
+  readonly description: string;
+  readonly contentType: string;
+  readonly schema?: JsonRecord;
+}
+
+export interface RouteResponseDocs {
+  readonly status: number;
+  readonly description: string;
+  readonly contentType?: string;
+}
+
+export interface RouteDocs {
+  readonly summary?: string;
+  readonly description?: string;
+  readonly tags?: readonly string[];
+  readonly query?: readonly RouteQueryParameter[];
+  readonly requestBody?: RouteRequestBodyDocs;
+  readonly responses?: readonly RouteResponseDocs[];
+  readonly hidden?: boolean;
+}
+
 export interface RouteBinding {
   readonly method: string;
   readonly path: string;
+  readonly docs?: RouteDocs;
   handle(request: Request, events: GatewayEvents): Promise<Response>;
 }
+
+// A route's shape without its handler — what the OpenAPI builder consumes, so
+// the runtime's built-in endpoints (which are not RouteBindings) can be
+// described alongside skill routes.
+export type RouteDescriptor = Pick<RouteBinding, "method" | "path" | "docs">;
 
 export interface ServiceBinding {
   readonly name: string;

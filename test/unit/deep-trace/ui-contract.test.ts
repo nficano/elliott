@@ -24,8 +24,8 @@ describe("deep-trace UI document", () => {
   });
 
   it("loads its fonts and topology through the extension routes", () => {
-    expect(source.html).toContain("/v1/observability/map/font/display");
-    expect(source.html).toContain("/v1/observability/map/font/body");
+    expect(source.html).toContain("/v1/deeptrace/font/display");
+    expect(source.html).toContain("/v1/deeptrace/font/body");
     expect(source.html).toContain("`${BASE}/topology`");
     expect(source.html).toContain("elliott-topology.enriched.json");
   });

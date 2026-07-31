@@ -13,7 +13,7 @@ import type {
 } from "../../../src/runtime/skills/types";
 import type { RuntimeSettings } from "../../../src/runtime/types";
 
-const BASE = "/v1/observability/map";
+const BASE = "/v1/deeptrace";
 const ORIGIN = "http://127.0.0.1:18082";
 const root = path.resolve(import.meta.dir, "../../..");
 
@@ -108,7 +108,7 @@ describe("deep-trace registration", () => {
   });
 });
 
-describe("GET /v1/observability/map", () => {
+describe("GET /v1/deeptrace", () => {
   it("serves an HTML explorer UI at the base path", async () => {
     const registration = await makeRegistration();
     const response = await dispatch(registration, "GET", BASE);
@@ -157,7 +157,7 @@ describe("GET /v1/observability/map", () => {
   });
 });
 
-describe("GET /v1/observability/map/topology", () => {
+describe("GET /v1/deeptrace/topology", () => {
   it("serves the enriched topology JSON verbatim when no packages loaded", async () => {
     const registration = await makeRegistration();
     const response = await dispatch(registration, "GET", `${BASE}/topology`);
@@ -327,7 +327,7 @@ describe("GET /v1/observability/map/topology", () => {
   });
 });
 
-describe("GET /v1/observability/map/state", () => {
+describe("GET /v1/deeptrace/state", () => {
   it("returns the current snapshot with runtime meta", async () => {
     const registration = await makeRegistration();
     const response = await dispatch(registration, "GET", `${BASE}/state`);
@@ -346,7 +346,7 @@ describe("GET /v1/observability/map/state", () => {
   });
 });
 
-describe("GET /v1/observability/map/turn", () => {
+describe("GET /v1/deeptrace/turn", () => {
   it("rejects a request without an id", async () => {
     const registration = await makeRegistration();
     const response = await dispatch(registration, "GET", `${BASE}/turn`);
@@ -371,7 +371,7 @@ describe("GET /v1/observability/map/turn", () => {
   });
 });
 
-describe("GET /v1/observability/map/stream", () => {
+describe("GET /v1/deeptrace/stream", () => {
   it("opens an SSE stream with the opening comment", async () => {
     const registration = await makeRegistration();
     const response = await dispatch(registration, "GET", `${BASE}/stream`);
@@ -430,7 +430,7 @@ describe("static asset routes", () => {
   });
 });
 
-describe("POST /v1/observability/map/send", () => {
+describe("POST /v1/deeptrace/send", () => {
   const sendRequest = (body: string): RequestInit => ({
     body,
     headers: { "content-type": "application/json" },

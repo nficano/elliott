@@ -1,7 +1,7 @@
 import tailwindcss from "@tailwindcss/vite";
 
 // The map is an operator tool served from the elliott runtime at
-// 127.0.0.1:18082 under /v1/observability/map. It renders an isometric canvas
+// 127.0.0.1:18082 under /v1/deeptrace. It renders an isometric canvas
 // with browser-only APIs throughout, so it ships as a client-only SPA; the
 // extension serves the generated file list through exact-match routes.
 export default defineNuxtConfig({
@@ -9,7 +9,7 @@ export default defineNuxtConfig({
   devtools: { enabled: false },
   ssr: false,
   app: {
-    baseURL: "/v1/observability/map/",
+    baseURL: "/v1/deeptrace/",
     head: {
       title: "Elliott Stack Explorer — Runtime Topology",
       htmlAttrs: { lang: "en" },

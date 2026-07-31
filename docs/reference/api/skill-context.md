@@ -25,7 +25,7 @@ interface SkillRegistration {
 | :----------- | :---------------------------------------------------------------- |
 | `tools`      | model-callable functions (`name`, `description`, `inputSchema`, `execute(input) → Promise<string>`) |
 | `gateways`   | message sources/sinks (`start(events)`, optional `send`, `beginResponse`, `stop`) |
-| `routes`     | HTTP routes (`method`, `path`, `handle(request, events) → Response`) |
+| `routes`     | HTTP routes (`method`, `path`, `handle(request, events) → Response`, optional `docs` — see [the HTTP API reference](http.md)) |
 | `services`   | long-running background workers (`start`, `stop`, optional `health()`) |
 | `facilities` | infrastructure offered to *other* skills (below)                  |
 

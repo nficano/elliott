@@ -13,7 +13,7 @@ the operator's own runbook).
   counts, and (when an `install:` block is configured) a per-skill install
   section. A required (gateway) skill that failed to install flips
   `ready: false`.
-- **`GET /v1/observability/map`** (deep-trace) — every loaded package appears
+- **`GET /v1/deeptrace`** (deep-trace) — every loaded package appears
   on the map with its runtime state: `live` (registered with bindings) or
   `config-gated` (loaded but dormant, usually a missing secret or disabled
   flag).

@@ -44,20 +44,26 @@ const iconResponse = async (file: string): Promise<Response> => {
   }
 };
 
+// Static assets stay out of the generated OpenAPI document.
+const HIDDEN = { hidden: true } as const;
+
 export const assetRoutes = (base: string): readonly RouteBinding[] => [
   {
     method: "GET",
     path: `${base}/font/display`,
+    docs: HIDDEN,
     handle: () => fontResponse("generation_1970_light.woff2"),
   },
   {
     method: "GET",
     path: `${base}/font/body`,
+    docs: HIDDEN,
     handle: () => fontResponse("inter-variable.woff2"),
   },
   ...ICONS.map((icon): RouteBinding => ({
     method: "GET",
     path: `${base}/icon/${icon}`,
+    docs: HIDDEN,
     handle: () => iconResponse(`${icon}.svg`),
   })),
 ];

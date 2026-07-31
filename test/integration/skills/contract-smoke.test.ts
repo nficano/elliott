@@ -21,12 +21,13 @@ import { makeSmokeContext, repoRoot } from "./fixtures";
 // Framework built-ins only (fetch, evaluator/*, files, mcp-client, scheduler,
 // ssh, terminal, deep-trace). Everything else installs from the nficano/skills
 // registry, so no gateways/facilities ship in the framework anymore. The single
-// gateway and all routes come from deep-trace (the observability map + its /map
-// alias); the two services are scheduler and deep-trace's SQLite tail.
+// gateway and all routes come from deep-trace (the observability map at
+// /v1/deeptrace + its /deeptrace, /map, and legacy-path redirects); the two
+// services are scheduler and deep-trace's SQLite tail.
 const EXPECTED = {
   tools: 9,
   gateways: 1,
-  routes: 35,
+  routes: 37,
   services: 2,
   facilities: 0,
 } as const;

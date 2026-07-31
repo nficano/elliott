@@ -4,7 +4,8 @@ import type {
   SkillContext,
 } from "../../../src/runtime/skills/types";
 
-const MAP_PATH = "/v1/observability/map";
+const MAP_PATH = "/v1/deeptrace";
+const LEGACY_MAP_PATH = "/v1/observability/map";
 const HTTP_FOUND = 302;
 
 // The consumer name this skill acquired its publish grants under before the
@@ -15,17 +16,26 @@ const HTTP_FOUND = 302;
 const LEGACY_CONSUMER = "telemetry-map";
 const PUBLISH_GRANT_NAME = "public";
 
-// The short path the published hostname advertises: https://<hostname>/map
-// redirects into the canonical map document, whose asset routes are absolute.
-export const mapAliasRoute = (): RouteBinding => ({
+const redirectRoute = (from: string): RouteBinding => ({
   method: "GET",
-  path: "/map",
+  path: from,
   handle: async () =>
     new Response(undefined, {
       status: HTTP_FOUND,
       headers: { location: MAP_PATH },
     }),
+  docs: { summary: `Redirects to ${MAP_PATH}`, tags: ["deep-trace"] },
 });
+
+// Short paths the published hostname advertises — https://<hostname>/deeptrace
+// (and the pre-rename https://<hostname>/map) redirect into the canonical map
+// document, whose asset routes are absolute. The old canonical base
+// /v1/observability/map also redirects so pre-rename bookmarks keep working.
+export const aliasRoutes = (): readonly RouteBinding[] => [
+  redirectRoute("/deeptrace"),
+  redirectRoute("/map"),
+  redirectRoute(LEGACY_MAP_PATH),
+];
 
 // One-shot boot migration for the telemetry-map -> deep-trace rename.
 //

@@ -2,7 +2,7 @@ import { defineConfig, devices } from "@playwright/test";
 
 // The parity suite drives BOTH explorer implementations through the same
 // harness (skills/telemetry-map/e2e/harness.ts): the legacy single-file UI at
-// /v1/observability/map/legacy and the Nuxt rewrite at /v1/observability/map.
+// /v1/deeptrace/legacy and the Nuxt rewrite at /v1/deeptrace.
 const PORT = 18_099;
 
 export default defineConfig({
@@ -20,7 +20,7 @@ export default defineConfig({
   },
   webServer: {
     command: `TELEMETRY_MAP_PORT=${PORT} bun ../e2e/harness.ts`,
-    url: `http://127.0.0.1:${PORT}/v1/observability/map/state`,
+    url: `http://127.0.0.1:${PORT}/v1/deeptrace/state`,
     reuseExistingServer: true,
     timeout: 30_000,
   },

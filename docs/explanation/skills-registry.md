@@ -440,9 +440,11 @@ Registry-side CI (`nficano/skills`):
 
 ## 10. Rename: `telemetry-map` → `deep-trace`
 
-Scope: package identity, not routes. `/v1/observability/map` and subpaths stay
-(the Nuxt app, its committed `dist/`, fonts, canary probe, and published
-hostname all key on the route — live infrastructure).
+Scope: package identity, not routes — at rename time `/v1/observability/map`
+and subpaths stayed (the Nuxt app, its committed `dist/`, fonts, canary
+probe, and published hostname all key on the route — live infrastructure).
+The route rename to `/v1/deeptrace` happened later as its own change, with
+the old base kept as a redirect.
 
 - `skills/telemetry-map/` → `skills/deep-trace/`; `metadata.name`,
   `BUNDLED_CATALOG` descriptor, gateway `name` literal (`src/gateway.ts:13`)

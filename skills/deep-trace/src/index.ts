@@ -9,6 +9,7 @@ import { readStoredGrants } from "../../../src/runtime/skills/facilities";
 import type {
   GatewayEvents,
   RouteBinding,
+  RouteDocs,
   ServiceBinding,
   SkillContext,
   SkillRegistration,
@@ -19,12 +20,13 @@ import { appDistRoutes } from "./app-dist";
 import { assetRoutes } from "./assets";
 import { mergeTopology } from "./auto-topology";
 import { DeepTraceGateway } from "./gateway";
-import { mapAliasRoute, publishMap } from "./publish";
+import { aliasRoutes, publishMap } from "./publish";
+import { routeDocs } from "./route-docs";
 import { SqliteTail } from "./sqlite-tail";
 import { streamResponse } from "./sse";
 import { loadTopology } from "./topology";
 
-const BASE = "/v1/observability/map";
+const BASE = "/v1/deeptrace";
 const POLL_INTERVAL_MS = 1500;
 const HEARTBEAT_EVERY_TICKS = 10;
 const UI_URL = new URL("ui.html", import.meta.url);
@@ -69,7 +71,7 @@ export const register = async (
         context,
       }),
       ...dist.routes,
-      mapAliasRoute(),
+      ...aliasRoutes(),
     ],
     services: [service(aggregator, tail)],
   };
@@ -122,7 +124,7 @@ const turnResponse = (aggregator: Aggregator, request: Request): Response => {
   return jsonResponse(aggregator.turn(id));
 };
 
-// POST /v1/observability/map/send — inject a message into the agent and
+// POST /v1/deeptrace/send — inject a message into the agent and
 // return the answer as JSON.  The SSE stream animates the turn in real-time
 // while this request is held open (up to SEND_TIMEOUT_MS).
 const sendResponse = async (
@@ -173,24 +175,15 @@ const sendResponse = async (
   return jsonResponse({ answer });
 };
 
-const route = (
-  method: string,
+const get = (
   routePath: string,
+  docs: RouteDocs,
   handler: (request: Request) => Promise<Response>,
 ): RouteBinding => ({
-  method,
+  method: "GET",
   path: routePath,
+  docs,
   handle: (request) => handler(request),
-});
-
-const routeE = (
-  method: string,
-  routePath: string,
-  handler: (request: Request, events: GatewayEvents) => Promise<Response>,
-): RouteBinding => ({
-  method,
-  path: routePath,
-  handle: (request, events) => handler(request, events),
 });
 
 const routes = (input: {
@@ -201,30 +194,35 @@ const routes = (input: {
 }): readonly RouteBinding[] => {
   const { aggregator, gateway, ui, context } = input;
   return [
-    route("GET", BASE, () => ui()),
-    route("GET", `${BASE}/legacy`, () => uiResponse()),
-    route("GET", `${BASE}/topology`, () => topologyResponse(context)),
-    route(
-      "GET",
+    get(BASE, routeDocs.ui, () => ui()),
+    get(`${BASE}/legacy`, routeDocs.legacy, () => uiResponse()),
+    get(
+      `${BASE}/topology`,
+      routeDocs.topology,
+      () => topologyResponse(context),
+    ),
+    get(
       `${BASE}/state`,
-      () => Promise.resolve(jsonResponse(aggregator.snapshot())),
+      routeDocs.state,
+      async () => jsonResponse(aggregator.snapshot()),
     ),
-    route(
-      "GET",
+    get(
       `${BASE}/stream`,
-      () => Promise.resolve(streamResponse(aggregator)),
+      routeDocs.stream,
+      async () => streamResponse(aggregator),
     ),
-    route(
-      "GET",
+    get(
       `${BASE}/turn`,
-      (request) => Promise.resolve(turnResponse(aggregator, request)),
+      routeDocs.turn,
+      async (request) => turnResponse(aggregator, request),
     ),
     ...assetRoutes(BASE),
-    routeE(
-      "POST",
-      `${BASE}/send`,
-      (request, events) => sendResponse(request, events, gateway),
-    ),
+    {
+      method: "POST",
+      path: `${BASE}/send`,
+      docs: routeDocs.send,
+      handle: (request, events) => sendResponse(request, events, gateway),
+    },
   ];
 };
 

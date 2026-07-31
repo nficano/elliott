@@ -6,7 +6,7 @@ import { expect, test } from "@playwright/test";
 // intentionally diverges: the legacy UI plays the scripted explainer flow,
 // the rewrite animates live telemetry and offers recorded replays — each has
 // its own suite below the shared loop.
-const BASE = "/v1/observability/map";
+const BASE = "/v1/deeptrace";
 
 const TARGETS = [
   { name: "legacy", path: `${BASE}/legacy` },

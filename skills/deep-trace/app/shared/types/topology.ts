@@ -1,5 +1,5 @@
 // Shapes of topology/elliott-topology.enriched.json as served by
-// GET /v1/observability/map/topology. Only the fields the explorer reads are
+// GET /v1/deeptrace/topology. Only the fields the explorer reads are
 // modeled; unknown extras flow through untouched.
 
 export interface RawClassifications {

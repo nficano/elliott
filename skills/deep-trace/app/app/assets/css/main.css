@@ -71,14 +71,14 @@
 
 @font-face {
   font-family: "Generation 1970";
-  src: url("/v1/observability/map/font/display") format("woff2");
+  src: url("/v1/deeptrace/font/display") format("woff2");
   font-weight: 300;
   font-style: normal;
   font-display: swap;
 }
 @font-face {
   font-family: "Inter";
-  src: url("/v1/observability/map/font/body") format("woff2");
+  src: url("/v1/deeptrace/font/body") format("woff2");
   font-weight: 400 900;
   font-style: normal;
   font-display: swap;

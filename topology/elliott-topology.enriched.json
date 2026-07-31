@@ -198,7 +198,7 @@
       "internalCommunication": "In-process pub/sub: core emits onto runtimeTelemetry; the map's Aggregator subscribes and re-emits db.write/heartbeat; the reporter is a standalone capture funnel.",
       "ingressContracts": "control <- ingress/agent-core/model-inference (telemetry emit, error capture); data <- memory-persistence (readonly sqlite tail); data <- ingress HTTP (GET map routes); secret <- secrets (glitchtipDsn).",
       "egressContracts": "http -> GlitchTip (Sentry envelope, best-effort); SSE/JSON -> operator browser; in-process -> deployment-substrate (co-located skill).",
-      "routing": "bus.emit(type,payload,runId) fan-out to a subscriber set; exact method+path route dispatch for /v1/observability/map*; SqliteTail 1.5s poll.",
+      "routing": "bus.emit(type,payload,runId) fan-out to a subscriber set; exact method+path route dispatch for /v1/deeptrace*; SqliteTail 1.5s poll.",
       "trustBoundary": "edge (map GET routes are unauthenticated but loopback-published only)",
       "dataClassification": "operational-metadata; digest-only; optionally prompt content in model.request events when ELLIOTT_TELEMETRY_PROMPTS!=0",
       "failureIsolation": "Subscriber isolation: a throwing telemetry subscriber or dead SSE client is caught and never affects a turn; the reporter's send failures only console.error; the ring buffer (512) and map windows (400 events / 60 turns) bound memory."
@@ -335,7 +335,7 @@
       "interface": "Bun.serve({port:8080, hostname:'0.0.0.0', fetch:#handleRequest}) (server.ts:3-11). Fixed handlers: GET /healthz (200/503 by ready), GET /v1/components, POST /v1/control/evolution (if control plane present), else exact method+path match against collected RouteBindings, else 404 (app.ts:336-359).",
       "characteristics": [
         "Route match is exact string equality on method AND pathname -- no params, no prefix routing (app.ts:354-356).",
-        "Only route-owning skills at runtime are gateway-webhook (POST /v1/gateways/webhook) and telemetry-map (7 GET /v1/observability/map* routes).",
+        "Only route-owning skills at runtime are gateway-webhook (POST /v1/gateways/webhook) and telemetry-map (7 GET /v1/deeptrace* routes).",
         "Published to the host on 127.0.0.1:18082->8080 only (docker-compose.yml:23); not directly public.",
         "Passes the shared GatewayEvents into each RouteBinding.handle so routes can open turns (app.ts:357)."
       ]
@@ -1020,7 +1020,7 @@
         "scalability": "<=400 events / <=60 turns windows; 1.5s poll",
         "failureMode": "dead SSE client removed on enqueue failure; tail tolerates a briefly-absent db; broken clients isolated (aggregator.ts:145-151; sse.ts:19-23)"
       },
-      "interface": "telemetry-map skill: 7 GET routes under /v1/observability/map (ui, /topology, /state, /stream(SSE), /turn?id, /font/*) + a 'telemetry-map' service (aggregator subscribes to the bus; SqliteTail polls sessions.sqlite every 1.5s) (index.ts:105-157).",
+      "interface": "telemetry-map skill: 7 GET routes under /v1/deeptrace (ui, /topology, /state, /stream(SSE), /turn?id, /font/*) + a 'telemetry-map' service (aggregator subscribes to the bus; SqliteTail polls sessions.sqlite every 1.5s) (index.ts:105-157).",
       "characteristics": [
         "Subscribes to runtimeTelemetry, keeps <=400 events and <=60 turns bucketed by runId, and re-emits db.write/heartbeat back onto the bus (aggregator.ts:15-16,141-168; index.ts:37,146).",
         "Reads sessions.sqlite strictly read-only ({readonly:true}) surfacing per-table counts/deltas + recent rows for a whitelist of tables (sqlite-tail.ts:65,14-24).",
@@ -2020,7 +2020,7 @@
       "label": "serve map routes",
       "evidence": "src/runtime/app.ts:354-357 \u2192 skills/telemetry-map/src/index.ts:105-129",
       "contract": {
-        "payload": "GET /v1/observability/map[/topology|/state|/stream|/turn|/font/*] -> HTML/JSON/SSE",
+        "payload": "GET /v1/deeptrace[/topology|/state|/stream|/turn|/font/*] -> HTML/JSON/SSE",
         "synchrony": "sync (stream for /stream)",
         "direction": "request-response",
         "cardinality": "1:1 (fan-out for SSE)",

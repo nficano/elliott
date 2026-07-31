@@ -28,6 +28,11 @@ import { HTTP_NOT_FOUND, HTTP_OK, HTTP_SERVICE_UNAVAILABLE } from "./http";
 import { makeRuntimeKernel } from "./kernel";
 import { logRuntimeStarted } from "./logging";
 import { RuntimeModelClient } from "./model/client";
+import {
+  buildOpenApiDocument,
+  builtinEndpoints,
+  OPENAPI_PATH,
+} from "./openapi";
 import { RuntimeErrorReporter } from "./reporter";
 import { runtimeComponentSummary, startRuntimeServer } from "./server";
 import {
@@ -43,6 +48,7 @@ import type {
   GatewayEvents,
   GatewayFeedback,
   GatewayResponse,
+  JsonRecord,
   RouteBinding,
   ServiceBinding,
   SkillContextSeed,
@@ -109,6 +115,7 @@ export class ElliottRuntime {
   #governanceControlPlane: GovernanceControlPlaneBinding | undefined;
   #reporter: RuntimeErrorReporter | undefined;
   #server: ReturnType<typeof Bun.serve> | undefined;
+  #openapi: JsonRecord | undefined;
   #ready = false;
   #toolCount = 0;
   readonly #seen = new Set<string>();
@@ -243,6 +250,7 @@ export class ElliottRuntime {
     this.#evidenceStore = undefined;
     this.#evolutionEvidence = undefined;
     this.#snapshotId = undefined;
+    this.#openapi = undefined;
     this.#conversationSnapshots.clear();
   }
 
@@ -536,14 +544,35 @@ export class ElliottRuntime {
     events: GatewayEvents,
   ): Promise<Response> {
     const url = new URL(request.url);
-    if (url.pathname === "/healthz") {
-      const health = this.health();
-      return Response.json(health, {
-        status: health.ready ? HTTP_OK : HTTP_SERVICE_UNAVAILABLE,
-      });
-    }
+    const builtin = this.#builtinResponse(url, request);
+    if (builtin !== undefined) return builtin;
+    const route = this.#routes.find(
+      (item) => item.method === request.method && item.path === url.pathname,
+    );
+    if (route !== undefined) return route.handle(request, events);
+    return new Response("Not found", { status: HTTP_NOT_FOUND });
+  }
+
+  #healthResponse(): Response {
+    const health = this.health();
+    return Response.json(health, {
+      status: health.ready ? HTTP_OK : HTTP_SERVICE_UNAVAILABLE,
+    });
+  }
+
+  // The endpoints dispatched before the skill route registry; keep this list
+  // in step with builtinEndpoints() in openapi.ts so the generated document
+  // stays truthful.
+  #builtinResponse(
+    url: URL,
+    request: Request,
+  ): Response | Promise<Response> | undefined {
+    if (url.pathname === "/healthz") return this.#healthResponse();
     if (url.pathname === "/v1/components") {
       return Response.json(runtimeComponentSummary(this.#packages));
+    }
+    if (url.pathname === OPENAPI_PATH && request.method === "GET") {
+      return Response.json(this.#openApiDocument());
     }
     if (
       url.pathname === "/v1/control/evolution"
@@ -553,11 +582,24 @@ export class ElliottRuntime {
       url.pathname === "/v1/control/governance"
       && this.#governanceControlPlane !== undefined
     ) return this.#governanceControlPlane.handle(request);
-    const route = this.#routes.find(
-      (item) => item.method === request.method && item.path === url.pathname,
+    return undefined;
+  }
+
+  // Built once per boot from the same registry #handleRequest dispatches on,
+  // so the document always matches the live route surface.
+  #openApiDocument(): JsonRecord {
+    this.#openapi ??= buildOpenApiDocument(
+      `${this.#agentName} runtime API`,
+      this.#settings?.release ?? "unknown",
+      [
+        ...builtinEndpoints({
+          evolution: this.#evolutionControlPlane !== undefined,
+          governance: this.#governanceControlPlane !== undefined,
+        }),
+        ...this.#routes,
+      ],
     );
-    if (route !== undefined) return route.handle(request, events);
-    return new Response("Not found", { status: HTTP_NOT_FOUND });
+    return this.#openapi;
   }
 
   #capture(error: unknown, mechanism: string): void {

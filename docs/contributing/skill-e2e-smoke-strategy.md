@@ -183,7 +183,7 @@ except the socket delivery itself.
 ### 2c. Route e2e
 
 Real HTTP `GET`/`POST` against the booted server: `/healthz`,
-`/v1/observability/map` (+ its 34 asset routes), `/v1/components`, and the
+`/v1/deeptrace` (+ its 34 asset routes), `/v1/components`, and the
 webhook route with a signed payload.
 
 ### 2d. Live post-deploy canary (deploy gate)

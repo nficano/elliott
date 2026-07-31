@@ -55,7 +55,7 @@ tools:
 skills:
   deep_trace:
     # The observability map ships enabled and serves on the runtime HTTP port
-    # at /v1/observability/map. To publish it beyond localhost, provide
+    # at /v1/deeptrace. To publish it beyond localhost, provide
     # proxy.route / dns.local facilities (e.g. traefik + pihole skills) and
     # set the hostname the route should answer on:
     #

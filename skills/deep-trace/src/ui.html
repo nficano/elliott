@@ -15,12 +15,12 @@
    */
   @font-face{
     font-family:"Generation 1970";
-    src:url("/v1/observability/map/font/display") format("woff2");
+    src:url("/v1/deeptrace/font/display") format("woff2");
     font-weight:300; font-style:normal; font-display:swap;
   }
   @font-face{
     font-family:"Inter";
-    src:url("/v1/observability/map/font/body") format("woff2");
+    src:url("/v1/deeptrace/font/body") format("woff2");
     font-weight:400 900; font-style:normal; font-display:swap;
   }
   :root{
@@ -632,7 +632,7 @@
 <script>
 (async function(){
 "use strict";
-const BASE = "/v1/observability/map";
+const BASE = "/v1/deeptrace";
 const TOPOLOGY_SOURCES = [`${BASE}/topology`, "elliott-topology.enriched.json"];
 let rawTopology = null;
 for(const source of TOPOLOGY_SOURCES){

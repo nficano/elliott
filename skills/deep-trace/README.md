@@ -35,10 +35,10 @@ The extension rides the existing `elliott` container's `Bun.serve` (port 8080,
 published by the base compose at `127.0.0.1:18082`). After a normal deploy:
 
 ```
-http://127.0.0.1:18082/v1/observability/map
+http://127.0.0.1:18082/v1/deeptrace
 ```
 
-Endpoints (all under `/v1/observability/map`):
+Endpoints (all under `/v1/deeptrace`):
 
 | Route | Serves |
 | :--- | :--- |

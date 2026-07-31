@@ -33,7 +33,9 @@ describe("deep-trace publish degradation (Tier 1)", () => {
     expect(map).toBeDefined();
 
     // The observability map still serves locally.
-    expect(map?.routes?.some((route) => route.path === "/map")).toBe(true);
+    expect(map?.routes?.some((route) => route.path === "/deeptrace")).toBe(
+      true,
+    );
 
     // The missing proxy.route facility is reported (not crashed): publish
     // absorbs the acquire-time error and records it against deep-trace:publish.
@@ -45,21 +47,25 @@ describe("deep-trace publish degradation (Tier 1)", () => {
     ).toBe(true);
   });
 
-  it("redirects /map into the canonical map document", async () => {
+  it("redirects the aliases into the canonical map document", async () => {
     const { context } = await makeSmokeContext(publishSettings);
     const skills = await loadSkills(["deep-trace"], context);
     const recorder = makeGatewayEvents();
 
-    const alias = skills.get("deep-trace")?.routes?.find(
-      (route) => route.path === "/map",
-    );
-    if (alias === undefined) throw new Error("map alias route missing");
-    const response = await alias.handle(
-      new Request("http://runtime/map"),
-      recorder.events,
-    );
+    // /deeptrace is the advertised short path; /map and the pre-rename
+    // canonical base stay as redirects so old bookmarks keep resolving.
+    for (const path of ["/deeptrace", "/map", "/v1/observability/map"]) {
+      const alias = skills.get("deep-trace")?.routes?.find(
+        (route) => route.path === path,
+      );
+      if (alias === undefined) throw new Error(`${path} alias route missing`);
+      const response = await alias.handle(
+        new Request(`http://runtime${path}`),
+        recorder.events,
+      );
 
-    expect(response.status).toBe(302);
-    expect(response.headers.get("location")).toBe("/v1/observability/map");
+      expect(response.status).toBe(302);
+      expect(response.headers.get("location")).toBe("/v1/deeptrace");
+    }
   });
 });
