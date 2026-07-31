@@ -1,8 +1,8 @@
 # Skill facilities: cross-skill provisioning and secure webhook ingress
 
-Status: phase 1 landed · 2026-07-29 (proposed 2026-07-28)
+Status: stage 1 landed · 2026-07-29 (proposed 2026-07-28)
 
-> **What landed (phase 1):** the facility seam (`FacilityBinding`/
+> **What landed (stage 1):** the facility seam (`FacilityBinding`/
 > `FacilityDirectory` in `src/runtime/skills/types.ts`, two-pass loader,
 > grant store in `src/runtime/skills/facilities.ts`, `spec.provides`
 > decoding) plus three facilities: `ingress.webhook@1`
@@ -80,7 +80,7 @@ sender (Slack/Stripe/GitHub)
 
 No inbound port is ever opened on the runtime host; the only ingress is the
 tunnel the `cloudflared` companion already establishes outbound
-(`skills/cloudflared/EXTENSION.md`).
+(`skills/cloudflared/SKILL.md`).
 
 ## The facility seam
 
@@ -166,8 +166,8 @@ on reboot. `acquire` is idempotent on `(consumer, name)` — a repeat call
 returns the stored grant. Grants live in a JSON store under
 `context.stateDirectory` (`<agentRoot>/.elliott-runtime/facilities/grants.json`),
 written atomically. Secrets inside grant values are stored there too, which is
-acceptable for phase 1 (the state dir is already trusted — it holds runtime
-state) and moves behind the secret broker in phase 3.
+acceptable for stage 1 (the state dir is already trusted — it holds runtime
+state) and moves behind the secret broker in stage 3.
 
 `release(grantId)` tears down provisioned resources (DNS record, tunnel route,
 stored secret) and is the only destructive operation; it is never called
@@ -176,7 +176,7 @@ implicitly.
 ### Discovery alignment
 
 `FacilityDescriptor` is deliberately isomorphic to a `ComponentCard`
-(`src/core/registry/types.ts`) plus a `ProtocolDescriptor` schema pair. Phase
+(`src/core/registry/types.ts`) plus a `ProtocolDescriptor` schema pair. Stage
 4 feeds registered facilities into the kernel's `ComponentRegistry` so
 `ComponentDiscovery.search/inspect` and `GET /v1/components` report them —
 one registration, two views. Until then the runtime directory is the sole
@@ -235,7 +235,7 @@ Design points:
   `RouteBinding` receives the raw sender body plus
   `x-elliott-ingress-{slug,profile,timestamp}` headers. Unverifiable payloads
   are dropped before broker ingress and counted, matching the posture in
-  `skills/gateway/webhook/GATEWAY.md` ("drop unverifiable payloads").
+  `skills/gateway/webhook/SKILL.md` ("drop unverifiable payloads").
 
 ## Cloudflare provisioning
 
@@ -260,12 +260,12 @@ The provisioner owns a scoped Cloudflare client, built in the
   Vault (`config/secrets.yaml`: `cloudflare_api_token:
   ${VAULT:secret/services/<agent>#cloudflare_api_token}`), scoped to exactly:
   Zone → DNS → Edit on the hooks zone only; Account → Cloudflare Tunnel →
-  Edit. Nothing account-wide, no Workers scope until phase 4. The token is
+  Edit. Nothing account-wide, no Workers scope until stage 4. The token is
   resolved into `RuntimeSettings` like every other secret
   (`src/runtime/config.ts` interpolation) and the skill stays dormant
   (`register()` returns `{}` minus the facility) when unset — but note the
   fail-loud consumer behavior above.
-- **Optional edge Worker (phase 4).** A Worker on the hooks hostname can
+- **Optional edge Worker (stage 4).** A Worker on the hooks hostname can
   reject unverifiable traffic at the edge — provider-signature checks,
   body-size cap, per-slug rate limits — so garbage never crosses the tunnel.
   It is an optimization and hardening layer, not a trust boundary we rely on:
@@ -318,7 +318,7 @@ Properties:
 | Replay of captured requests | Timestamp tolerance in `slack-v2`/`stripe` profiles; nonce/event-id LRU for `hmac-sha256` where senders supply ids |
 | Endpoint URL leakage | URL is not a credential — verification still required; 128-bit slugs prevent enumeration; per-slug revocation |
 | Runtime compromise via hostile payload parsing | Parsing isolated in the proxy companion; runtime sees only internally-signed, size-capped bodies |
-| Cloudflare token theft | Token scoped to one zone's DNS + tunnel config; cannot read secrets, deploy Workers (until phase 4), or touch other zones |
+| Cloudflare token theft | Token scoped to one zone's DNS + tunnel config; cannot read secrets, deploy Workers (until stage 4), or touch other zones |
 | Skill impersonating another consumer | `FacilityRequest.consumer` stamped by the loader from the package manifest, not caller input |
 | Proxy → runtime injection | Internal HMAC hop with `webhook_signing_secret`; runtime rejects unsigned internal deliveries |
 | SSRF via forwarding config | Proxy forwards to a fixed runtime address baked at companion start; grant config carries no URLs. Outbound provisioner calls use `publicUrl()` from `src/runtime/skills/http.ts` |
@@ -347,12 +347,12 @@ spec:
 `src/catalog/bundled.ts` learns to decode `spec.provides` (it already ignores
 unknown spec fields, so old manifests are unaffected); `BundledPackage` gains
 `provides: readonly FacilityRef[]`. `facility.use` is advisory until
-agent-skills phase 4 makes `spec.components`/capabilities the activation
+agent-skills stage 4 makes `spec.components`/capabilities the activation
 authority — the doc's "Rules going forward" apply here unchanged.
 
 ## Rollout
 
-## Phase 1 — facility seam + in-process webhook facility (build first)
+## Stage 1 — facility seam + in-process webhook facility (build first)
 
 - `FacilityBinding`/`FacilityDirectory` types, two-pass loader, grant store
   under `stateDirectory`, `spec.provides` decoding in `src/catalog/bundled.ts`.
@@ -365,21 +365,21 @@ authority — the doc's "Rules going forward" apply here unchanged.
   route registered → signed request accepted → tampered request dropped →
   re-acquire returns identical grant.
 
-## Phase 2 — Cloudflare provisioning (planned)
+## Stage 2 — Cloudflare provisioning (planned)
 
 - `src/providers/cloudflare/` client; scoped token in Vault; DNS CNAME +
   remotely-managed tunnel hostname config at provisioner boot.
 - `github` and `stripe` profiles; grant `expiresAt` enforcement.
 
-## Phase 3 — isolated proxy companion (planned, needs sign-off)
+## Stage 3 — isolated proxy companion (planned, needs sign-off)
 
 - `ingress-proxy` companion image; verification moves out of the runtime;
   admin push of endpoint records; internal HMAC hop; grant secrets move
   behind the secret-broker model (`src/security/secrets/`).
-- Runtime keeps the phase-1 in-process verifier as a fallback path so the
+- Runtime keeps the stage-1 in-process verifier as a fallback path so the
   proxy is not a boot dependency.
 
-## Phase 4 — edge + discovery convergence (planned)
+## Stage 4 — edge + discovery convergence (planned)
 
 - Optional Cloudflare Worker edge filter (adds Workers scope to the token
   only at this point).
@@ -399,7 +399,7 @@ authority — the doc's "Rules going forward" apply here unchanged.
 
 ## Open questions
 
-- Grant store backend: `stateDirectory` JSON is phase-1 pragmatic, but the
+- Grant store backend: `stateDirectory` JSON is stage-1 pragmatic, but the
   runtime already has a Postgres store — should grants live there from the
   start so `release()` and audit share infrastructure?
 - Hostname per agent (`<agent>-hooks.<zone>`) is the recommendation; confirm the

@@ -8,7 +8,7 @@
   <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-5.7-3178C6?logo=typescript&logoColor=white">
   <img alt="Effect" src="https://img.shields.io/badge/Effect-4.0_beta-6E56CF?logo=effect&logoColor=white">
   <img alt="Bun" src="https://img.shields.io/badge/Bun-test_runner-F9F1E1?logo=bun&logoColor=black">
-  <img alt="Status" src="https://img.shields.io/badge/status-Phases_1--3_complete-brightgreen">
+  <img alt="Status" src="https://img.shields.io/badge/status-active-brightgreen">
   <img alt="License" src="https://img.shields.io/badge/license-MIT-green">
 </p>
 
@@ -181,11 +181,11 @@ second agent framework is vendored or loaded.
 
 ## Project status
 
-Elliott is implemented across three cumulative phases (nothing in a later phase weakens an invariant established earlier):
+Elliott is built as three cumulative layers, where nothing in a later layer weakens an invariant established by an earlier one:
 
-- **Phase 1 — security kernel (complete):** component model, discovery, grant resolution with epochs, IFC frames, kernel-enforced residency, route tables, audit architecture, the `standard` posture.
-- **Phase 2 — data plane breadth (complete):** memory providers, gateway and MCP pipelines, companions, sanitizer pipeline, `hardened`/`regulated` postures, scheduler, and bundled catalog.
-- **Phase 3 — control plane (complete):** Proposal-based learning with separated authorities, transactional configuration activation, curator/learn loops, and compaction gates.
+- **Security kernel:** component model, discovery, grant resolution with epochs, IFC frames, kernel-enforced residency, route tables, audit architecture, the `standard` posture.
+- **Data plane:** memory providers, gateway and MCP pipelines, companions, sanitizer pipeline, `hardened`/`regulated` postures, scheduler, and bundled catalog.
+- **Control plane:** Proposal-based learning with separated authorities, transactional configuration activation, curator/learn loops, and compaction gates.
 
 Conformance gates **G1–G26** each map to a design-document section and live under [`test/conformance`](test/conformance).
 

@@ -79,9 +79,9 @@ Conformance gates live in `test/conformance/` (one per TDD invariant;
 (dry contracts: CLI, config, APIs), `explanation/` (architecture, design
 decisions, the TDD, plans), `contributing/` (dev setup, testing, gates).
 `docs/index.md` is the landing page — add new pages to it. Behavior changes
-update the matching quadrant in the same PR. The JSON topology artifacts and
-`slack-llms.txt` at `docs/` root are data consumed by code — do not move
-them.
+update the matching quadrant in the same PR. The JSON topology artifacts
+under `topology/` and `slack-llms.txt` at `docs/` root are data consumed by
+code — do not move them.
 
 ## Delegation completion contract
 

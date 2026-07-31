@@ -3,7 +3,7 @@ import type { ExplorerEdge, Flow, FlowStep } from "../types/explorer";
 import { presentStrings } from "./pack-nodes";
 
 // Named traces through the verified topology; each references edge ids from
-// docs/elliott-topology.enriched.json (legacy parity, byte-for-byte copy).
+// topology/elliott-topology.enriched.json (legacy parity, byte-for-byte copy).
 const FLOW_DEFINITIONS: readonly (readonly [
   string,
   string,

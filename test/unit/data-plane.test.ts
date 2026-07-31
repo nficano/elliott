@@ -7,7 +7,7 @@ import { ModernMcpDriver } from "../../src/mcp/modern-driver/index";
 import type { McpArtifact } from "../../src/mcp/types";
 import { egressClass, resolveEgress } from "../../src/placement/egress";
 
-describe("Phase 2 data plane", () => {
+describe("data plane", () => {
   it("min-composes egress and never ships any as a bundled default", () => {
     const effective = resolveEgress({
       manifest: egressClass("declared", ["a.example", "b.example"]),

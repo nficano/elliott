@@ -45,7 +45,7 @@ const makeAgentRoot = async (): Promise<string> => {
   return root;
 };
 
-describe("agent skill packages (phase 1)", () => {
+describe("agent skill packages", () => {
   it("loads an agent's skills from its own root through the real seam", async () => {
     const { context, reported } = await makeSmokeContext();
     const packages = await loadAgentSkillPackages(

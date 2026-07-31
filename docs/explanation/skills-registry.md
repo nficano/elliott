@@ -120,7 +120,7 @@ so step 5's `bun run check` isn't a surprise yak-shave):
 
 - Prune moved entries from `BUNDLED_CATALOG` (`src/catalog/index.ts`).
 - Update tests that assert the catalog: `test/unit/bundled-skills.test.ts`,
-  `test/unit/phase-two-data-plane.test.ts:23,27` (asserts `search-duckduckgo`,
+  `test/unit/data-plane.test.ts:23,27` (asserts `search-duckduckgo`,
   `gateway-bluebubbles`), and the `contract-smoke` counts snapshot.
 - Move or delete unit tests importing moved skill sources:
   `slack-gateway.test.ts`, `slack-agent.test.ts`, `bluebubbles-gateway.test.ts`,
@@ -150,7 +150,7 @@ nficano/skills
 ├── .github/workflows/ci.yml  # validation, see §9
 ├── traefik/
 │   ├── manifest.yaml         # metadata.name MUST equal the directory name
-│   ├── EXTENSION.md
+│   ├── SKILL.md
 │   └── src/…                 # imports only elliott/* + builtins + own ./relatives
 ├── pihole/…
 ├── gateway-slack/…

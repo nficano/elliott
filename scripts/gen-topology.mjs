@@ -1,14 +1,14 @@
 #!/usr/bin/env bun
-// Generate docs/elliott-topology.json from declarative sources:
-//   - docs/topology.spine.json          (non-skill nodes + fixed runtime/cross-cutting edges)
+// Generate topology/elliott-topology.json from declarative sources:
+//   - topology/topology.spine.json       (non-skill nodes + fixed runtime/cross-cutting edges)
 //   - skills/**/manifest.yaml           (each module's spec.topology block -> its node + edges)
 //   - agents/elliott.yaml                (mcp[] -> mcp endpoint nodes + client edges)
 //   - config/elliott.yaml                (resolves config: gates to live/config-gated)
 //
 // Usage:
-//   bun scripts/gen-topology.mjs           # write docs/elliott-topology.generated.json
-//   bun scripts/gen-topology.mjs --check   # generate in-memory, diff vs docs/elliott-topology.json, exit 1 on structural drift
-//   bun scripts/gen-topology.mjs --write   # overwrite docs/elliott-topology.json
+//   bun scripts/gen-topology.mjs           # write topology/elliott-topology.generated.json
+//   bun scripts/gen-topology.mjs --check   # generate in-memory, diff vs topology/elliott-topology.json, exit 1 on structural drift
+//   bun scripts/gen-topology.mjs --write   # overwrite topology/elliott-topology.json
 //
 // Runtime counterpart: skills/deep-trace/src/auto-topology.ts derives the
 // same node/uniform-edge shapes from loaded packages when serving /topology —
@@ -124,7 +124,7 @@ const discoverSkillDirectories = async (relative = "skills") => {
 };
 
 async function build() {
-  const spine = await readJson("docs/topology.spine.json");
+  const spine = await readJson("topology/topology.spine.json");
   const config = await readYaml("config/elliott.yaml");
   const agent = await readYaml("agents/elliott.yaml");
 
@@ -253,7 +253,7 @@ const out = {
   version: "1.2.0-generated",
   title: "Elliott Runtime — Connection Graph (generated)",
   generatedFrom:
-    "scripts/gen-topology.mjs: docs/topology.spine.json + skills/**/manifest.yaml spec.topology + agents/elliott.yaml mcp[] + config/elliott.yaml gates",
+    "scripts/gen-topology.mjs: topology/topology.spine.json + skills/**/manifest.yaml spec.topology + agents/elliott.yaml mcp[] + config/elliott.yaml gates",
   note:
     "Auto-generated structural connection graph. Nodes/uniform-edges derive from each module's manifest; the runtime spine is hand-authored. `runtime` here is a static approximation (secret-gated => config-gated); the live deep-trace extension resolves actual liveness.",
   nodeKinds: [...NODE_KINDS],
@@ -273,10 +273,10 @@ console.log(
 // Informational reconciliation vs the curated reference (never fails; the
 // generator is one-node-per-skill so search/evaluator merges appear as splits).
 try {
-  const ref = await readJson("docs/elliott-topology.json");
+  const ref = await readJson("topology/elliott-topology.json");
   const d = diff(graph, ref);
   console.log(
-    "\n=== reconciliation vs docs/elliott-topology.json (curated reference) ===",
+    "\n=== reconciliation vs topology/elliott-topology.json (curated reference) ===",
   );
   console.log("nodes only in generated :", d.nodesAdded.join(", ") || "none");
   console.log("nodes only in reference :", d.nodesRemoved.join(", ") || "none");
@@ -294,11 +294,11 @@ if (args.has("--check")) {
   // CI drift guard: regenerate and compare against the committed generated file.
   let committed = null;
   try {
-    committed = await readJson("docs/elliott-topology.generated.json");
+    committed = await readJson("topology/elliott-topology.generated.json");
   } catch {}
   if (!committed || fingerprint(committed) !== fingerprint(out)) {
     console.error(
-      "\n--check: docs/elliott-topology.generated.json is stale or missing — run `bun scripts/gen-topology.mjs` and commit.",
+      "\n--check: topology/elliott-topology.generated.json is stale or missing — run `bun scripts/gen-topology.mjs` and commit.",
     );
     process.exit(1);
   }
@@ -307,7 +307,7 @@ if (args.has("--check")) {
 }
 
 const target = args.has("--write")
-  ? "docs/elliott-topology.json"
-  : "docs/elliott-topology.generated.json";
+  ? "topology/elliott-topology.json"
+  : "topology/elliott-topology.generated.json";
 await writeFile(path.join(ROOT, target), JSON.stringify(out, null, 2) + "\n");
 console.log(`\nwrote ${target}`);

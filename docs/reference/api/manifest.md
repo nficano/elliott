@@ -13,7 +13,7 @@ kind: tool                      # tool | gateway | scheduler | evaluator | …
 profile: tool-standard
 metadata: { namespace: core, name: fetch, version: 1.0.0 }
 spec:
-  document: TOOL.md             # the kind document in this directory
+  document: SKILL.md            # canonical model-visible doc (legacy TOOL.md still accepted)
   protocols: [tool.executor]
   capabilities:                 # requested capabilities; [] = none
     - { capability: network.connect, resources: [declared://request-hosts] }
@@ -40,7 +40,7 @@ spec:
 | `apiVersion`        | always `elliott/v1`                                              |
 | `kind`              | the component kind; determines the expected kind document        |
 | `metadata.name`     | lowercase/digits/hyphens; also the facility-consumer identity    |
-| `spec.document`     | `SKILL.md` / `TOOL.md` / `GATEWAY.md` / `SCHEDULER.md` / … with YAML frontmatter (`name`, `description`) |
+| `spec.document`     | `SKILL.md` (canonical, agentskills.io); legacy per-kind names (`TOOL.md`, `GATEWAY.md`, `SCHEDULER.md`, …) still accepted — all with YAML frontmatter (`name`, `description`) |
 | `spec.protocols`    | schema-backed protocols the component implements                 |
 | `spec.capabilities` | requested capabilities — declared, never ambient; empty fails closed |
 | `spec.egress`       | `class: none` or `class: declared` with hosts                    |

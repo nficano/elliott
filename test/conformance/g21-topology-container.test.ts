@@ -59,7 +59,7 @@ describe("G21 residency probe and topology attestation", () => {
 
   it("ships hardened containers with no runtime control socket", async () => {
     const compose = await readFile(
-      new URL("../../deploy/compose.phase-one.yml", import.meta.url),
+      new URL("../../deploy/compose.yml", import.meta.url),
       "utf8",
     );
     expect(compose).not.toContain("docker.sock");

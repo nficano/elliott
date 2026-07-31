@@ -3,12 +3,11 @@
 **Status:** Implementation plan<br>
 **Target:** Elliott framework and its Elliott consumer agent<br>
 **Elliott architecture source:** [Technical Design Document, Revision 7](../elliott-tdd.md)<br>
-**Upstream source:** [Hermes Agent Self-Evolution `PLAN.md` at commit `0a929e3`](https://github.com/NousResearch/hermes-agent-self-evolution/blob/0a929e3aa20e15cf04dc7c28492a7d41a5139125/PLAN.md)<br>
-**Source review date:** 2026-07-23
+**Review date:** 2026-07-23
 
 ## 1. Outcome
 
-Elliott will support the complete Hermes self-evolution workflow for four target classes:
+Elliott will support a complete self-evolution workflow for four target classes:
 
 1. Agent Skills instruction text.
 2. Tool and operation descriptions.
@@ -27,15 +26,15 @@ Elliott will implement those features through its Component, Protocol, Record, P
 
 ## 2. Architectural decisions
 
-These decisions resolve differences between the upstream Hermes plan and Elliott's TDD.
+These decisions resolve how the self-evolution workflow maps onto Elliott's TDD.
 
 ### 2.1 Elliott owns orchestration
 
 The TypeScript control plane will live under `src/learning/evolution/`. Elliott will represent optimization engines, dataset builders, benchmark runners, and judges as Components with schema-backed Protocols. The implementation will not add a second plugin model or a privileged "evolution manager."
 
-### 2.2 Python engines run outside the kernel
+### 2.2 Foreign-runtime engines run outside the kernel
 
-DSPy, GEPA, and MIPROv2 need Python. Elliott will run them in a digest-pinned companion or remote worker behind the normal component IPC contract. The kernel will send typed requests and receive typed candidate results. Python code will not load into the kernel process.
+DSPy, GEPA, and MIPROv2 are foreign-runtime engines. Elliott will run them in a digest-pinned companion or remote worker behind the normal component IPC contract. The kernel will send typed requests and receive typed candidate results. Foreign-runtime code will not load into the kernel process.
 
 This design respects the TDD's language-neutral IPC seam and keeps Elliott's framework implementation in TypeScript.
 
@@ -43,7 +42,7 @@ This design respects the TDD's language-neutral IPC seam and keeps Elliott's fra
 
 Elliott will execute Darwinian Evolver in its own digest-pinned container through a brokered component operation. No Elliott package will import or link its AGPL code. The component will receive a disposable candidate checkout, a bounded task, an evaluation command allowlist, and resource limits.
 
-The implementation phase must include a license review before Elliott publishes an image or distribution that contains Darwinian Evolver.
+The implementation stage must include a license review before Elliott publishes an image or distribution that contains Darwinian Evolver.
 
 ### 2.4 Proposals remain the source of control-plane truth
 
@@ -71,9 +70,9 @@ Baseline and candidate evaluations will run in clean frames against explicit Sna
 
 Task-specific evaluation will produce fitness. Elliott's full checks and broad agent benchmarks will reject regressions. They will not guide the optimizer directly.
 
-### 2.8 Full adoption keeps every phase
+### 2.8 Full adoption keeps every stage
 
-The rollout may pause at a failed phase gate, but it will not skip the remaining target classes. Elliott reaches full adoption only after code evolution and the continuous loop pass their gates.
+The rollout may pause at a failed stage gate, but it will not skip the remaining target classes. Elliott reaches full adoption only after code evolution and the continuous loop pass their gates.
 
 ### 2.9 The engines optimize artifacts, not model weights
 
@@ -115,13 +114,13 @@ Elliott already has the control-plane skeleton required by this plan. The implem
 | Scheduler | The scheduler leases jobs, resolves current authority, and creates a fresh frame | It needs recurring schedules, evolution-specific budgets, cancellation, and run deduplication |
 | Prompt model | `PromptSegment` and `assemblePrompt` implement typed ordering and a stable prefix | Prompt sources do not expose targetable segment boundaries or preservation constraints |
 | Footprints | `FootprintTracker` separates prompt, inference, and runtime footprints | It needs baseline/candidate comparison per evolution run |
-| Components | The ontology includes the `evaluator` kind | The bundled loader does not accept `evaluator` or `EVALUATOR.md`, and no optimizer Component exists |
+| Components | The ontology includes the `evaluator` kind | The bundled loader does not accept the `evaluator` kind, and no optimizer Component exists |
 | Agent Skills | `loadAgentSkill` parses standard `SKILL.md` with a separate authority overlay | No target adapter can mutate the instruction body while freezing frontmatter and overlay authority |
 | Runtime tools | `RuntimeModelClient` emits tool descriptions and schemas | No digest-bound description catalog or cross-tool selection evaluator exists |
 | CLI | Elliott has a runtime CLI entry point | It has no `evolve`, `evaluate`, `compare`, `propose`, or promotion commands |
 | Effect | Elliott uses Effect brands but learning workflows use mutable classes, Promises, and generic errors | New evolution workflows need Effect services, Layers, schemas, typed errors, cancellation, schedules, and observable operations |
 
-The first phase will close only the gaps that block self-evolution. It will not turn adoption into a repository-wide rewrite.
+The first stage will close only the gaps that block self-evolution. It will not turn adoption into a repository-wide rewrite.
 
 ## 5. Elliott-native architecture
 
@@ -271,7 +270,7 @@ The optimizer principal must not receive holdout access. The independent evaluat
 ### 6.3 Isolation floors
 
 - All optimizer and evaluator Components use `container` or `remote` isolation.
-- GEPA and MIPROv2 share a Python companion only if their security contexts match.
+- GEPA and MIPROv2 share a companion engine only if their security contexts match.
 - Darwinian Evolver receives its own container and candidate checkout.
 - Code candidate execution uses an ephemeral container with no host mounts, no container-runtime socket, bounded CPU, memory, pids, time, tokens, and egress.
 - Evaluation cases that need network access use declared hosts and broker inspection.
@@ -381,7 +380,7 @@ For each baseline and candidate pair:
 - Record per-case deltas rather than comparing aggregate scores alone.
 - Use bootstrap confidence intervals or a paired permutation test.
 - Report effect size, confidence interval, sample count, failure count, and cost.
-- Apply the phase's minimum improvement threshold.
+- Apply the stage's minimum improvement threshold.
 - Reject a candidate when the confidence interval crosses the allowed regression floor.
 - Correct for multiple comparisons when a run evaluates many final candidates.
 
@@ -438,7 +437,7 @@ Constraints:
 
 Initial targets should use deterministic success measures. Recommended first targets are a code-review skill, a search or research skill, and a debugging procedure once Elliott or a consumer agent installs them.
 
-Phase gate:
+Stage gate:
 
 - At least one skill improves its primary holdout score by 10 percent or the metric-specific equivalent.
 - The confidence interval stays above the regression floor.
@@ -453,7 +452,7 @@ Scope:
 - Component card descriptions.
 - Operation descriptions.
 - Parameter descriptions.
-- Model-facing behavioral guidance in `TOOL.md` where the schema binds it to the operation.
+- Model-facing behavioral guidance in `SKILL.md` where the schema binds it to the operation.
 
 Frozen:
 
@@ -476,7 +475,7 @@ Size limits:
 - Component policy may set lower limits.
 - Elliott's measured tool-schema footprint remains the controlling budget.
 
-Phase gate:
+Stage gate:
 
 - Global holdout selection accuracy improves by at least 5 percent.
 - No active tool shows a statistically supported selection regression.
@@ -507,9 +506,9 @@ Forbidden targets:
 - Dynamic capability cards.
 - Any text whose mutation could grant authority.
 
-The adapter will map each upstream Hermes prompt section to a typed Elliott source:
+The adapter will map each upstream prompt section to a typed Elliott source:
 
-| Hermes section | Elliott target |
+| Upstream section | Elliott target |
 | :--- | :--- |
 | Agent identity | InteractionProfile or zero-authority Agent prompt source |
 | Memory guidance | Governed workspace or Agent prompt source |
@@ -525,7 +524,7 @@ Constraints:
 - Evaluate sections alone, then evaluate the full prompt assembly.
 - Reject authority claims, secret-handling drift, trust-order drift, and cache-boundary movement.
 
-Phase gate:
+Stage gate:
 
 - Targeted behavioral score improves by at least 10 percent.
 - Broad benchmark regression tolerance is zero.
@@ -539,7 +538,7 @@ Start with isolated component implementation code. Expand by risk class after th
 
 | Risk class | Target | Automation |
 | :--- | :--- | :--- |
-| C1 | Pure helper inside a bundled tool with deterministic tests | Scheduled campaigns allowed after Phase 5 |
+| C1 | Pure helper inside a bundled tool with deterministic tests | Scheduled campaigns allowed after Stage 5 |
 | C2 | Tool or extension implementation inside one component package | Signal-triggered campaigns allowed |
 | C3 | Gateway, model provider, evaluator, scheduler, or other security-critical Component | Operator starts each campaign; two reviewers |
 | C4 | Kernel, broker, IFC, audit, placement, activation, hot core, schemas, or policy code | Operator-authored experiment only; no continuous scheduling |
@@ -569,7 +568,7 @@ Darwinian Evolver contract:
 - Use no Git remote.
 - Store each mutation as candidate lineage, not as an active Git commit.
 
-Phase gate:
+Stage gate:
 
 - At least one known defect is fixed on holdout reproduction cases.
 - `bun run check`, full TBLite, TerminalBench2, YC-Bench, security review, and canary pass.
@@ -786,7 +785,7 @@ The agent may request a run and author a Proposal when policy permits. It cannot
 
 ## 12. Implementation roadmap
 
-### Phase 0: Close control-plane and component gaps
+### Stage 0: Close control-plane and component gaps
 
 **Estimate:** 2 to 3 weeks
 
@@ -794,7 +793,7 @@ Deliverables:
 
 1. Add Effect schemas and typed errors for evolution domain records.
 2. Add the Protocol definitions from section 5.2.
-3. Extend the bundled catalog loader and manifest validation to support `evaluator` and `EVALUATOR.md`.
+3. Extend the bundled catalog loader and manifest validation to support the `evaluator` kind with `SKILL.md`.
 4. Make Proposal state transitions durable and reloadable.
 5. Add durable candidate Snapshot support.
 6. Connect promotion to lockfile revision, Snapshot creation, activation hooks, epoch bumps, audit cross-links, canary start, and rollback metadata.
@@ -823,7 +822,7 @@ Exit criteria:
 - Activation produces one candidate Snapshot, one epoch transaction, and durable audit linkage.
 - Existing G1 to G25 tests pass.
 
-### Phase 1: Build the shared evaluation substrate
+### Stage 1: Build the shared evaluation substrate
 
 **Estimate:** 3 weeks
 
@@ -847,7 +846,7 @@ Exit criteria:
 - A restricted dataset selects only admissible routes.
 - Budget exhaustion and cancellation leave a resumable or terminal run without partial activation.
 
-### Phase 2: Skill evolution with GEPA and MIPROv2
+### Stage 2: Skill evolution with GEPA and MIPROv2
 
 **Estimate:** 3 to 4 weeks
 
@@ -866,11 +865,11 @@ Exit criteria:
 
 - The GEPA engine can optimize any eligible discovered `SKILL.md`.
 - MIPROv2 can run as a policy-selected fallback.
-- At least one skill passes the phase gate in section 8.1.
+- At least one skill passes the stage gate in section 8.1.
 - The promoted skill appears only in new Snapshots and sessions.
 - The authority overlay and allowed-tool set remain byte-identical.
 
-### Phase 3: Tool-description optimization
+### Stage 3: Tool-description optimization
 
 **Estimate:** 2 to 3 weeks
 
@@ -891,7 +890,7 @@ Exit criteria:
 - Names, schemas, capabilities, and implementation exports stay unchanged.
 - Tool-schema footprint, full checks, TBLite, and canary pass.
 
-### Phase 4: Typed prompt evolution
+### Stage 4: Typed prompt evolution
 
 **Estimate:** 3 weeks
 
@@ -913,7 +912,7 @@ Exit criteria:
 - Stable-prefix and segment footprint budgets pass.
 - Prompt trust, security tags, and semantic order remain unchanged.
 
-### Phase 5: Code evolution
+### Stage 5: Code evolution
 
 **Estimate:** 4 weeks
 
@@ -935,7 +934,7 @@ Exit criteria:
 - Darwinian code remains outside the Elliott process and package.
 - No optimizer container holds repository credentials or active-tree write access.
 
-### Phase 6: Continuous self-improvement
+### Stage 6: Continuous self-improvement
 
 **Estimate:** 2 to 3 weeks
 
@@ -1013,17 +1012,17 @@ src/learning/
 skills/
 ├── evaluator-dspy/
 │   ├── manifest.yaml
-│   ├── EVALUATOR.md
+│   ├── SKILL.md
 │   ├── schemas/
 │   └── src/
 ├── evaluator-darwinian/
 │   ├── manifest.yaml
-│   ├── EVALUATOR.md
+│   ├── SKILL.md
 │   ├── schemas/
 │   └── src/
 └── evaluator-agent-benchmarks/
     ├── manifest.yaml
-    ├── EVALUATOR.md
+    ├── SKILL.md
     ├── schemas/
     └── src/
 
@@ -1058,7 +1057,7 @@ These gates supplement G1 to G25. They do not weaken or replace a TDD gate.
 
 **SE9, footprint gate:** Skill, tool, and prompt candidates pass prompt footprint budgets. Every candidate passes configured inference and runtime footprint budgets.
 
-**SE10, engine isolation:** Python engines and Darwinian Evolver run outside the kernel in digest-pinned isolated placements. Engine output crosses a validated schema boundary.
+**SE10, engine isolation:** Foreign-runtime engines and the Darwinian Evolver run outside the kernel in digest-pinned isolated placements. Engine output crosses a validated schema boundary.
 
 **SE11, durable promotion:** No active artifact changes before the promotion Record is durable. Activation creates rollback metadata, a Snapshot, affected epoch bumps, and an audit cross-link.
 
@@ -1238,14 +1237,14 @@ Elliott completes this plan when:
 
 ## 20. Critical path and schedule
 
-| Phase | Estimate | Depends on |
+| Stage | Estimate | Depends on |
 | :--- | :--- | :--- |
 | 0. Control-plane closure | 2 to 3 weeks | Current Elliott control plane |
-| 1. Evaluation substrate | 3 weeks | Phase 0 |
-| 2. Skill evolution | 3 to 4 weeks | Phase 1 |
-| 3. Tool descriptions | 2 to 3 weeks | Phase 2 engine and evaluation work |
-| 4. Typed prompts | 3 weeks | Phases 2 and 3 broad gates |
+| 1. Evaluation substrate | 3 weeks | Stage 0 |
+| 2. Skill evolution | 3 to 4 weeks | Stage 1 |
+| 3. Tool descriptions | 2 to 3 weeks | Stage 2 engine and evaluation work |
+| 4. Typed prompts | 3 weeks | Stages 2 and 3 broad gates |
 | 5. Code evolution | 4 weeks | Mature evaluation and sandbox path |
-| 6. Continuous loop | 2 to 3 weeks | Phases 2 through 5 |
+| 6. Continuous loop | 2 to 3 weeks | Stages 2 through 5 |
 
-Expected total: 19 to 23 weeks for one experienced implementation team, plus benchmark runtime and human review. Phase gates control progression. A failed gate extends its phase; it does not lower the threshold or bypass the remaining work.
+Expected total: 19 to 23 weeks for one experienced implementation team, plus benchmark runtime and human review. Stage gates control progression. A failed gate extends its stage; it does not lower the threshold or bypass the remaining work.

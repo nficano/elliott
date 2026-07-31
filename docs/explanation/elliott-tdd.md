@@ -12,7 +12,7 @@
 | Approver / decision owner | Pending |
 | Created | 2026-07-22 |
 | Last updated | 2026-07-29 |
-| Target implementation start | Started 2026-07-22; Phases 1–3 are implemented |
+| Target implementation start | Started 2026-07-22; the security-kernel, data-plane, and control-plane layers are implemented |
 | Related docs | [README](../../README.md), [Agent governance](agent-governance.md), [Skill facilities](skill-facilities.md), [Skill smoke strategy](../contributing/skill-e2e-smoke-strategy.md), [Evolution production acceptance](darwin/evolution-production-acceptance.md), [Evolution completion audit](darwin/evolution-completion-audit.md) |
 | Slack channel / issue tracker epic | N/A because no project channel or epic is recorded in this repository |
 
@@ -78,7 +78,7 @@ An agent runtime must let independently authored Components use powerful resourc
 
 No pre-Elliott incident or engineering-hour baseline is preserved, so this document does not claim a quantified reduction in incidents or maintenance cost. It uses conformance coverage, shared-manifest adoption, and fail-closed behavior as the present evidence and explicitly tracks missing production evidence in §§9, 12, 16, and 18.
 
-**Why now:** implementation has reached all three planned phases, the TDD is the architecture authority for follow-on work, and the document needs a reviewable operational contract before production claims, broader deployment, or further self-evolution work can safely rely on it.
+**Why now:** implementation has reached all three planned layers, the TDD is the architecture authority for follow-on work, and the document needs a reviewable operational contract before production claims, broader deployment, or further self-evolution work can safely rely on it.
 
 ## 4. Goals and non-goals
 
@@ -177,7 +177,7 @@ No pre-Elliott incident or engineering-hour baseline is preserved, so this docum
 
 ## 6. Current state
 
-The repository README reports Phases 1–3 and milestones M0–M8 as implemented. The tracked `HEAD` baseline contains 336 TypeScript source files, the bundled catalog contains 32 `manifest.yaml` files, and `bun test` on 2026-07-29 completed with 485 passing, 5 environment-gated skipped, and 0 failing tests. A targeted conformance run passed 64 tests across 27 files, including G1–G26 and self-evolution checks. Passing tests do not close the G20/G26 coverage gap described below.
+The repository README reports the security-kernel, data-plane, and control-plane layers and milestones M0–M8 as implemented. The tracked `HEAD` baseline contains 336 TypeScript source files, the bundled catalog contains 32 `manifest.yaml` files, and `bun test` on 2026-07-29 completed with 485 passing, 5 environment-gated skipped, and 0 failing tests. A targeted conformance run passed 64 tests across 27 files, including G1–G26 and self-evolution checks. Passing tests do not close the G20/G26 coverage gap described below.
 
 ### Current architecture
 
@@ -323,15 +323,15 @@ Every security mechanism in this document is justified against a named adversary
 - **A malicious primary user is out of scope.** Elliott protects the user's data from components and providers, not from the user.
 - **Covert channels below the payload level are mitigated, not eliminated.** A restricted-frame agent can leak low-bandwidth signals through control flow: whether it merges, which tools it calls, timing, and message counts. §7.8d states the residual risk and the rate-limiting mitigations. Any claim elsewhere that IFC "prevents exfiltration" means payload-level exfiltration.
 
-#### 7.2c. Delivery phasing
+#### 7.2c. Delivery layering
 
-The full component taxonomy is large. The design cuts into three phases so that the security kernel ships and hardens first:
+The full component taxonomy is large. The design cuts into three cumulative layers so that the security kernel ships and hardens first:
 
-1. **Phase 1 (security kernel):** Component model, discovery, GrantSets with epoch resolution, IFC frames, kernel-enforced residency with egress probes, route tables and model resolution, audit log architecture, the `standard` posture and container deployment profile, gates G1–G11, G16–G22, and the later live-path governance gate G26.
-2. **Phase 2 (data plane breadth):** Memory providers with persisted classification, MCP exposure, extension/gateway kinds, sanitizer pipeline with decision caching, `hardened`/`regulated` postures, the bundled catalog (§7.16: search, browser, gateways, scheduler, OS tools, cloudflared, hermes-method memory stores), gates G12–G15 and G23–G25.
-3. **Phase 3 (control plane):** Proposal-based learning, transactional configuration activation, compaction gates.
+1. **Security kernel:** Component model, discovery, GrantSets with epoch resolution, IFC frames, kernel-enforced residency with egress probes, route tables and model resolution, audit log architecture, the `standard` posture and container deployment profile, gates G1–G11, G16–G22, and the later live-path governance gate G26.
+2. **Data plane breadth:** Memory providers with persisted classification, MCP exposure, extension/gateway kinds, sanitizer pipeline with decision caching, `hardened`/`regulated` postures, the bundled catalog (§7.16: search, browser, gateways, scheduler, OS tools, cloudflared, memory stores), gates G12–G15 and G23–G25.
+3. **Control plane:** Proposal-based learning, transactional configuration activation, compaction gates.
 
-Nothing in Phase 3 may weaken an invariant established in Phase 1; Phase 3 features are additive consumers of the kernel, not modifications to it.
+Nothing in the control-plane layer may weaken an invariant established in the security kernel; control-plane features are additive consumers of the kernel, not modifications to it.
 
 #### 7.2d. Performance Doctrine: event-driven recomputation, epoch-checked use
 
@@ -387,7 +387,7 @@ Rows marked **always on** are the non-negotiables: they are either event-time (r
 - Markdown and YAML as foundational component formats.
 - Native Agent Skills compatibility through unmodified `SKILL.md` files.
 - Pluggable gateways, MCP endpoints, extensions, interaction profiles, memory providers, model providers, evaluators, and schedulers expressed through the same object model.
-- Runtime equivalents of Python's `object`, `type()`, ABCs, structural protocols, `isinstance()`, `dir()`, `inspect.signature()`, and `help()`.
+- Runtime introspection primitives: type identity, abstract base classes, structural protocols, instance checks, member enumeration, signature inspection, and help.
 - A capability model where every narrower scope can restrict but never expand authority.
 - Provider-neutral model selection with reserved semantic profiles; first-party provider components (LiteLLM, Ollama) without delegating tool authority to any provider.
 - A governed self-improvement loop with evaluation, provenance, human review, canary activation, and rollback.
@@ -400,7 +400,7 @@ Rows marked **always on** are the non-negotiables: they are either event-time (r
 - Not a hosted SaaS platform, and not an orchestration UI.
 - Not a replacement for LiteLLM, Langfuse, Vault, Home Assistant, or other external infrastructure.
 - Not an MCP fork or replacement.
-- Not implemented in Python; Python is an object-model analogy only.
+- The framework is implemented in TypeScript, not a foreign runtime; foreign-runtime engines run only as isolated companions (§7.16b).
 - Not a consumer-agent monorepo.
 - Not an autonomous self-modifying system without approval boundaries.
 - Not a generic in-process plugin host for untrusted third-party code.
@@ -437,7 +437,7 @@ Rows marked **always on** are the non-negotiables: they are either event-time (r
 The universal base object. A Component has stable identity, kind, version and digest, manifest, documentation, declared Protocols, requested capabilities, lifecycle, and introspection.
 
 **Protocol**
-The equivalent of a Python ABC or structural protocol. Examples: `message.source`, `message.sink`, `tool.executor`, `resource.reader`, `prompt.source`, `model.inference`, `model.catalog`, `policy.decider`, `health.checker`, `evaluation.runner`, `memory.reader`, `memory.writer`, `composition.members`. A Component can implement multiple Protocols.
+The equivalent of an abstract base class or structural protocol. Examples: `message.source`, `message.sink`, `tool.executor`, `resource.reader`, `prompt.source`, `model.inference`, `model.catalog`, `policy.decider`, `health.checker`, `evaluation.runner`, `memory.reader`, `memory.writer`, `composition.members`. A Component can implement multiple Protocols.
 
 **ComponentSchema**
 The runtime equivalent of `type()` or `__class__`. It describes the component kind, manifest schema, standard Markdown document, supported Protocol schemas, minimum required isolation, and lifecycle rules. Manifests reference their schema by `(kind, apiVersion, digest)`; they do not embed it (§7.4).
@@ -1426,7 +1426,7 @@ Replace rollback concepts with immutable candidate revisions (`active revision A
 
 Managed through a strict policy pipeline: `SignalDetector → ProposalAuthor → EvaluationPlan → Evaluators → HumanReview → DeploymentManager`. Classification-taxonomy changes, sanitizer policy changes, Layer-1 schema additions (including append-safe class designations, §7.8c), and compiled-validator activation route through this pipeline exclusively.
 
-**Separated authorities.** No single runtime holds the whole loop: `SignalDetector`, `ProposalAuthor`, `Evaluator`, `HumanApprover`, and `ReleasePromoter` are distinct principals, and the author of a change can never approve or promote it alone (invariant 10, §7.2f). The hermes-style skill curator (§7.16d) holds only SignalDetector and ProposalAuthor authority.
+**Separated authorities.** No single runtime holds the whole loop: `SignalDetector`, `ProposalAuthor`, `Evaluator`, `HumanApprover`, and `ReleasePromoter` are distinct principals, and the author of a change can never approve or promote it alone (invariant 10, §7.2f). The skill curator (§7.16d) holds only SignalDetector and ProposalAuthor authority.
 
 **Signal ranking.** Signals rank: (1) explicit user correction, (2) explicit user-confirmed success/failure, (3) deterministic evaluator result, (4) repeated successful workaround, (5) repeated tool or routing failure, (6) model self-reflection. Self-reflection alone can never authorize promotion.
 
@@ -1622,9 +1622,9 @@ This is the "more complicated config that just works" mechanism, and it is delib
 | `search-duckduckgo`      | tool: `search.provider`                       | declared(ddg)                             | No key; the zero-config default so search works out of the box.                                                                                                                                                                                                                                                                                                                           |
 | `search-brave`           | tool: `search.provider`                       | declared(brave API)                       | Key via secret mount.                                                                                                                                                                                                                                                                                                                                                                     |
 | `web-firecrawl`          | tool: `search.provider`, `content.extractor`  | declared(firecrawl API)                   | Extraction strips active content and normalizes to text/markdown before broker re-entry.                                                                                                                                                                                                                                                                                                  |
-| `web-parallel`           | tool: `search.provider`, `content.extractor`  | declared(parallel API)                    | Same extractor contract; providers are interchangeable behind the two protocols, mirroring hermes-agent's pluggable web-provider layout.                                                                                                                                                                                                                                                  |
+| `web-parallel`           | tool: `search.provider`, `content.extractor`  | declared(parallel API)                    | Same extractor contract; providers are interchangeable behind the two protocols.                                                                                                                                                                                                                                                  |
 | `browser`                | extension: `tool.executor` + companion (§7.16b) | declared([]) grows per-task               | Operator or task grants per-origin host additions at runtime as deferred grants (§7.3); CDP never exposed beyond the owner.                                                                                                                                                                                                                                                                 |
-| `mcp-client`             | mcp-endpoint                                  | per-server declared / companion for stdio | Remote servers: declared(host). Stdio servers: companion containers. The server's tool list is digest-pinned at registration; a server that changes its advertised tools mid-session is a G3-class contract drift and re-enters approval rather than silently gaining tools. OAuth flows terminate in the kernel secret store (hermes-agent's mcp_oauth pattern), never in model context. |
+| `mcp-client`             | mcp-endpoint                                  | per-server declared / companion for stdio | Remote servers: declared(host). Stdio servers: companion containers. The server's tool list is digest-pinned at registration; a server that changes its advertised tools mid-session is a G3-class contract drift and re-enters approval rather than silently gaining tools. OAuth flows terminate in the kernel secret store, never in model context. |
 | `gateway-slack`          | gateway: `message.source/sink`                | declared(slack)                           | Socket Mode preferred so no inbound port is needed.                                                                                                                                                                                                                                                                                                                                       |
 | `gateway-bluebubbles`    | gateway: `message.source/sink`                | lan                                       | iMessage requires the BlueBubbles server on a macOS host; that bridge is a `remote`-isolation component (§7.4), the one bundled thing that cannot be containerized. Pairing/allowlist before any sender reaches the agent.                                                                                                                                                                  |
 | `gateway-email`          | gateway: `message.source/sink`                | declared(mail hosts)                      | SMTP out, IMAP in (assuming "snmp" meant SMTP). Inbound mail is the canonical A2 channel; stamped and sender-allowlisted.                                                                                                                                                                                                                                                                 |
@@ -1637,11 +1637,11 @@ This is the "more complicated config that just works" mechanism, and it is delib
 | `terminal` / `ssh`       | tool: `tool.executor`                         | none / declared(hosts)                    | ssh host allowlist is the egress class; private keys stay in the secret store and the broker injects an agent socket into the tool container, so keys are unreadable even to the tool that uses them. Terminal output re-enters as untrusted content.                                                                                                                                     |
 | `fetch`                  | tool                                          | declared(per-grant)                       | This is "curl": the brokered HTTP client of §7.10a, not a raw binary, so argument inspection and egress classes apply uniformly. A literal curl in `terminal` still can't exceed the container's egress class.                                                                                                                                                                               |
 
-#### 7.16d. Memory and learning: the hermes-agent method
+#### 7.16d. Memory and learning method
 
-Adopted from NousResearch/hermes-agent (verified against source, not recollection) and mapped onto Elliott's `memory.reader/writer` protocols. The method is three stores plus two loops; the only systematic delta is that every write carries a frame-classification stamp (§7.8b), which hermes-agent has no equivalent of and which costs one enum under the `standard` posture.
+Mapped onto Elliott's `memory.reader/writer` protocols, the method is three stores plus two loops. Every write carries a frame-classification stamp (§7.8b), which costs one enum under the `standard` posture.
 
-**Routing taxonomy: not everything learned is a memory.** Restored from Revision 1 and it composes cleanly with the hermes stores; the destination decides the governance path:
+**Routing taxonomy: not everything learned is a memory.** Restored from Revision 1 and it composes cleanly with the three stores; the destination decides the governance path:
 
 | Learned information                      | Destination                                                        |
 | :--------------------------------------- | :----------------------------------------------------------------- |
@@ -1659,21 +1659,21 @@ Adopted from NousResearch/hermes-agent (verified against source, not recollectio
 
 Semantic memory entries carry: subject, statement, scope, provenance, confidence, creation time, expiration or review time, contradiction links, and the classification stamp. Retrieved memory is contextual evidence and cannot grant permissions (§7.12a rules).
 
-**Store 1: `memory-curated` (bounded file memory).** Two §-delimited, character-bounded stores, following hermes `MEMORY.md` (agent notes: environment facts, conventions, quirks) and `USER.md` (user profile: preferences, style, habits). Injected into the system prompt as a **frozen snapshot at session start**; mid-session writes are durable immediately but do not touch the prompt, and the snapshot refreshes next session. This is hermes' prefix-cache preservation trick and it lands directly on §7.10b: the snapshot sits in the stable prefix ahead of the cache breakpoint. Writes go through the single `memory` tool with add/replace/remove actions and short-substring matching, kept verbatim because its ergonomics are proven.
+**Store 1: `memory-curated` (bounded file memory).** Two §-delimited, character-bounded stores: `MEMORY.md` (agent notes: environment facts, conventions, quirks) and `USER.md` (user profile: preferences, style, habits). Injected into the system prompt as a **frozen snapshot at session start**; mid-session writes are durable immediately but do not touch the prompt, and the snapshot refreshes next session. This is a prefix-cache preservation trick and it lands directly on §7.10b: the snapshot sits in the stable prefix ahead of the cache breakpoint. Writes go through the single `memory` tool with add/replace/remove actions and short-substring matching, kept verbatim because its ergonomics are proven.
 
-**Store 2: `memory-session-store` (SQLite, the system of record).** One SQLite database in WAL mode (concurrent readers, one writer, matching the gateway's multi-source reality), FTS5 virtual tables for full-text recall across all session messages, with trigram and CJK tokenizer variants as in hermes_state. Tables follow the hermes schema shape: sessions (with source tagging: cli, slack, imessage, …), messages, per-session model usage, gateway routing state, delegation state, and parent-session chains for compression-triggered session splits. This same database feeds the insights engine (usage, cost, tool patterns) and the learning graph, so analytics require no second store. SQLite ships zero-config as the default; deployments that outgrow it swap the provider, not the protocol.
+**Store 2: `memory-session-store` (SQLite, the system of record).** One SQLite database in WAL mode (concurrent readers, one writer, matching the gateway's multi-source reality), FTS5 virtual tables for full-text recall across all session messages, with trigram and CJK tokenizer variants. Tables follow a session-store schema shape: sessions (with source tagging: cli, slack, imessage, …), messages, per-session model usage, gateway routing state, delegation state, and parent-session chains for compression-triggered session splits. This same database feeds the insights engine (usage, cost, tool patterns) and the learning graph, so analytics require no second store. SQLite ships zero-config as the default; deployments that outgrow it swap the provider, not the protocol.
 
-**Store 3: `memory-external` (single-slot semantic provider).** Hermes enforces exactly one external memory provider at a time (Honcho, Mem0, Hindsight, and similar) to prevent tool-schema bloat and conflicting backends; Elliott keeps the one-slot rule as registry policy on the `memory` kind. The hermes provider lifecycle maps one-to-one: `initialize`, `system_prompt_block`, `prefetch(query)` as background pre-turn recall, `sync_turn` as async post-turn write, `on_pre_compress` as extract-before-compaction, `on_session_end`, plus tool-schema exposure through the broker. Providers needing a database (pgvector, qdrant) declare it as a companion container (§7.16b) with `none` egress, which is how "every database necessary" ships without a single manual docker command.
+**Store 3: `memory-external` (single-slot semantic provider).** Exactly one external memory provider is allowed at a time (Honcho, Mem0, Hindsight, and similar) to prevent tool-schema bloat and conflicting backends; Elliott enforces the one-slot rule as registry policy on the `memory` kind. The provider lifecycle maps one-to-one: `initialize`, `system_prompt_block`, `prefetch(query)` as background pre-turn recall, `sync_turn` as async post-turn write, `on_pre_compress` as extract-before-compaction, `on_session_end`, plus tool-schema exposure through the broker. Providers needing a database (pgvector, qdrant) declare it as a companion container (§7.16b) with `none` egress, which is how "every database necessary" ships without a single manual docker command.
 
-**Loop 1: learning is skill authoring.** Hermes' `/learn` turns anything describable (a directory, a doc URL, the current conversation) into a `SKILL.md` authored by the live agent under hardline authoring standards, with no separate distillation engine. Elliott adopts this whole: `/learn` builds the standards-guided prompt, the agent authors into workspace scope, and the result is an ordinary zero-authority skill (§7.11) until someone adds an overlay. Under `regulated` posture, agent-authored skills route through §7.13c Proposals before activation; under `standard` they activate directly, which is safe precisely because a bare SKILL.md carries no executable authority.
+**Loop 1: learning is skill authoring.** The `/learn` command turns anything describable (a directory, a doc URL, the current conversation) into a `SKILL.md` authored by the live agent under hardline authoring standards, with no separate distillation engine. `/learn` builds the standards-guided prompt, the agent authors into workspace scope, and the result is an ordinary zero-authority skill (§7.11) until someone adds an overlay. Under `regulated` posture, agent-authored skills route through §7.13c Proposals before activation; under `standard` they activate directly, which is safe precisely because a bare SKILL.md carries no executable authority.
 
-**Loop 2: the curator.** A background, inactivity-triggered maintenance agent on an auxiliary model reviews agent-created skills: auto-transitions lifecycle states from usage timestamps, consolidates, patches, archives. Hermes' invariants adopt unchanged because they are exactly right: only touches agent-created skills, **never deletes, only archives** (recoverable), pinned skills bypass all auto-transitions, and it never touches the main session's prompt cache. In Elliott the curator is an `evaluator` component fired by the scheduler on idle, and its mutations are audit records; under `regulated` its consolidations become Proposals.
+**Loop 2: the curator.** A background, inactivity-triggered maintenance agent on an auxiliary model reviews agent-created skills: auto-transitions lifecycle states from usage timestamps, consolidates, patches, archives. Its invariants are exactly right: only touches agent-created skills, **never deletes, only archives** (recoverable), pinned skills bypass all auto-transitions, and it never touches the main session's prompt cache. In Elliott the curator is an `evaluator` component fired by the scheduler on idle, and its mutations are audit records; under `regulated` its consolidations become Proposals.
 
-**Compression wiring.** Hermes extracts memory `on_pre_compress`, so knowledge is harvested before context compression discards it, and compression splits sessions along parent-chains in the state DB. This slots into §7.13d directly: extraction runs before compaction, and both the extraction and the compaction summary inherit the compacted frame's classification, keeping compaction a non-declassification path.
+**Compression wiring.** Memory extraction runs `on_pre_compress`, so knowledge is harvested before context compression discards it, and compression splits sessions along parent-chains in the state DB. This slots into §7.13d directly: extraction runs before compaction, and both the extraction and the compaction summary inherit the compacted frame's classification, keeping compaction a non-declassification path.
 
 #### 7.16e. Scheduler
 
-Adopted shape: hermes runs cron via the gateway daemon ticking every 60 seconds against a file-locked job store, executing jobs in **isolated fresh sessions with no prior context**. Elliott keeps the tick-plus-lease execution model and the fresh-session rule (a scheduled job starting from a clean frame is both a correctness and an IFC property), with two adaptations. Jobs live in the session store (Store 2) rather than a JSON file, since the locking, WAL, and audit needs are already solved there. And authority is resolved **at fire time**: a job stores its principal and requested capabilities, never a grant snapshot, so every run resolves through the current epoch (§7.3a). A schedule cannot outlive its authority: revoke the principal or narrow the policy and the next fire fails closed with `blocked-no-route`-style typed disposition and an audit record, rather than running on embalmed permissions. Gate G25.
+The scheduler runs cron via the gateway daemon ticking every 60 seconds against a file-locked job store, executing jobs in **isolated fresh sessions with no prior context**. Elliott keeps this tick-plus-lease execution model and the fresh-session rule (a scheduled job starting from a clean frame is both a correctness and an IFC property), with two adaptations. Jobs live in the session store (Store 2) rather than a JSON file, since the locking, WAL, and audit needs are already solved there. And authority is resolved **at fire time**: a job stores its principal and requested capabilities, never a grant snapshot, so every run resolves through the current epoch (§7.3a). A schedule cannot outlive its authority: revoke the principal or narrow the policy and the next fire fails closed with `blocked-no-route`-style typed disposition and an audit record, rather than running on embalmed permissions. Gate G25.
 
 #### 7.16f. Gateway pipelines, identity, and sessions
 
@@ -1832,7 +1832,7 @@ Everything under `~/.cache` is reconstructable and can be deleted at any time; t
 ├── schemas/  src/  tests/  evals/  references/  assets/  migrations/
 ```
 
-Only applicable directories need to exist. Standard Markdown names per kind: `AGENT.md`, `SKILL.md`, `TOOL.md`, `GATEWAY.md`, `MCP.md` (endpoint and exposure), `EXTENSION.md`, `INTERACTION_PROFILE.md`, `POLICY.md`, `EVALUATOR.md`, `RESOURCE.md`, `MODEL_PROVIDER.md`, `MODEL_PROFILE.md`, `MEMORY_PROVIDER.md`, `SCHEDULER.md`. `README.md` is developer documentation and is never automatically added to prompt context.
+Only applicable directories need to exist. `SKILL.md` is the canonical model-visible document for every kind (the agentskills.io convention); the legacy per-kind names — `AGENT.md`, `TOOL.md`, `GATEWAY.md`, `MCP.md` (endpoint and exposure), `EXTENSION.md`, `INTERACTION_PROFILE.md`, `POLICY.md`, `EVALUATOR.md`, `RESOURCE.md`, `MODEL_PROVIDER.md`, `MODEL_PROFILE.md`, `MEMORY_PROVIDER.md`, `SCHEDULER.md` — remain accepted for backward-compatibility during migration. `README.md` is developer documentation and is never automatically added to prompt context.
 
 #### 7.18c. Example component manifest (full form)
 
@@ -1849,7 +1849,7 @@ metadata:
   description: Receives and delivers Slack messages.
 
 spec:
-  document: GATEWAY.md
+  document: SKILL.md
   schema: { kind: gateway, apiVersion: elliott/v1, digest: "sha256:…" } # SchemaRef, §7.4
 
   runtime:
@@ -2177,14 +2177,14 @@ Test data must be synthetic, generated, or explicitly scrubbed; production promp
 
 ## 11. Rollout plan
 
-Implementation phases in §7.2c are complete; this section governs deployment of an immutable release into an operator environment.
+The implementation layering in §7.2c is complete; this section governs deployment of an immutable release into an operator environment.
 
-### 11.1 Phases
+### 11.1 Stages
 
-| Phase | Scope | Audience | Entry criteria | Exit criteria | Duration |
+| Stage | Scope | Audience | Entry criteria | Exit criteria | Duration |
 |---|---|---|---|---|---|
 | 0 | Dark install; gateways disabled; validate manifests, probes, stores, dashboards | Maintainers | Build/check pass; deployment manifests and secrets present | G1–G26, G20/G26 composition, migration dry run, restore, and topology probes pass | At least one full validation cycle |
-| 1 | Local/internal canary | One maintainer/principal and noncritical channels | Phase 0 pass; on-call owner assigned | 24h with no security invariant breach or rollback trigger | Minimum 24h |
+| 1 | Local/internal canary | One maintainer/principal and noncritical channels | Stage 0 pass; on-call owner assigned | 24h with no security invariant breach or rollback trigger | Minimum 24h |
 | 2 | Limited ramp | Approved channels/workspaces, roughly 10%→50% of intended use | Canary review; latency/cost baseline; runbooks exercised | One week inside approved error/cost budgets | Minimum 7 days |
 | 3 | General availability | 100% of approved deployment scope | Required sign-offs and no blocking open question | One month inside SLO/cost and successful restore drill | Minimum 30-day review window |
 | 4 | Cleanup | Remove obsolete revision, flags, temporary access, and migration code | GA stable; rollback retention window elapsed | Old path cannot receive traffic; artifacts retained per policy | Release-specific |
@@ -2214,7 +2214,7 @@ Fresh deployments require no backfill. Existing runtime data must migrate throug
 
 ### 11.4 Communication
 
-Before each phase, notify the named operator/on-call, affected gateway/channel owners, security, privacy, and product decision owner with scope, expected behavior, rollback trigger, and support path. Release notes and the internal changelog identify the active Snapshot/revision and known limitations. Customer, sales, public status-page, and broad support communication are N/A until Elliott is operated as a customer-facing service; a future service launch must add those audiences explicitly.
+Before each stage, notify the named operator/on-call, affected gateway/channel owners, security, privacy, and product decision owner with scope, expected behavior, rollback trigger, and support path. Release notes and the internal changelog identify the active Snapshot/revision and known limitations. Customer, sales, public status-page, and broad support communication are N/A until Elliott is operated as a customer-facing service; a future service launch must add those audiences explicitly.
 
 ## 12. Operational readiness
 
@@ -2239,7 +2239,7 @@ The implementation is functionally complete, but production operations are not s
 
 | Dependency | Type | Owner | Needed by | Status | Fallback if late/unavailable |
 |---|---|---|---|---|---|
-| TypeScript 5.7+ and Node.js ≥22 ESM | Runtime/toolchain | Elliott maintainers | All phases | In use | Bun-compatible build where supported; do not fork semantics |
+| TypeScript 5.7+ and Node.js ≥22 ESM | Runtime/toolchain | Elliott maintainers | All stages | In use | Bun-compatible build where supported; do not fork semantics |
 | Effect 4 beta and aligned Effect packages | Runtime architecture | Elliott maintainers / Effect upstream | Services, Layers, Schema, concurrency, typed errors | In use | Pin tested release; no ad hoc second DI/error runtime |
 | Bun test/runtime tooling | Toolchain | Elliott maintainers / Bun upstream | CI, local runtime | In use | Node-compatible package runtime; test-runner migration requires CI proof |
 | OCI container runtime | Infrastructure | Deployment operator | Isolation, residency, companions | Required for reference profile | Strong process isolation on bare metal; regulated untrusted code waits for an approved boundary |
@@ -2264,7 +2264,7 @@ Critical-path external control rests with the deployment operator for container/
 | R-05 | Prompt injection manipulates behavior | H | H | Typed trust ordering, brokered effects, untrusted stamps, adversarial evaluation | Agent/security: TBD | Injection causes an unauthorized attempt or regression |
 | R-06 | Approval fatigue creates durable or high-risk mistakes | M | H | Byte-bound views, no implicit durable grant, rate limits, Proposal separation | Product/security: TBD | High denial/override rate or reviewer comprehension failure |
 | R-07 | SQLite single writer or single host limits scale/availability | M | M/H | Measure write/queue headroom, backups, provider seam, migrate only on evidence | Data/SRE: TBD | Sustained saturation, missed SLO, or restore objective unmet |
-| R-08 | Unknown production latency, capacity, and cost hide a nonviable profile | H | H | Load/soak, production canary, SLO and cost ceiling before GA | Product/SRE: TBD | Phase 1 cannot establish stable baseline |
+| R-08 | Unknown production latency, capacity, and cost hide a nonviable profile | H | H | Load/soak, production canary, SLO and cost ceiling before GA | Product/SRE: TBD | Stage 1 cannot establish stable baseline |
 | R-09 | No named owner/on-call leaves failures unhandled | H | H | Block production sign-off until §12 assignments exist | Decision owner: TBD | Any rollout request without staffed rotation |
 | R-10 | Supply-chain substitution or vulnerable dependency enters TCB/companions | M | H | Digest pinning, provenance, SBOM/license review, minimal native admission, fuzzing | Security/release: TBD | Unpinned artifact, critical advisory, or trust-root change |
 | R-11 | Low-bandwidth covert channel leaks restricted facts | M | M | Opaque responses, constant shape, rate limits, anomaly telemetry; document acceptance | Security/privacy: TBD | Measured leakage exceeds accepted bandwidth |
@@ -2292,10 +2292,10 @@ The implementation work packages below retain the original M0–M8 order. Exact 
 | M8: consumer agent | Separate repository scaffold and end-to-end composition | Runtime/product | Not recorded | M0–M7 | Implemented; production conformance remains blocked by R-15 |
 | OR-0: enforcement convergence | Apply Grants to every side-effecting live tool and make effect-gating audit failure block execution | Runtime/security | TBD | M5, G20, G26 | Pending |
 | OR-1: operational baseline | SLOs, dashboards, cost, load/soak, backups/restore, runbooks | SRE/product/security | TBD | OR-0 | Pending |
-| OR-2: internal canary | Target environment Phase 0/1 rollout | SRE/product | ≥1 day plus setup | OR-1 and sign-off | Pending |
+| OR-2: internal canary | Target environment Stage 0/1 rollout | SRE/product | ≥1 day plus setup | OR-1 and sign-off | Pending |
 | OR-3: ramp and GA | Limited ramp, one-week review, one-month GA review | SRE/product | ≥5 weeks | OR-2 | Pending |
 
-The historical critical path was M0 → M3/M5 → M4/M6 → M7 → M8. Registry/skills, observability, model adapters, and gateway work were parallelizable after the spine; trust-boundary completion gated any credible external integration. The operational critical path is now OR-0 → ownership → SLO/capacity/cost/retention decisions → runbooks/dashboards/restore → Phase 0 → canary → ramp. No schedule buffer was recorded; the rollout plan adds observation windows but still needs an owner-approved contingency buffer.
+The historical critical path was M0 → M3/M5 → M4/M6 → M7 → M8. Registry/skills, observability, model adapters, and gateway work were parallelizable after the spine; trust-boundary completion gated any credible external integration. The operational critical path is now OR-0 → ownership → SLO/capacity/cost/retention decisions → runbooks/dashboards/restore → Stage 0 → canary → ramp. No schedule buffer was recorded; the rollout plan adds observation windows but still needs an owner-approved contingency buffer.
 
 ## 16. Open questions
 
@@ -2303,7 +2303,7 @@ The historical critical path was M0 → M3/M5 → M4/M6 → M7 → M8. Registry/
 |---|---|---|---|---|---|
 | Q-01 | Is Node.js the only supported production runtime, or is Bun also a supported runtime rather than only a tool/CI target? | Compatibility statement | Runtime: TBD | OR-1 | Open |
 | Q-02 | Which schema adapter is standard: TypeBox+Ajv, Zod, Valibot, or a neutral adapter? | Public authoring API | Runtime: TBD | Next manifest/Protocol version | Open; Layer-1 validators must still compile at activation |
-| Q-03 | Are Python/shell workers supported exports or is executable authoring TypeScript-only? | Worker SDK and sandbox matrix | Runtime/security: TBD | First non-TS Component | Open; IPC remains language-neutral |
+| Q-03 | Are foreign-runtime/shell workers supported exports or is executable authoring TypeScript-only? | Worker SDK and sandbox matrix | Runtime/security: TBD | First non-TS Component | Open; IPC remains language-neutral |
 | Q-04 | Does `model.use.deep` require deferred approval by default under `standard`? | Default policy UX and cost | Product/security: TBD | OR-1 | Mechanism exists; default unresolved |
 | Q-05 | What numeric prompt, inference, and runtime footprint thresholds fail CI? | Performance release gate | Performance/product: TBD | OR-1 | Metrics exist; thresholds unresolved |
 | Q-06 | Must evaluator independence use a different vendor, a different deployment, or only exclude the authoring route? | Learning assurance | Security/governance: TBD | First production Proposal promotion | Open |

@@ -165,7 +165,7 @@ describe("GET /v1/observability/map/topology", () => {
     expect(response.headers.get("content-type")).toBe("application/json");
     const body = await response.text();
     const onDisk = await readFile(
-      path.join(root, "docs/elliott-topology.enriched.json"),
+      path.join(root, "topology/elliott-topology.enriched.json"),
       "utf8",
     );
     expect(body).toBe(onDisk);

@@ -7,7 +7,7 @@ import {
 import { ExternalMemorySlot } from "../../src/memory/external-slot/index";
 import { SessionStore } from "../../src/memory/session-store/index";
 
-describe("Phase 2 memory providers", () => {
+describe("memory providers", () => {
   it("freezes curated memory per session while writes remain durable", async () => {
     const persistence = new InMemoryCuratedPersistence();
     const store = new CuratedMemoryStore({

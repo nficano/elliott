@@ -31,7 +31,7 @@ any requirement is absent or inconsistent.
 | CI | Commit and result digests plus passing repository, G1–G25, and SE1–SE15 gates |
 | Continuous loop | One observed unattended scheduler run ending in a Proposal, with approval and promotion authority explicitly absent |
 | Code campaigns | Passing C1 and C2 campaign evidence, including known-defect holdout results |
-| Production releases | Exactly one Skill, tool-description catalog, prompt-segment, and isolated code release with review, phase-gate, full-check, canary, immutable rollback, deployment, and retained-lineage evidence |
+| Production releases | Exactly one Skill, tool-description catalog, prompt-segment, and isolated code release with review, stage-gate, full-check, canary, immutable rollback, deployment, and retained-lineage evidence |
 | Durable lineage | The active, canary, and rollback releases; terminal run; sealed dataset; materialized candidate; independent evaluation report; approved Proposal; and baseline, evaluation, release, and rollback Snapshots for every release |
 
 Every evidence digest in the manifest must be a complete lowercase SHA-256
@@ -59,7 +59,7 @@ approval records are mutable during review; its immutable evidence fields,
 support artifacts, evolution metadata, status, and approver identities are
 included in canonical sorted form.
 
-The auditor also enforces the plan's initial phase thresholds:
+The auditor also enforces the plan's initial stage thresholds:
 
 - Skill primary improvement of at least 10%, with broad regression no greater
   than 2%.
@@ -74,7 +74,7 @@ The schema and auditor are implemented in
 `src/learning/evolution/model/acceptance.ts` and
 `src/learning/evolution/acceptance/`. They validate the completeness and
 internal consistency of supplied evidence. The epoch transaction, rollback
-epoch transaction, review-record, phase-gate, deployment, and rollback-drill
+epoch transaction, review-record, stage-gate, deployment, and rollback-drill
 digests remain external attestations because the current runtime stores their
 cross-links rather than the originating systems' records.
 

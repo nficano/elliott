@@ -289,7 +289,7 @@ Observed repository-gate result:
 
 The separately executed Darwin build and smoke gates also passed:
 
-- Companion TypeScript lint/type checks and Python adapter tests: passed.
+- Companion TypeScript lint/type checks and worker adapter tests: passed.
 - Native Linux ARM64 OCI builds: 3 passed.
 - No-network, read-only, capability-dropped HTTP endpoint smokes: 6 passed.
 

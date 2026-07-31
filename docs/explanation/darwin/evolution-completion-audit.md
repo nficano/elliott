@@ -15,7 +15,7 @@ smoke, and the four target adapters are connected to the consumer runtime.
 Full adoption still requires deployment-controlled facts that this repository
 cannot manufacture: authorized production routes and executors, image
 publication and scanning, Darwinian distribution approval, human decisions,
-measured phase thresholds, and four production releases with retained
+measured stage thresholds, and four production releases with retained
 lineage. Those are acceptance work, not waived gates.
 
 Status terms used below:
@@ -27,7 +27,7 @@ Status terms used below:
 
 ## Roadmap audit
 
-| Phase | Local status | Direct evidence | Remaining acceptance evidence |
+| Stage | Local status | Direct evidence | Remaining acceptance evidence |
 | :--- | :--- | :--- | :--- |
 | 0 — control plane | Proven locally | Evolution schemas, state machine, durable stores, Proposal codec, `FileSnapshotStore`, release transaction, config decoder, services/Layers, runtime control route, promotion and rollback tests | Production operator authority, registry-backed immutable artifacts, production activation audit |
 | 1 — evaluation substrate | Proven locally; external runners pending | Session evidence, deterministic classified datasets, Snapshot-bound harness, baseline reports, statistics, budgets, pause/resume/cancel, thirteen-gate ladder, CLI/control plane | Real TBLite, TerminalBench2, YC-Bench, Harbor, case-executor, and restricted-route runs |
@@ -97,7 +97,7 @@ Every TDD gate has a dedicated conformance test and passed in the
 | 1. GEPA, MIPROv2, Darwinian isolated Components | Implemented, production proof pending | Publish/scan images and execute each against authorized routes |
 | 2. Four adapters produce review-ready Proposals | Proven locally with deterministic workflows; production proof pending | Retain one real Proposal per target class |
 | 3. All five dataset sources | Proven locally | Synthetic, session, golden, benchmark, and target-specific integration tests |
-| 4. Holdout, statistics, fitness, full checks, broad benchmarks, footprints, canaries | Implemented, production proof pending | Real external benchmark/canary reports and phase thresholds |
+| 4. Holdout, statistics, fitness, full checks, broad benchmarks, footprints, canaries | Implemented, production proof pending | Real external benchmark/canary reports and stage thresholds |
 | 5. Proposal→approval→promotion→Snapshot→epochs→audit→rollback | Proven locally | Fixed-candidate and runtime-release tests; real human/deployment evidence pending |
 | 6. Scheduler weak-target→Proposal unattended | Proven locally with seeded/live-store evidence | Observe one enabled production cycle |
 | 7. Scheduler cannot approve/promote | Proven locally | Startup rejection and operation/capability surface tests |
@@ -110,7 +110,7 @@ Every TDD gate has a dedicated conformance test and passed in the
 
 - TypeScript, ESLint, and dprint: passed.
 - Bun: 224 tests passed, 0 failed across 74 files.
-- Companion Python: 19 tests passed, 0 failed.
+- Companion workers: 19 tests passed, 0 failed.
 - Footprint gate: passed.
 - Rust hot core: 2 tests passed, 0 failed.
 - G1–G25 and SE1–SE15: passed.
@@ -139,7 +139,7 @@ The following exact evidence is absent and must not be inferred from fixtures:
 4. Distinct authorized model-author and model-judge routes plus compliant
    datasets, credentials, egress, residency, and cost policy.
 5. Human review and approval Records.
-6. Measured phase success thresholds.
+6. Measured stage success thresholds.
 7. Four production releases and rollback drills with retained datasets,
    reports, Proposals, Snapshots, epochs, audit links, and release lineage.
 

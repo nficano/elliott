@@ -1,7 +1,7 @@
 {
   "version": "1.2.0-generated",
   "title": "Elliott Runtime — Connection Graph (generated)",
-  "generatedFrom": "scripts/gen-topology.mjs: docs/topology.spine.json + skills/**/manifest.yaml spec.topology + agents/elliott.yaml mcp[] + config/elliott.yaml gates",
+  "generatedFrom": "scripts/gen-topology.mjs: topology/topology.spine.json + skills/**/manifest.yaml spec.topology + agents/elliott.yaml mcp[] + config/elliott.yaml gates",
   "note": "Auto-generated structural connection graph. Nodes/uniform-edges derive from each module's manifest; the runtime spine is hand-authored. `runtime` here is a static approximation (secret-gated => config-gated); the live deep-trace extension resolves actual liveness.",
   "nodeKinds": [
     "secret-source",

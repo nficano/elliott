@@ -17,7 +17,7 @@ import { describe, expect, it } from "vitest";
 
 const topologyPath = path.resolve(
   __dirname,
-  "../../../../docs/elliott-topology.enriched.json",
+  "../../../../topology/elliott-topology.enriched.json",
 );
 const raw = JSON.parse(readFileSync(topologyPath, "utf8")) as RawTopology;
 

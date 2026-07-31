@@ -4,7 +4,7 @@ import path from "node:path";
 import { loadTopology } from "../../../skills/deep-trace/src/topology";
 
 const root = path.resolve(import.meta.dir, "../../..");
-const topologyPath = path.join(root, "docs/elliott-topology.enriched.json");
+const topologyPath = path.join(root, "topology/elliott-topology.enriched.json");
 
 describe("loadTopology", () => {
   it("serves the enriched topology document verbatim", async () => {

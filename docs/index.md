@@ -89,8 +89,9 @@ Deeper development docs for working on Elliott itself.
 
 ## Machine-readable artifacts
 
-The JSON files at the root of `docs/` (`elliott-topology*.json`,
-`topology.spine.json`, `telemetry-map-topology.json`) and `slack-llms.txt`
-are **data consumed by code** — `scripts/gen-topology.mjs`, the deep-trace
-skill, tests, and runtime prompts — not prose documentation. They stay at
-fixed paths; do not move them when reorganizing docs.
+The connection-graph JSON lives at the repo root under `topology/`
+(`elliott-topology*.json`, `topology.spine.json`), and `slack-llms.txt`
+stays at the root of `docs/`. These are **data consumed by code** —
+`scripts/gen-topology.mjs`, the deep-trace skill, tests, and runtime
+prompts — not prose documentation. They stay at fixed paths; do not move
+them when reorganizing docs.

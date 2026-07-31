@@ -47,7 +47,7 @@ const learnedSkill = (
   hasExecutableOverlay: false,
 });
 
-describe("Phase 3 control plane", () => {
+describe("control plane", () => {
   it("activates one immutable candidate or leaves the old revision intact", async () => {
     const active = {
       id: "a",

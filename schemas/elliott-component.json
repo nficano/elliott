@@ -178,7 +178,7 @@
     "topology": {
       "type": "object",
       "additionalProperties": false,
-      "description": "Optional connection-graph metadata consumed by scripts/gen-topology.mjs to place this component in docs/elliott-topology.json. Ignored by the runtime loader (bundled.ts reads only document/protocols/exports).",
+      "description": "Optional connection-graph metadata consumed by scripts/gen-topology.mjs to place this component in topology/elliott-topology.json. Ignored by the runtime loader (bundled.ts reads only document/protocols/exports).",
       "properties": {
         "node": {
           "type": "object",

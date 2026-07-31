@@ -44,7 +44,7 @@ Endpoints (all under `/v1/observability/map`):
 | :--- | :--- |
 | `/` | the explorer UI (Nuxt build when `app/dist` exists, else the legacy document) |
 | `/legacy` | the original self-contained HTML/canvas document |
-| `/topology` | the connection graph — `docs/elliott-topology.enriched.json` plus every auto-registered skill (see below) |
+| `/topology` | the connection graph — `topology/elliott-topology.enriched.json` plus every auto-registered skill (see below) |
 | `/state` | current snapshot: turns, db table counts + recent rows, recent events |
 | `/stream` | Server-Sent-Events live feed of turn activity |
 | `/turn?id=<runId>` | one turn's full event list (rounds, prompt, tools) |
@@ -94,6 +94,6 @@ Toggle via `deploy/compose.deep-trace.override.yml`.
 
 See [`docs/explanation/deep-trace-plan.md`](../../docs/explanation/deep-trace-plan.md) for the full
 feasibility study and architecture, and
-[`docs/elliott-topology.enriched.json`](../../docs/elliott-topology.enriched.json) for the
+[`topology/elliott-topology.enriched.json`](../../topology/elliott-topology.enriched.json) for the
 machine-readable node/edge graph (served, with live packages merged in, at
 `/topology`).
