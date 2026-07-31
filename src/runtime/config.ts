@@ -1,5 +1,6 @@
 /* eslint-disable max-lines, max-lines-per-function */
 import * as Effect from "effect/Effect";
+import { readFileSync } from "node:fs";
 import { access, readFile } from "node:fs/promises";
 import path from "node:path";
 import { parse } from "yaml";
@@ -47,7 +48,47 @@ import type {
 const DEFAULT_PORT = 8080;
 const DEFAULT_MAX_TOKENS = 4096;
 const DEFAULT_TEMPERATURE = 0.4;
-const environment = Bun.env;
+
+// When ELLIOTT_SECRETS_FILE points at a JSON object, its entries join the
+// boundary's environment view. This keeps secrets out of the container's
+// process environment (docker inspect, /proc/1/environ, and the terminal
+// tool's `env` all read it) — the deploy mounts a read-only file instead of
+// injecting an env_file. A set-but-unreadable file fails the boot loudly:
+// booting secretless would silently skip every skill that needs one.
+const SECRETS_FILE_VARIABLE = "ELLIOTT_SECRETS_FILE";
+
+export const readMountedSecrets = (
+  env: Readonly<Record<string, string | undefined>>,
+  read: (file: string) => string = (file) => readFileSync(file, "utf8"),
+): Readonly<Record<string, string>> => {
+  const file = env[SECRETS_FILE_VARIABLE];
+  if (file === undefined || file.length === 0) return {};
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(read(file));
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new Error(
+      `${SECRETS_FILE_VARIABLE} ${file} is unreadable: ${detail}`,
+      { cause: error },
+    );
+  }
+  if (!isJsonRecord(parsed)) {
+    throw new Error(
+      `${SECRETS_FILE_VARIABLE} ${file} must hold a JSON object`,
+    );
+  }
+  return Object.fromEntries(
+    Object.entries(parsed).filter(
+      (entry): entry is [string, string] => typeof entry[1] === "string",
+    ),
+  );
+};
+
+const environment: Readonly<Record<string, string | undefined>> = {
+  ...Bun.env,
+  ...readMountedSecrets(Bun.env),
+};
 
 // ELLIOTT_HTTP_PORT overrides the configured port for local runs (e.g. when the
 // default is already taken). Falls back to config, then DEFAULT_PORT.

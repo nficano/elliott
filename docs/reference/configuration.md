@@ -90,6 +90,7 @@ Reference syntax: `${VAULT:<mount/path>#<field>}`. Rules:
 | :------------ | :---------------------------------------- |
 | `ELLIOTT_ENV` | `dev` selects development behavior (`bun run dev`) |
 | `ELLIOTT_CONTROL_PLANE_URL` / `_TOKEN` | evolution CLI only — see [CLI](cli.md) |
+| `ELLIOTT_SECRETS_FILE` | path to a mounted JSON object whose entries join the boundary's environment view; `${VAULT:…}` references resolve against it before the process environment. Keeps secrets out of the container env (`docker inspect`, `/proc/1/environ`, the terminal tool's `env`). Set but unreadable is **fatal at boot** — a secretless boot would silently skip every skill that needs one. |
 
 ## Postures
 

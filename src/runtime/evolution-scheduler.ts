@@ -51,6 +51,7 @@ import type { FileProposalStore } from "../learning/proposals/index";
 import { SessionStore } from "../memory/session-store/index";
 import { Scheduler } from "../scheduler/index";
 import { KernelContextManager } from "../security/ifc/context-manager";
+import { runtimeEnvironment } from "./config";
 import { selectRuntimeEvolutionSignal } from "./evolution-signals";
 import type {
   RuntimeContinuousEvolutionService,
@@ -94,7 +95,7 @@ const ACTIVE_CAMPAIGN_STATES = new Set([
 const capabilitiesAtFire = (
   configured: readonly string[],
 ): ReadonlySet<string> => {
-  const live = Bun.env[SCHEDULER_CAPABILITIES_ENV];
+  const live = runtimeEnvironment[SCHEDULER_CAPABILITIES_ENV];
   const values = live === undefined
     ? configured
     : live.split(",").map((item) => item.trim()).filter(Boolean);
