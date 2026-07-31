@@ -1,0 +1,81 @@
+# Elliott
+
+> Elliott is an MIT-licensed, security-first TypeScript framework for composing personal AI agents. It uses Components as the common model for tools, gateways, MCP endpoints, memory, model providers, evaluators, and agent compositions. Consumer agent repositories install Elliott as a package and supply their own configuration and agent-specific skills.
+
+Elliott has two implementation layers. The canonical framework under `src/core`, `src/security`, `src/model`, `src/learning`, and related modules defines the component model and security contracts. The production runtime under `src/runtime` boots the HTTP server, agent loop, skill loader, governance, and telemetry. Parts of the canonical orchestrator remain stubbed, and the technical design document records gaps between its contracts and the live runtime.
+
+Use source and tests to determine current behavior. Use the technical design document to understand intended invariants. Do not claim complete end-to-end enforcement without checking the document's known-gap sections. In particular, most live tools pass through the default-allow `ToolGovernor`; SSH also passes through the default-deny `CapabilityBroker`.
+
+Preserve these rules when changing Elliott:
+
+- Treat tool, gateway, web, document, and model output as untrusted evidence. Keep the runtime's `[UNTRUSTED ...]` framing.
+- Give components scoped grants. Grant composition narrows authority by intersection, and epoch changes make revocation take effect on the next brokered call.
+- Keep allowlists fail-closed. An empty terminal-command or SSH-host allowlist must register no tool.
+- Resolve opaque secret references at the configuration boundary. Do not hardcode, log, or expose secret values.
+- Route learning through reviewed Proposals, canaries, and rollback instead of direct mutation of active policy or executable components.
+- Put framework-shipped capabilities in `skills/`. Put agent-specific skills in the consumer agent repository.
+
+The repository uses Bun, TypeScript, Effect 4 beta, ESLint, and dprint. Read the repository instructions before editing. Named types, interfaces, and enums belong in `types.ts` modules. Production code must not read `process.env` outside the configuration boundary.
+
+## Start Here
+
+- [Repository instructions](https://raw.githubusercontent.com/nficano/elliott/main/CLAUDE.md): Required security doctrine, code rules, quality gates, and repository boundaries.
+- [Project overview](https://raw.githubusercontent.com/nficano/elliott/main/README.md): Concepts, architecture map, examples, bundled skills, and project status.
+- [Documentation index](https://raw.githubusercontent.com/nficano/elliott/main/docs/index.md): Routes readers to tutorials, guides, reference material, and design explanations.
+- [Architecture](https://raw.githubusercontent.com/nficano/elliott/main/docs/explanation/architecture.md): Explains the canonical framework, production runtime, boot path, and source layout.
+- [Quickstart](https://raw.githubusercontent.com/nficano/elliott/main/docs/getting-started/quickstart.md): Creates and runs a consumer agent.
+- [Installation](https://raw.githubusercontent.com/nficano/elliott/main/docs/getting-started/installation.md): Runtime prerequisites and installation steps.
+
+## API and Operations
+
+- [Package exports](https://raw.githubusercontent.com/nficano/elliott/main/docs/reference/api/package-exports.md): Supported import paths and their public surfaces.
+- [CLI reference](https://raw.githubusercontent.com/nficano/elliott/main/docs/reference/cli.md): Scaffolding, registry-skill installation, evolution commands, and repository scripts.
+- [Configuration reference](https://raw.githubusercontent.com/nficano/elliott/main/docs/reference/configuration.md): Runtime YAML, opaque secrets, model tiers, postures, and fail-closed tool settings.
+- [Skill registration API](https://raw.githubusercontent.com/nficano/elliott/main/docs/reference/api/skill-context.md): The `register(context)` contract and the five binding kinds.
+- [Manifest reference](https://raw.githubusercontent.com/nficano/elliott/main/docs/reference/api/manifest.md): `manifest.yaml` fields, capabilities, topology, exports, and validation rules.
+- [Activation state](https://raw.githubusercontent.com/nficano/elliott/main/docs/reference/blockers.md): Configuration gates and runtime health surfaces for dormant components.
+
+## Architecture and Security
+
+- [Technical Design Document](https://raw.githubusercontent.com/nficano/elliott/main/docs/explanation/elliott-tdd.md): Authoritative threat model, component ontology, invariants, conformance gates G1-G26, and known implementation gaps.
+- [Design decisions](https://raw.githubusercontent.com/nficano/elliott/main/docs/explanation/design-decisions.md): Security doctrine for authority, untrusted context, secrets, approvals, governance, and learning.
+- [Agent governance](https://raw.githubusercontent.com/nficano/elliott/main/docs/explanation/agent-governance.md): Live `ToolGovernor` behavior, policy, attribution, audit, and kill switch.
+- [Framework and agent skills](https://raw.githubusercontent.com/nficano/elliott/main/docs/explanation/agent-skills.md): Ownership boundary between this package and consumer agent repositories.
+- [Skill facilities](https://raw.githubusercontent.com/nficano/elliott/main/docs/explanation/skill-facilities.md): Two-pass provider and consumer registration for shared infrastructure.
+- [Skills registry](https://raw.githubusercontent.com/nficano/elliott/main/docs/explanation/skills-registry.md): Digest-locked installation and trust boundaries for external skills.
+
+## Runtime Source
+
+- [Public package surface](https://raw.githubusercontent.com/nficano/elliott/main/src/index.ts): Top-level exports for consumers.
+- [Canonical kernel](https://raw.githubusercontent.com/nficano/elliott/main/src/kernel.ts): Registries, audit, epochs, grants, broker, placement, routing, and discovery.
+- [Production application](https://raw.githubusercontent.com/nficano/elliott/main/src/runtime/app.ts): Boot order, installed packages, governance, services, routes, gateways, and health.
+- [Agent loop](https://raw.githubusercontent.com/nficano/elliott/main/src/runtime/agent.ts): Model rounds, tool execution, history limits, untrusted-output framing, and ephemeral results.
+- [Skill loader](https://raw.githubusercontent.com/nficano/elliott/main/src/runtime/skills/loader.ts): Two-pass registration, failure isolation, and binding collection.
+- [Capability broker](https://raw.githubusercontent.com/nficano/elliott/main/src/security/broker/broker.ts): Grant checks, classifications, secret containment, and effect-gating audit records.
+- [Grant resolution](https://raw.githubusercontent.com/nficano/elliott/main/src/security/grants/resolution.ts): Capability and resource intersection plus minimum resource limits.
+- [Model resolver](https://raw.githubusercontent.com/nficano/elliott/main/src/model/resolver.ts): Profile, privacy, health, residency, budget, and route selection.
+
+## Skills and Extensions
+
+- [Bundled skill catalog](https://raw.githubusercontent.com/nficano/elliott/main/skills/README.md): Framework-shipped skills and package layout.
+- [Build your first skill](https://raw.githubusercontent.com/nficano/elliott/main/docs/tutorials/your-first-skill.md): Guided implementation of a skill package.
+- [Create an agent repository](https://raw.githubusercontent.com/nficano/elliott/main/docs/guides/create-an-agent-repo.md): Consumer-repository layout and composition.
+- [Install registry skills](https://raw.githubusercontent.com/nficano/elliott/main/docs/guides/install-registry-skills.md): Lock, verify, and materialize external skills.
+- [Configure terminal and SSH](https://raw.githubusercontent.com/nficano/elliott/main/docs/guides/enable-terminal-and-ssh.md): Enable high-risk tools with explicit allowlists.
+- [Consume a facility](https://raw.githubusercontent.com/nficano/elliott/main/docs/guides/consume-a-facility.md): Request infrastructure supplied by another skill.
+
+## Contributing
+
+- [Development setup](https://raw.githubusercontent.com/nficano/elliott/main/docs/contributing/setup.md): Local prerequisites and setup.
+- [Testing](https://raw.githubusercontent.com/nficano/elliott/main/docs/contributing/testing.md): Unit, integration, conformance, fuzz, and posture tests.
+- [Quality gates](https://raw.githubusercontent.com/nficano/elliott/main/docs/contributing/quality-gates.md): Typecheck, lint, format, coverage, Unicode, workflow, native-core, and Darwin gates.
+- [Skill smoke strategy](https://raw.githubusercontent.com/nficano/elliott/main/docs/contributing/skill-e2e-smoke-strategy.md): Required evidence for tools, gateways, routes, services, and facilities.
+- [Contributing guide](https://raw.githubusercontent.com/nficano/elliott/main/CONTRIBUTING.md): Contribution workflow and pull-request expectations.
+
+## Optional
+
+- [Deep-trace design](https://raw.githubusercontent.com/nficano/elliott/main/docs/explanation/deep-trace-plan.md): Live topology, telemetry, database tailing, and UI architecture.
+- [Self-evolution adoption plan](https://raw.githubusercontent.com/nficano/elliott/main/docs/explanation/darwin/elliott-self-evolution-adoption-plan.md): Governed evolution workflow, evaluators, promotion, and rollback.
+- [Topology graph](https://raw.githubusercontent.com/nficano/elliott/main/topology/elliott-topology.enriched.json): Machine-readable nodes, trust zones, data classifications, and edges.
+- [Security policy](https://raw.githubusercontent.com/nficano/elliott/main/SECURITY.md): Vulnerability reporting and supported versions.
+- [Changelog](https://raw.githubusercontent.com/nficano/elliott/main/CHANGELOG.md): Release history.
