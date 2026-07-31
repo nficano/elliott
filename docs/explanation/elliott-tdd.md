@@ -13,7 +13,7 @@
 | Created | 2026-07-22 |
 | Last updated | 2026-07-29 |
 | Target implementation start | Started 2026-07-22; the security-kernel, data-plane, and control-plane layers are implemented |
-| Related docs | [README](../../README.md), [Agent governance](agent-governance.md), [Skill facilities](skill-facilities.md), [Skill smoke strategy](../contributing/skill-e2e-smoke-strategy.md), [Evolution production acceptance](darwin/evolution-production-acceptance.md), [Evolution completion audit](darwin/evolution-completion-audit.md) |
+| Related docs | [README](../../README.md), [Agent governance](agent-governance.md), [Skill facilities](skill-facilities.md), [Skill smoke strategy](../contributing/skill-e2e-smoke-strategy.md), [Evolution production acceptance](evolution-production-acceptance.md) |
 | Slack channel / issue tracker epic | N/A because no project channel or epic is recorded in this repository |
 
 ### Revision history
@@ -2400,9 +2400,7 @@ Providers, gateways, databases, and companions remain replaceable Components. A 
 - [Agent governance](agent-governance.md)
 - [Skill facilities](skill-facilities.md)
 - [Skill E2E smoke strategy](../contributing/skill-e2e-smoke-strategy.md)
-- [Evolution implementation status](darwin/evolution-implementation-status.md)
-- [Evolution production acceptance](darwin/evolution-production-acceptance.md)
-- [Evolution completion audit](darwin/evolution-completion-audit.md)
+- [Evolution production acceptance](evolution-production-acceptance.md)
 - Agent Skills format and MCP are compatibility targets; their external specifications are not copied into this TDD.
 
 ### Reviewer checklist

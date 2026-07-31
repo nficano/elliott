@@ -115,5 +115,5 @@ test/conformance  one gate per TDD invariant (G1–G26)
 - [Skill facilities](skill-facilities.md) — how skills provide
   infrastructure to each other
 - [Skills registry](skills-registry.md) — installable skills
-- [deep-trace](deep-trace-plan.md) — the observability map over this
-  architecture
+- [deep-trace](../../skills/deep-trace/README.md) — the observability map
+  over this architecture

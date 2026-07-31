@@ -90,10 +90,32 @@ Two tiers, both verified end-to-end:
 `ELLIOTT_TELEMETRY_PROMPTS` is not `"0"` (default on). Digests are always emitted.
 Toggle via `deploy/compose.deep-trace.override.yml`.
 
-## Design
+## Design rationale
 
-See [`docs/explanation/deep-trace-plan.md`](../../docs/explanation/deep-trace-plan.md) for the full
-feasibility study and architecture, and
-[`topology/elliott-topology.enriched.json`](../../topology/elliott-topology.enriched.json) for the
-machine-readable node/edge graph (served, with live packages merged in, at
-`/topology`).
+- **It maps the production runtime (`src/runtime/*`), not the canonical
+  framework.** The canonical layer's orchestrator is intentionally stubbed, so
+  its richer signals (persisted audit records, router pruning traces) are not
+  live. The topology JSON marks those as `tier:"C"` taps so the UI has
+  placeholders ready to absorb them when the canonical orchestrator lands —
+  e.g. an `AuditLog.append` wrapper streaming `model.*` / `broker.*` /
+  `evolution.*` records.
+- **A core bus instead of observer injection.** The runtime composes
+  `TurnObserver`s internally (gateway response + evolution evidence) and has no
+  general "add an observer" hook, so the live tier is a small in-process
+  `RuntimeTelemetry` singleton that core emits into — the extension only
+  subscribes. If the bus module is absent the extension degrades to the
+  durable tier alone.
+- **Security posture.** `egress: none` (no outbound calls, no CDN — the UI is
+  fully inlined), the SQLite tail opens `{ readonly: true }`, secret sources
+  render as field *names* only, tool args/results appear as digests
+  (`schemaDigest`/`argumentsDigest`/`resultDigest`), and the server binds
+  localhost (`127.0.0.1:18082`) — exposing it further is an explicit operator
+  choice.
+- **Eventually consistent to ~1.5 s** on the durable tier (WAL reader tailing
+  by `max(rowid)`); the stream tier is real-time.
+
+The machine-readable node/edge graph is
+[`topology/elliott-topology.enriched.json`](../../topology/elliott-topology.enriched.json)
+(served, with live packages merged in, at `/topology`). Nodes carry their
+`source` (file:line) and `taps` (which live signals prove them), so the JSON
+doubles as a navigable index of the codebase wiring.

@@ -84,6 +84,41 @@ Reference syntax: `${VAULT:<mount/path>#<field>}`. Rules:
 - Never hardcode a secret value, log one, or interpolate one into an error
   message that leaves the process.
 
+## `.elliott/evolution.yaml`
+
+Optional; enables governed self-evolution for a consumer repository. Absent
+file ⇒ evolution stays off. Decoded by
+`src/learning/evolution/config.ts` (`apiVersion: elliott/v1`); budgets must
+be positive and the split must sum to 1:
+
+```yaml
+apiVersion: elliott/v1
+engines:
+  text: { primary: organization/evaluator/dspy-gepa, fallback: organization/evaluator/dspy-mipro }
+  code: { primary: organization/evaluator/darwinian }
+budgets:
+  perRun: { candidates: 40, tokens: 2000000, costUsd: 25, durationMinutes: 180 }
+  monthly: { costUsd: 200 }
+evaluation:
+  authoringProfile: deep
+  judgingProfile: deep
+  requireDistinctRoute: true
+  split: { train: 0.6, validation: 0.2, holdout: 0.2 }
+continuous:
+  enabled: false
+  benchmarkCron: "0 3 * * 0"
+  # optimizationCron: "0 4 * * 0"
+  maximumRiskClass: C2
+  maximumConcurrentRuns: 1
+targets:
+  allow: ["workspace/skill/*", "core/tool/*"]
+  deny: ["core/policy/*", "core/evaluator/*"]
+```
+
+Because this file controls engines, costs, scheduling, and target scope,
+changes to it follow the Proposal and transactional-activation path like
+any other governed change.
+
 ## Environment
 
 | Variable      | Effect                                    |

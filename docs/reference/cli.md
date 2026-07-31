@@ -35,7 +35,22 @@ See [Install skills from the registry](../guides/install-registry-skills.md).
 
 ## Evolution control plane
 
-Any other invocation is forwarded to the evolution CLI, which requires:
+Any other invocation is forwarded to the evolution CLI
+(`src/learning/evolution/cli/`), which accepts:
+
+```
+elliott evolve inspect <target>
+elliott evolve dataset build <target> [...]
+elliott evolve run | status | pause | resume | cancel | compare | propose [...]
+elliott proposal review | approve | reject <proposal-id>
+elliott release promote | rollback <id>
+```
+
+Each operation maps to a control-plane capability check (e.g.
+`evolution.inspect` → `evolution.target.read`, `release.promote` →
+`release.promote`); the CLI has no direct deployment shortcut — promotion
+and rollback run through the Proposal workflow's transactional activation.
+It requires:
 
 | Environment variable          | Required | Meaning                              |
 | :---------------------------- | :------- | :----------------------------------- |

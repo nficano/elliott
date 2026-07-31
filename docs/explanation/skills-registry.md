@@ -478,8 +478,9 @@ the old base kept as a redirect.
   places (an error string + a copy line in `_nuxt/CRc73fKd.js`); nothing
   functional keys on it, so no dist rebuild is required — but the v1 claim
   "nothing in dist embeds the name" was wrong and is corrected here.
-- Docs: `docs/telemetry-map-plan.md` → `docs/explanation/deep-trace-plan.md`; app package
-  name `telemetry-map-app` → `deep-trace-app`; regenerate topology JSON.
+- Docs: `docs/telemetry-map-plan.md` was renamed with the skill and later
+  folded into `skills/deep-trace/README.md`; app package name
+  `telemetry-map-app` → `deep-trace-app`; regenerate topology JSON.
 
 ## 11. Rename: `companions` → `darwin`
 
@@ -522,8 +523,8 @@ manifests) keeps its name — a Chromium sidecar is not "darwin".
      draining any in-flight evolution proposals first — otherwise self-evolution
      acceptance fails for every engine (the deliberately-kept
      `companion.<engine>.digest` IDs compare against the recomputed lock).
-- Naming adjacency, accepted: `darwin/optimizers/darwinian/` and the existing
-  `docs/explanation/darwin/` docs dir, which this rename aligns with.
+- Naming adjacency, accepted: `darwin/optimizers/darwinian/`, which this
+  rename aligns with.
 
 ## 12. Rollout
 

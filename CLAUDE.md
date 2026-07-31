@@ -77,7 +77,7 @@ Conformance gates live in `test/conformance/` (one per TDD invariant;
 `docs/` follows Diátaxis, split by reader intent: `getting-started/`,
 `tutorials/` (learning paths), `guides/` (one task per file), `reference/`
 (dry contracts: CLI, config, APIs), `explanation/` (architecture, design
-decisions, the TDD, plans), `contributing/` (dev setup, testing, gates).
+decisions, the TDD), `contributing/` (dev setup, testing, gates).
 `docs/index.md` is the landing page — add new pages to it. Behavior changes
 update the matching quadrant in the same PR. The JSON topology artifacts
 under `topology/` are data consumed by code — do not move them.

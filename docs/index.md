@@ -76,8 +76,11 @@ Background, design decisions, and architecture.
 - [Skill facilities](explanation/skill-facilities.md)
 - [Skills registry](explanation/skills-registry.md)
 - [Agent governance](explanation/agent-governance.md)
-- [deep-trace observability map](explanation/deep-trace-plan.md)
-- [Self-evolution (darwin)](explanation/darwin/elliott-self-evolution-adoption-plan.md)
+- [deep-trace observability map](../skills/deep-trace/README.md)
+- [Self-evolution (darwin)](explanation/evolution-production-acceptance.md) —
+  the doctrine lives in
+  [Design decisions](explanation/design-decisions.md); this is the
+  SE gates and production-acceptance contract
 
 ## Contributing
 

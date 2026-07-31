@@ -74,8 +74,8 @@ The repository uses Bun, TypeScript, Effect 4 beta, ESLint, and dprint. Read the
 
 ## Optional
 
-- [Deep-trace design](https://raw.githubusercontent.com/nficano/elliott/main/docs/explanation/deep-trace-plan.md): Live topology, telemetry, database tailing, and UI architecture.
-- [Self-evolution adoption plan](https://raw.githubusercontent.com/nficano/elliott/main/docs/explanation/darwin/elliott-self-evolution-adoption-plan.md): Governed evolution workflow, evaluators, promotion, and rollback.
+- [Deep-trace design](https://raw.githubusercontent.com/nficano/elliott/main/skills/deep-trace/README.md): Live topology, telemetry, database tailing, and UI architecture.
+- [Self-evolution acceptance](https://raw.githubusercontent.com/nficano/elliott/main/docs/explanation/evolution-production-acceptance.md): Governed evolution SE gates, evaluators, promotion, and rollback evidence.
 - [Topology graph](https://raw.githubusercontent.com/nficano/elliott/main/topology/elliott-topology.enriched.json): Machine-readable nodes, trust zones, data classifications, and edges.
 - [Security policy](https://raw.githubusercontent.com/nficano/elliott/main/SECURITY.md): Vulnerability reporting and supported versions.
 - [Changelog](https://raw.githubusercontent.com/nficano/elliott/main/CHANGELOG.md): Release history.

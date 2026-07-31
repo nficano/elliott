@@ -1,11 +1,12 @@
 # Elliott evolution production acceptance
 
-This is the deployment handoff for the
-[self-evolution adoption plan](./elliott-self-evolution-adoption-plan.md).
-Local fixtures are not production evidence. A deployment must collect an
-`EvolutionProductionAcceptanceManifest` from its registry, scanners, legal
-review, executor deployment, route policy, CI, scheduler, human reviews, and
-four completed release campaigns.
+This is the deployment acceptance contract for
+[governed self-evolution](design-decisions.md#learning-produces-proposals-not-mutations):
+what a deployment must prove before claiming the workflow is adopted in
+production. Local fixtures are not production evidence. A deployment must
+collect an `EvolutionProductionAcceptanceManifest` from its registry,
+scanners, legal review, executor deployment, route policy, CI, scheduler,
+human reviews, and four completed release campaigns.
 
 Run the fail-closed auditor with:
 
@@ -59,7 +60,33 @@ approval records are mutable during review; its immutable evidence fields,
 support artifacts, evolution metadata, status, and approver identities are
 included in canonical sorted form.
 
-The auditor also enforces the plan's initial stage thresholds:
+## The SE gates
+
+The self-evolution invariants supplement the TDD's G1–G26 and never weaken
+them. They are enforced by `test/conformance/se-evolution*.test.ts` and
+re-checked as CI evidence by this auditor:
+
+| Gate | Invariant |
+| :--- | :--- |
+| SE1, target binding | Every run and Proposal binds to an active target digest; a target change makes the run stale before authoring or promotion |
+| SE2, Snapshot isolation | Every case runs against one immutable baseline or candidate Snapshot; candidate content never appears in an unrelated active session |
+| SE3, authority separation | No principal authors and approves, or authors and promotes, the same Proposal; optimizer and evaluator Grants do not overlap on candidate authoring and hidden holdout judgment |
+| SE4, candidate containment | An optimizer writes only to its run namespace; writes to active source, config, lockfile, approval, Snapshot, or audit state fail |
+| SE5, holdout secrecy | Optimizer principals cannot read holdout cases, expected results, or case-level judge feedback before the shortlist is sealed |
+| SE6, reproducibility | Stored baseline, candidate, dataset, environment, route policy, seeds, and evaluation plan reproduce the reported results |
+| SE7, constraint completeness | Every candidate has a result for every required constraint; missing, malformed, timed-out, or crashed checks fail closed |
+| SE8, statistical gate | Promotion reports include paired effect size, confidence interval, sample count, regression floors, and multiple-comparison handling |
+| SE9, footprint gate | Candidates pass prompt, inference, and runtime footprint budgets |
+| SE10, engine isolation | Foreign-runtime engines run outside the kernel in digest-pinned isolated placements; engine output crosses a validated schema boundary |
+| SE11, durable promotion | No active artifact changes before the promotion Record is durable; activation creates rollback metadata, a Snapshot, epoch bumps, and an audit cross-link |
+| SE12, no direct deployment | Agent and optimizer operations end at a review-ready Proposal; they cannot approve, promote, or merge authority into active state |
+| SE13, code safety | A code candidate cannot alter frozen manifests, schemas, signatures, capabilities, security checks, or evaluator fixtures without a separate operator-scoped Proposal |
+| SE14, continuous-loop freshness | Scheduled jobs resolve principal and capabilities at fire time, use fresh frames, deduplicate leases, and obey cost and concurrency budgets |
+| SE15, rollback integrity | Rollback activates an immutable prior revision through the promotion transaction; historical Records remain unchanged |
+
+## Stage thresholds
+
+The auditor also enforces the initial stage thresholds:
 
 - Skill primary improvement of at least 10%, with broad regression no greater
   than 2%.

@@ -72,10 +72,63 @@ denials fail closed. Full rationale:
 ## Learning produces Proposals, not mutations
 
 A running agent cannot directly rewrite active policy, skills, or
-executable components. Self-improvement flows through Proposals with
-separated authorities — review, canary, rollback — and prompt-injection
-benchmarks gate self-evolution. See
-[the darwin adoption plan](darwin/elliott-self-evolution-adoption-plan.md).
+executable components. Self-improvement flows through Proposals: signal →
+dataset → optimize → shortlist → independent evaluation → Proposal →
+human approval → canary → transactional promotion, with rollback
+activating the prior immutable revision through the same transaction.
+Prompt-injection benchmarks gate self-evolution.
+
+The load-bearing shapes, enforced by the SE1–SE15 conformance gates
+(`test/conformance/se-evolution*.test.ts`) and the
+[production-acceptance auditor](evolution-production-acceptance.md):
+
+- **Separated authorities.** The optimizer, evaluator, Proposal author,
+  human approver, and release promoter are distinct principals; no
+  principal authors and approves (or authors and promotes) the same
+  Proposal, and the model route that authors candidates never judges the
+  held-out comparison.
+- **Candidate containment.** Optimizers write only to a content-addressed
+  candidate namespace — never to active source, config, lockfiles,
+  Proposal approval state, Snapshots, or audit storage. Optimizer
+  principals cannot read holdout cases before the shortlist is sealed.
+- **Snapshot-bound evaluation.** Every case runs against one immutable
+  baseline or candidate Snapshot; nothing is hot-swapped into an active
+  session, and a target-digest change makes the run stale rather than
+  rebasing the patch.
+- **Engines stay outside the kernel.** DSPy (GEPA primary, MIPROv2
+  fallback) runs in a digest-pinned companion behind the component IPC
+  contract; Darwinian Evolver is an external CLI (next section). Engines
+  optimize artifacts — prompt text, descriptions, code — never model
+  weights.
+- **Code evolution is risk-classed.** C1 (pure helpers, deterministic
+  tests) through C4 (kernel, broker, IFC, audit, policy). Scheduling
+  automation is only ever permitted for C1/C2; C3 requires an operator
+  start plus two reviewers; C4 is operator-authored experiment only.
+  Frozen surfaces (manifests, schemas, public signatures, capabilities,
+  security checks) reject candidate patches by static policy.
+- **The scheduler can propose but never promote.** The continuous loop
+  resolves authority at fire time, obeys budgets, and ends at a
+  review-ready Proposal; approval and promotion remain human surfaces.
+
+## Darwinian Evolver stays outside the process
+
+Darwinian Evolver is AGPL-3.0, so Elliott never imports, links, or vendors
+it: the `evaluator-darwinian` Component invokes it as an external CLI in a
+dedicated companion container, pinned by digest
+(`darwin/images.lock.json`, upstream revision
+`7f12365d2059c47e29068a5a6f498a293148d2a9`). The companion receives a
+disposable checkout and a schema-backed task and returns an untrusted
+patch; it gets no Git remote, repository credential, host mount, network
+egress, or container-runtime socket. The image embeds the complete pinned
+source tree, license, and lock at `/usr/share/darwinian-evolver/source`.
+
+The image is built and smoke-tested locally but **not published**. Anyone
+publishing it must confirm the upstream revision and license with counsel,
+ship the required notices and corresponding-source offer, record the
+revision/recipe/lock/digest in release evidence, keep the image distributed
+separately from the Elliott TypeScript package unless counsel approves
+otherwise, and re-run the review if upstream relicenses or the integration
+moves from CLI invocation to import or linking.
 
 ## Record always, restrict by posture
 
