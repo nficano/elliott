@@ -74,11 +74,13 @@ budgets:
 observability:
   # Sentry-compatible error reporting (GlitchTip or Sentry). ON by default and
   # needs no setup: errors always log to the console, and with the bundled
-  # collector companion they also ship there automatically. Set \`dsn\` to use
-  # your own Sentry/GlitchTip, or \`enabled: false\` to stay console-only.
+  # collector companion they also ship there automatically. To use your own
+  # Sentry/GlitchTip set the ELLIOTT_GLITCHTIP_DSN env var (read directly, safe
+  # to leave unset) or an explicit \`dsn:\` literal; \`enabled: false\` stays
+  # console-only. The DSN and any Vault token/path are redacted from payloads.
   glitchtip:
     enabled: true
-    # dsn: \${ENV:ELLIOTT_GLITCHTIP_DSN}
+    # dsn: https://<key>@your-sentry.example/<project>   # or ELLIOTT_GLITCHTIP_DSN
 
 notify:
   webhook_url: ""

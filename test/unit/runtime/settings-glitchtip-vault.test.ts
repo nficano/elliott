@@ -1,8 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import {
-  optionalGlitchTip,
-  optionalVault,
-} from "../../../src/runtime/settings-tools";
+import { optionalGlitchTip } from "../../../src/runtime/settings-observability";
+import { optionalVault } from "../../../src/runtime/settings-tools";
 
 const DEFAULT_DSN = "http://elliott@127.0.0.1:9080/1";
 
@@ -29,6 +27,52 @@ describe("optionalGlitchTip (default-on error reporting)", () => {
   it("is fully off only when explicitly disabled", () => {
     expect(
       optionalGlitchTip({ observability: { glitchtip: { enabled: false } } }),
+    ).toEqual({});
+  });
+
+  it("treats falsy string values for enabled as disabled (no fail-open)", () => {
+    for (const flag of ["false", "False", " off ", "no", "0"]) {
+      expect(
+        optionalGlitchTip({ observability: { glitchtip: { enabled: flag } } }),
+      ).toEqual({});
+    }
+  });
+
+  it("stays on for a truthy or unrecognized enabled value", () => {
+    expect(
+      optionalGlitchTip({ observability: { glitchtip: { enabled: "true" } } }),
+    ).toEqual({ glitchtip: { dsn: DEFAULT_DSN } });
+  });
+
+  it("uses the ELLIOTT_GLITCHTIP_DSN env override when no config dsn is set", () => {
+    expect(optionalGlitchTip({}, "https://env@sentry.example/7")).toEqual({
+      glitchtip: { dsn: "https://env@sentry.example/7" },
+    });
+  });
+
+  it("prefers an explicit config dsn over the env override", () => {
+    expect(
+      optionalGlitchTip(
+        {
+          observability: { glitchtip: { dsn: "https://cfg@sentry.example/1" } },
+        },
+        "https://env@sentry.example/7",
+      ),
+    ).toEqual({ glitchtip: { dsn: "https://cfg@sentry.example/1" } });
+  });
+
+  it("falls back to the collector when the env override is empty", () => {
+    expect(optionalGlitchTip({}, "")).toEqual({
+      glitchtip: { dsn: DEFAULT_DSN },
+    });
+  });
+
+  it("stays off when disabled even if an env override is present", () => {
+    expect(
+      optionalGlitchTip(
+        { observability: { glitchtip: { enabled: false } } },
+        "https://env@sentry.example/7",
+      ),
     ).toEqual({});
   });
 });

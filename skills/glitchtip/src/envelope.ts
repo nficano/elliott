@@ -1,3 +1,4 @@
+import { redactPatterns } from "../../../src/runtime/redaction";
 import type { GlitchTipTarget, SentryEnvelopeInput } from "./types";
 
 const SENTRY_PROTOCOL_VERSION = "7";
@@ -5,8 +6,11 @@ const SENTRY_PROTOCOL_VERSION = "7";
 // Pure builder for the GlitchTip/Sentry envelope: the envelope header line, the
 // item header line, then the event payload (exception values + mechanism tag),
 // newline-joined. It reads only the CapturedError plus environment/release, so
-// by construction no DSN, token, Vault path, or message-level secret can enter
-// the payload — the reporter never hands those to a sink in the first place.
+// no DSN, token, or Vault path from *settings* can enter the payload. As a last
+// line of defense before the wire it also runs the error name and message
+// through the shared pattern redactor, so a credential-shaped substring cannot
+// leak even if a CapturedError reached the builder un-redacted — the runtime
+// reporter is the primary, seeded redaction point (see src/runtime/reporter.ts).
 export const buildSentryEnvelope = (input: SentryEnvelopeInput): string => {
   const event = {
     event_id: input.eventId,
@@ -16,7 +20,10 @@ export const buildSentryEnvelope = (input: SentryEnvelopeInput): string => {
     release: input.release,
     level: "error",
     exception: {
-      values: [{ type: input.error.name, value: input.error.message }],
+      values: [{
+        type: redactPatterns(input.error.name),
+        value: redactPatterns(input.error.message),
+      }],
     },
     tags: { mechanism: input.error.mechanism },
   };

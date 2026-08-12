@@ -20,6 +20,7 @@ import {
   stringArrayAt,
   stringAt,
 } from "./settings";
+import { optionalGlitchTip } from "./settings-observability";
 import {
   optionalDeepTrace,
   optionalNewsBrief,
@@ -28,7 +29,6 @@ import {
 import {
   optionalCloudflared,
   optionalFiles,
-  optionalGlitchTip,
   optionalHomeAssistant,
   optionalPihole,
   optionalSmtp,
@@ -305,7 +305,7 @@ const optionalSettings = (
   ...optionalWebhookProvisioner(resolved),
   ...optionalDeepTrace(resolved),
   ...optionalSubscriptionUsage(resolved, secrets),
-  ...optionalGlitchTip(resolved),
+  ...optionalGlitchTip(resolved, environment["ELLIOTT_GLITCHTIP_DSN"]),
   ...optionalStringProperty("postgresDsn", resolved, ["store", "dsn"]),
   ...optionalNewsBrief(resolved, secrets),
   ...optionalSkillConfig(resolved),

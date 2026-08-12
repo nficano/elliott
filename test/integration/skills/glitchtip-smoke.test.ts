@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, mock, spyOn } from "bun:test";
+import { makeRedactor } from "../../../src/runtime/redaction";
 import { RuntimeErrorReporter } from "../../../src/runtime/reporter";
 import { loadOneSkill, makeSmokeContext, stubFetch } from "./fixtures";
 
@@ -87,15 +88,16 @@ describe("glitchtip skill (Tier 1)", () => {
 
   it("ships no DSN, token, or Vault path in the captured payload", async () => {
     // The end-to-end path: runtime reporter -> installed glitchtip sink -> POST.
-    // Settings hold a real DSN (public key) and a Vault token/path, but a normal
-    // captured error carries none of them, and the reporter never adds settings.
+    // Settings hold a real DSN (public key) and a Vault token/path; the reporter
+    // is seeded (as the runtime seeds it in app.ts) with those exact values, so
+    // even an error whose MESSAGE interpolates all three is redacted before it
+    // reaches the wire — while the non-secret context survives.
+    const dsn = "https://leakykey@sentry.example/1";
+    const token = "hvs.LEAKYTOKEN";
+    const secretPath = "secret/data/private";
     const { context, sinks } = await makeSmokeContext({
-      glitchtip: { dsn: "https://leakykey@sentry.example/1" },
-      vault: {
-        address: "https://vault.example",
-        token: "hvs.LEAKYTOKEN",
-        paths: ["secret/data/private"],
-      },
+      glitchtip: { dsn },
+      vault: { address: "https://vault.example", token, paths: [secretPath] },
     });
     await loadOneSkill("glitchtip", context);
 
@@ -110,11 +112,18 @@ describe("glitchtip skill (Tier 1)", () => {
       }) as unknown as typeof fetch,
     );
 
-    const reporter = new RuntimeErrorReporter();
+    const errorSpy = spyOn(console, "error").mockImplementation(() => {});
+    const reporter = new RuntimeErrorReporter(
+      makeRedactor([dsn, token, secretPath]),
+    );
     const sink = sinks[0];
     if (sink !== undefined) reporter.addSink(sink);
-    reporter.capture(new Error("upstream 500"), "turn");
+    reporter.capture(
+      new Error(`upstream 500 reading ${secretPath} with ${token} via ${dsn}`),
+      "turn",
+    );
     await tick();
+    errorSpy.mockRestore();
 
     expect(bodies).toHaveLength(1);
     expect(bodies[0]).not.toContain("leakykey");

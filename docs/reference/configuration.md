@@ -41,7 +41,7 @@ Top-level sections:
 | `store`         | optional external Postgres (`dsn`), `pool.max`, `vectors`; absent `dsn` ⇒ embedded SQLite |
 | `llm`           | `base_url`, `api_key`, `max_parallel`, model tiers, profiles  |
 | `budgets`       | `cold_tokens_max`, `monthly_usd_max`, `per_turn_usd_max`      |
-| `observability` | optional `glitchtip.dsn` (Sentry-compatible); absent ⇒ console-only error reporting |
+| `observability` | Sentry-compatible error reporting via `glitchtip`, **on by default** (see below); `enabled: false` ⇒ console-only |
 | `notify`        | `webhook_url`, `default_channels`                             |
 | `tools`         | per-tool enablement + allowlists (below)                      |
 | `channels`      | gateway enablement (email, bluebubbles, home_assistant, …)    |
@@ -71,6 +71,28 @@ llm:
     default: { max_tokens: 4096, temperature: 0.4 }
 ```
 
+### `observability` (error reporting, on by default)
+
+The `glitchtip` skill (core) is **enabled by default** and needs no setup:
+errors always log to the console, and with the bundled collector companion
+(`deploy/compose.glitchtip.yml`) they also ship to a Sentry-compatible
+collector — the one exception to "absent block ⇒ feature off", since an absent
+`observability` block leaves reporting on.
+
+```yaml
+observability:
+  glitchtip:
+    enabled: true                      # default; `false` ⇒ console-only, nothing loads
+    # dsn: ${ENV:ELLIOTT_GLITCHTIP_DSN} # your own Sentry/GlitchTip (see below)
+```
+
+DSN precedence: an explicit `glitchtip.dsn` wins, else the
+`ELLIOTT_GLITCHTIP_DSN` environment variable (read directly at the config
+boundary — unlike a `${ENV:…}` reference it is **not** fatal when unset), else
+the bundled loopback collector. So a stock boot reports to the companion; set
+either to point at your own instance. The DSN and any Vault token/path are
+redacted out of captured error payloads, never transmitted.
+
 ### `tools` (fail-closed allowlists)
 
 ```yaml
@@ -86,10 +108,16 @@ tools:
     enabled: false
     user: elliott
     hosts: []                          # empty ⇒ tool does not register
+  vault:
+    enabled: false                     # HashiCorp Vault KV v2 reads, off by default
+    address: ""                        # e.g. https://vault.internal:8200
+    paths: []                          # empty ⇒ tool does not register (fail-closed)
 ```
 
 A tool with `enabled: true` but an empty allowlist still registers
 nothing. See [Enable terminal and SSH](../guides/enable-terminal-and-ssh.md).
+The `vault` tool additionally needs a `vault_token` secret (below) and reads
+only the allowlisted `paths` (full KV v2 API paths, e.g. `secret/data/myapp`).
 
 ## `config/secrets.yaml`
 

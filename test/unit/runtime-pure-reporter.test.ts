@@ -1,4 +1,5 @@
 import { describe, expect, it, spyOn } from "bun:test";
+import { makeRedactor } from "../../src/runtime/redaction";
 import { RuntimeErrorReporter } from "../../src/runtime/reporter";
 import type { CapturedError } from "../../src/runtime/types";
 
@@ -55,6 +56,43 @@ describe("RuntimeErrorReporter", () => {
         "timestamp",
       ],
     );
+  });
+
+  it("redacts secrets from a message before the console line and sinks", () => {
+    const logged: string[] = [];
+    const errorSpy = spyOn(console, "error").mockImplementation((line) => {
+      logged.push(String(line));
+    });
+    const seen: CapturedError[] = [];
+    try {
+      // Seeded with the exact configured values the runtime would pass in.
+      const reporter = new RuntimeErrorReporter(
+        makeRedactor([
+          "http://elliott@127.0.0.1:9080/1",
+          "hvs.LEAKYTOKEN",
+          "secret/data/private",
+        ]),
+      );
+      reporter.addSink({ capture: (event) => seen.push(event) });
+      reporter.capture(
+        new Error(
+          "Vault read of secret/data/private with hvs.LEAKYTOKEN failed (500)",
+        ),
+        "turn",
+      );
+    } finally {
+      errorSpy.mockRestore();
+    }
+    const [event] = seen;
+    expect(event?.message).not.toContain("hvs.LEAKYTOKEN");
+    expect(event?.message).not.toContain("secret/data/private");
+    // The non-secret context survives so the error is still useful.
+    expect(event?.message).toContain("Vault read of");
+    expect(event?.message).toContain("failed (500)");
+    // The console line the runtime emitted is redacted too.
+    expect(logged).toHaveLength(1);
+    expect(logged[0]).not.toContain("hvs.LEAKYTOKEN");
+    expect(logged[0]).not.toContain("secret/data/private");
   });
 
   it("isolates a throwing sink so one bad sink never breaks the loop", () => {

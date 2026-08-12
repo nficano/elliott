@@ -36,12 +36,14 @@ observability:
   # Sentry-compatible error reporting (GlitchTip or Sentry). ON by default and
   # needs no setup: errors always log to the console, and with the bundled
   # collector companion running (deploy/compose.glitchtip.yml) they also ship
-  # there automatically — zero wiring. Set `dsn` to send to your own Sentry or
-  # GlitchTip instead, or `enabled: false` to stay console-only (nothing about
-  # glitchtip then loads). The DSN never enters a captured error payload.
+  # there automatically — zero wiring. To send to your own Sentry/GlitchTip,
+  # set the ELLIOTT_GLITCHTIP_DSN env var (read directly, safe to leave unset)
+  # or an explicit `dsn:` literal below. Use `enabled: false` to stay
+  # console-only (nothing about glitchtip then loads). The DSN and any Vault
+  # token/path are redacted out of captured error payloads.
   glitchtip:
     enabled: true
-    # dsn: ${ENV:ELLIOTT_GLITCHTIP_DSN}
+    # dsn: https://<key>@your-sentry.example/<project>   # or ELLIOTT_GLITCHTIP_DSN
 
 notify:
   webhook_url: ""

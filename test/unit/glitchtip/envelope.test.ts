@@ -73,6 +73,22 @@ describe("buildSentryEnvelope", () => {
     expect(body).not.toContain("supersecretpublickey");
     expect(body).not.toContain("hvs.");
   });
+
+  it("pattern-redacts a credential embedded in the message as a last defense", () => {
+    // Even if a CapturedError reached the builder un-redacted (the reporter is
+    // the primary, seeded redaction point), credential-shaped substrings are
+    // stripped before the wire. This is the adversary's direct-builder repro.
+    const body = buildSentryEnvelope({
+      ...input,
+      error: {
+        ...error,
+        message:
+          "call to https://leakykey@sentry.example/1 with hvs.LEAKYTOKEN",
+      },
+    });
+    expect(body).not.toContain("hvs.LEAKYTOKEN");
+    expect(body).not.toContain("leakykey");
+  });
 });
 
 describe("parseDsn", () => {
