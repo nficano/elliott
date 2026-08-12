@@ -321,12 +321,6 @@ export interface RuntimeSettings {
   readonly mcp: readonly McpEndpointSettings[];
   readonly glitchtip?: GlitchTipSettings;
   readonly vault?: VaultSettings;
-  // Secret VALUES resolved from references (`${VAULT:…}`/`${ENV:…}`) or the
-  // secrets file at the config boundary — captured by provenance, not field
-  // name. The runtime seeds the error reporter's redactor with these so a
-  // secret cannot ride out in a log line or captured payload, whatever key it
-  // sits under. An in-process seed only; never logged or serialized.
-  readonly redactionSecrets?: readonly string[];
   readonly postgresDsn?: string;
   readonly newsBrief?: NewsBriefSettings;
   // Raw resolved `skills:` config subtree. Agent-local skills (loaded from
@@ -432,28 +426,42 @@ export interface RuntimeModelCompleter {
   ) => Promise<ModelTurnResult>;
 }
 
-// A failure the runtime captured, normalized for reporting: error identity and
-// where it happened, nothing more. Deliberately carries no settings, DSN,
-// token, path, or payload — so a sink can never leak a secret it was never
-// handed. See src/runtime/reporter.ts and skills/glitchtip.
-export interface CapturedError {
+// The error data the reporter hands a sink to transmit OFF-BOX. It structurally
+// omits the error message. The message is the one field a developer can
+// interpolate a secret into (`throw new Error(`… ${secret}`)`), so it never
+// crosses the process boundary — only these fields do, and none of them can
+// carry an interpolated runtime value:
+//   - name    : the error class (constructor name), an identity, not a value.
+//   - frames  : stack FRAMES only — the `at fn (file:line:col)` lines, never the
+//               `Error: <message>` header — i.e. code locations, not data.
+//   - mechanism: a code-controlled routing label (turn / gateway:<name> /
+//               skill:<name>), composed of framework/manifest identifiers.
+//   - timestamp: generated here.
+// Because none of these hold interpolated text, a sink transmitting only a
+// TransmittableError cannot exfiltrate a secret, and no redaction is required.
+// The full message (with any secret) stays in the LOCAL console — which does not
+// cross the process boundary. See src/runtime/reporter.ts and skills/glitchtip.
+export interface TransmittableError {
   readonly name: string;
-  readonly message: string;
+  readonly frames: readonly string[];
   readonly mechanism: string;
   readonly timestamp: string;
 }
 
 // A destination the error reporter fans captured failures out to. Installed by
-// a skill (see SkillContext.installErrorSink); the core reporter knows only
-// this interface, never a concrete transport.
+// a skill (see SkillContext.installErrorSink); the core reporter knows only this
+// interface, never a concrete transport. It receives a TransmittableError, which
+// by construction carries no free-form message — so a sink cannot leak a secret
+// it was never handed.
 export interface ErrorSink {
-  capture(event: CapturedError): void;
+  capture(event: TransmittableError): void;
 }
 
 // Error reporting configuration, resolved at the config boundary. Presence
 // means reporting is enabled; `dsn` is either the operator's own Sentry/
 // GlitchTip DSN or, with zero wiring, the bundled collector companion's
-// address. The DSN is opaque here and never enters a CapturedError payload.
+// address. The DSN is opaque here and never enters a transmitted payload — it
+// rides only on the POST target and auth header.
 export interface GlitchTipSettings {
   readonly dsn: string;
 }

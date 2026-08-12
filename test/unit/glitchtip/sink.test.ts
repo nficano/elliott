@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, mock, spyOn } from "bun:test";
 import { GlitchTipSink } from "../../../skills/glitchtip/src/sink";
-import type { CapturedError } from "../../../src/runtime/types";
+import type { TransmittableError } from "../../../src/runtime/types";
 
 const OVERFLOW_CAP = 100;
 const OVERFLOW_TOTAL = 150;
@@ -14,9 +14,9 @@ const target = {
 const makeSink = (): GlitchTipSink =>
   new GlitchTipSink({ target, environment: "prod", release: "1.0.0" });
 
-const capturedError = (message = "generic failure"): CapturedError => ({
+const capturedError = (): TransmittableError => ({
   name: "Error",
-  message,
+  frames: ["at handleTurn (/app/loop.ts:10:5)"],
   mechanism: "turn",
   timestamp: "2026-08-12T00:00:00.000Z",
 });
@@ -85,7 +85,7 @@ describe("GlitchTipSink", () => {
     const sink = makeSink();
     for (let index = 0; index < OVERFLOW_TOTAL; index += 1) {
       // A failing collector must never let capture() throw.
-      expect(() => sink.capture(capturedError(`e${index}`))).not.toThrow();
+      expect(() => sink.capture(capturedError())).not.toThrow();
     }
     await tick();
 

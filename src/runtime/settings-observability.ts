@@ -1,4 +1,4 @@
-import { optionalStringAt, valueAt } from "./settings";
+import { valueAt } from "./settings";
 import type { GlitchTipSettings } from "./types";
 
 // Zero-wiring default: with error reporting on but no operator DSN, the reporter
@@ -58,11 +58,26 @@ export const optionalGlitchTip = (
   ) {
     return {};
   }
+  const configuredDsn = explicitDsn(
+    valueAt(value, ["observability", "glitchtip", "dsn"]),
+  );
   const envOverride = envDsn !== undefined && envDsn.length > 0
     ? envDsn
     : undefined;
-  const dsn = optionalStringAt(value, ["observability", "glitchtip", "dsn"])
-    ?? envOverride
-    ?? DEFAULT_GLITCHTIP_COLLECTOR_DSN;
+  const dsn = configuredDsn ?? envOverride ?? DEFAULT_GLITCHTIP_COLLECTOR_DSN;
   return { glitchtip: { dsn } };
+};
+
+// A present operator `dsn` must be a non-empty string. Absent -> undefined (fall
+// through to env/default). Present-but-malformed (a number, object, or an empty/
+// whitespace string) is a configuration error, thrown loudly, rather than being
+// silently ignored and routed to the bundled collector.
+const explicitDsn = (raw: unknown): string | undefined => {
+  if (raw === undefined) return undefined;
+  if (typeof raw !== "string" || raw.trim().length === 0) {
+    throw new Error(
+      "observability.glitchtip.dsn must be a non-empty string",
+    );
+  }
+  return raw;
 };

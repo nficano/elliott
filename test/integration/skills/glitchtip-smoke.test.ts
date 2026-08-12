@@ -1,7 +1,14 @@
 import { afterEach, describe, expect, it, mock, spyOn } from "bun:test";
-import { makeRedactor } from "../../../src/runtime/redaction";
 import { RuntimeErrorReporter } from "../../../src/runtime/reporter";
+import type { TransmittableError } from "../../../src/runtime/types";
 import { loadOneSkill, makeSmokeContext, stubFetch } from "./fixtures";
+
+const transmittable = (mechanism = "turn"): TransmittableError => ({
+  name: "Error",
+  frames: ["at handleTurn (/app/loop.ts:10:5)"],
+  mechanism,
+  timestamp: "2026-08-12T00:00:00.000Z",
+});
 
 // Tier-1: the glitchtip skill through the real loader path. It self-gates on
 // settings.glitchtip, so the enabled/disabled/user-DSN/unreachable matrix is
@@ -57,12 +64,7 @@ describe("glitchtip skill (Tier 1)", () => {
     await loadOneSkill("glitchtip", context);
     const { calls } = stubFetch([{ match: "sentry.example", body: "ok" }]);
 
-    sinks[0]?.capture({
-      name: "Error",
-      message: "boom",
-      mechanism: "turn",
-      timestamp: "2026-08-12T00:00:00.000Z",
-    });
+    sinks[0]?.capture(transmittable());
     await tick();
 
     expect(calls).toEqual(["https://sentry.example/api/42/envelope/"]);
@@ -75,61 +77,48 @@ describe("glitchtip skill (Tier 1)", () => {
     await loadOneSkill("glitchtip", context);
     stubFetch([]); // no cassette route -> every send rejects
 
-    expect(() =>
-      sinks[0]?.capture({
-        name: "Error",
-        message: "boom",
-        mechanism: "turn",
-        timestamp: "2026-08-12T00:00:00.000Z",
-      })
-    ).not.toThrow();
+    expect(() => sinks[0]?.capture(transmittable())).not.toThrow();
     await tick();
   });
 
-  it("ships no DSN, token, or Vault path in the captured payload", async () => {
-    // The end-to-end path: runtime reporter -> installed glitchtip sink -> POST.
-    // Settings hold a real DSN (public key) and a Vault token/path; the reporter
-    // is seeded (as the runtime seeds it in app.ts) with those exact values, so
-    // even an error whose MESSAGE interpolates all three is redacted before it
-    // reaches the wire — while the non-secret context survives.
-    const dsn = "https://leakykey@sentry.example/1";
-    const token = "hvs.LEAKYTOKEN";
-    const secretPath = "secret/data/private";
+  it("transmits no part of an UNKNOWN secret in an exception message (structural, no seeded list)", async () => {
+    // End-to-end: real reporter -> installed glitchtip sink -> POST body. The
+    // secret is a value the process has never seen and NOTHING is registered to
+    // scrub it — it must be absent because the message never crosses the boundary
+    // in the first place. A test that passed only via a pre-seeded list would
+    // prove nothing (operator amendment, property 4).
+    const secret = "unregistered-credential-6b1f0e9d4a2c";
     const { context, sinks } = await makeSmokeContext({
-      glitchtip: { dsn },
-      vault: { address: "https://vault.example", token, paths: [secretPath] },
+      glitchtip: { dsn: "https://pub@sentry.example/1" },
     });
     await loadOneSkill("glitchtip", context);
 
     const bodies: string[] = [];
     spyOn(globalThis, "fetch").mockImplementation(
-      ((
-        _url: string | URL | Request,
-        init?: RequestInit,
-      ) => {
+      ((_url: string | URL | Request, init?: RequestInit) => {
         bodies.push(String(init?.body));
         return Promise.resolve(new Response("ok", { status: 200 }));
       }) as unknown as typeof fetch,
     );
 
     const errorSpy = spyOn(console, "error").mockImplementation(() => {});
-    const reporter = new RuntimeErrorReporter(
-      makeRedactor([dsn, token, secretPath]),
-    );
+    const reporter = new RuntimeErrorReporter();
     const sink = sinks[0];
     if (sink !== undefined) reporter.addSink(sink);
     reporter.capture(
-      new Error(`upstream 500 reading ${secretPath} with ${token} via ${dsn}`),
+      new Error(`upstream 500 while presenting ${secret} to the provider`),
       "turn",
     );
     await tick();
     errorSpy.mockRestore();
 
     expect(bodies).toHaveLength(1);
-    expect(bodies[0]).not.toContain("leakykey");
-    expect(bodies[0]).not.toContain("hvs.LEAKYTOKEN");
-    expect(bodies[0]).not.toContain("secret/data/private");
-    expect(bodies[0]).toContain("upstream 500");
+    // No part of the secret survived into the transmitted envelope.
+    expect(bodies[0]).not.toContain(secret);
+    expect(bodies[0]).not.toContain("upstream 500");
+    // The structural fields the sink IS allowed to transmit are present.
+    expect(bodies[0]).toContain("\"type\":\"Error\"");
+    expect(bodies[0]).toContain("\"mechanism\":\"turn\"");
   });
 
   it("degrades to console-only on a malformed DSN without leaking it", async () => {

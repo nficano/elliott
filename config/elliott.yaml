@@ -39,8 +39,10 @@ observability:
   # there automatically — zero wiring. To send to your own Sentry/GlitchTip,
   # set the ELLIOTT_GLITCHTIP_DSN env var (read directly, safe to leave unset)
   # or an explicit `dsn:` literal below. Use `enabled: false` to stay
-  # console-only (nothing about glitchtip then loads). The DSN and any Vault
-  # token/path are redacted out of captured error payloads.
+  # console-only (nothing about glitchtip then loads). What ships off-box is a
+  # message-free error skeleton (class + stack frames + mechanism) — the error
+  # message, which could hold an interpolated secret, stays in the local console
+  # and never crosses the process boundary.
   glitchtip:
     enabled: true
     # dsn: https://<key>@your-sentry.example/<project>   # or ELLIOTT_GLITCHTIP_DSN

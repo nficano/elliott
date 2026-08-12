@@ -60,6 +60,14 @@ describe("optionalGlitchTip (default-on error reporting)", () => {
     }
   });
 
+  it("throws on a malformed dsn instead of silently using the collector", () => {
+    for (const bad of [42, {}, [], "", " ".repeat(3)]) {
+      expect(() =>
+        optionalGlitchTip({ observability: { glitchtip: { dsn: bad } } })
+      ).toThrow("observability.glitchtip.dsn must be a non-empty string");
+    }
+  });
+
   it("uses the ELLIOTT_GLITCHTIP_DSN env override when no config dsn is set", () => {
     expect(optionalGlitchTip({}, "https://env@sentry.example/7")).toEqual({
       glitchtip: { dsn: "https://env@sentry.example/7" },

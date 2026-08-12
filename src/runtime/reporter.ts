@@ -1,30 +1,45 @@
-import { redactPatterns } from "./redaction";
-import type { CapturedError, ErrorSink } from "./types";
+import type { ErrorSink, TransmittableError } from "./types";
 
-// Neutral, transport-agnostic error visibility. Every captured failure is
-// logged to the console (the always-on baseline) and normalized to a
-// CapturedError — name, message, mechanism, timestamp only, never settings or
-// secrets — before being handed to each registered sink.
+const MAX_TRANSMITTED_FRAMES = 30;
+const STACK_FRAME_LINE = /^\s+at\s/;
+
+// Extract only the stack FRAMES — the `at fn (file:line:col)` lines — from an
+// error's stack, dropping the `Error: <message>` header entirely (the header,
+// which may be multi-line, is the one place an interpolated secret lives). What
+// remains are code locations, never runtime values. Bounded so a deep stack
+// cannot bloat a payload.
+const stackFrames = (error: Error): readonly string[] => {
+  const stack = error.stack;
+  if (typeof stack !== "string") return [];
+  return stack
+    .split("\n")
+    .filter((line) => STACK_FRAME_LINE.test(line))
+    .map((line) => line.trim())
+    .slice(0, MAX_TRANSMITTED_FRAMES);
+};
+
+// Neutral, transport-agnostic error visibility with a STRUCTURAL secret
+// boundary. capture() does two separate things:
 //
-// The message and name are redacted (redaction.ts) before they reach either the
-// console or a sink, so a secret an upstream caller interpolated into an
-// exception message cannot ride out on a log line or in a captured payload. The
-// runtime seeds the redactor with the exact secret values known at the config
-// boundary (DSN, Vault token, Vault paths); the default is pattern-only so even
-// a bare reporter strips credential-shaped substrings.
+//   1. Logs the full failure to the local console (the always-on baseline).
+//      This is the operator's own process output; it does not cross the process
+//      boundary, so it may carry the full message including any interpolated
+//      secret — per the doctrine that only what LEAVES the process is
+//      constrained.
+//   2. Normalizes the failure to a TransmittableError — error class, stack
+//      frames, mechanism, timestamp, and DELIBERATELY NO message — and fans it
+//      out to each registered sink. Because a TransmittableError carries no
+//      free-form message, a sink transmitting it off-box cannot exfiltrate a
+//      secret interpolated into an exception message. This replaces redaction:
+//      instead of scrubbing secrets out of transmitted text, no text that can
+//      hold an interpolated secret is transmitted at all.
 //
-// Sinks are optional and isolated: a sink that throws never breaks the loop,
-// and with no sink installed (e.g. the glitchtip skill disabled or absent)
-// capture() is console-only. No sink transport — Sentry envelopes, DSNs, HTTP —
-// lives here; that belongs to the skill that installs the sink, so the core
-// runtime carries no error-reporting vendor code.
+// Sinks are optional and isolated: a sink that throws never breaks the loop, and
+// with no sink installed (glitchtip disabled or absent) capture() is
+// console-only. No sink transport — Sentry envelopes, DSNs, HTTP — lives here;
+// that belongs to the skill that installs the sink.
 export class RuntimeErrorReporter {
   readonly #sinks: ErrorSink[] = [];
-  readonly #redact: (text: string) => string;
-
-  constructor(redact: (text: string) => string = redactPatterns) {
-    this.#redact = redact;
-  }
 
   addSink(sink: ErrorSink): void {
     this.#sinks.push(sink);
@@ -32,17 +47,13 @@ export class RuntimeErrorReporter {
 
   capture(error: unknown, mechanism: string): void {
     const failure = error instanceof Error ? error : new Error(String(error));
-    // Redact the mechanism too: it is a caller-supplied string that lands in the
-    // console line and the envelope's mechanism tag, so a secret must not ride
-    // out through it either.
-    const safeMechanism = this.#redact(mechanism);
-    const message = this.#redact(failure.message);
-    console.error(`[${safeMechanism}] ${message}`);
+    // Local console only — full text is fine here (does not leave the process).
+    console.error(`[${mechanism}] ${failure.message}`);
     if (this.#sinks.length === 0) return;
-    const event: CapturedError = {
-      name: this.#redact(failure.name),
-      message,
-      mechanism: safeMechanism,
+    const event: TransmittableError = {
+      name: failure.name,
+      frames: stackFrames(failure),
+      mechanism,
       timestamp: new Date().toISOString(),
     };
     for (const sink of this.#sinks) {

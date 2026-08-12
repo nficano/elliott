@@ -28,7 +28,6 @@ import { HTTP_NOT_FOUND, HTTP_OK, HTTP_SERVICE_UNAVAILABLE } from "./http";
 import { makeRuntimeKernel } from "./kernel";
 import { logRuntimeStarted } from "./logging";
 import { RuntimeModelClient } from "./model/client";
-import { collectSecretStrings, makeRedactor } from "./redaction";
 import { RuntimeErrorReporter } from "./reporter";
 import { runtimeComponentSummary, startRuntimeServer } from "./server";
 import {
@@ -194,19 +193,11 @@ export class ElliottRuntime {
     );
     // The reporter is neutral: console baseline now, sinks attached later by
     // whichever skills register them (e.g. glitchtip). Created before skills
-    // load so installErrorSink has a target during register(). Seed its redactor
-    // from three layers so any secret interpolated into an error message is
-    // stripped before it reaches the console or any sink: (1) provenance —
-    // every value resolved from a `${VAULT:…}`/`${ENV:…}` reference or the
-    // secrets file, determined by ORIGIN not field name (settings.redactionSecrets);
-    // (2) name/free-form collection over the resolved settings; (3) Vault paths.
-    this.#reporter = new RuntimeErrorReporter(
-      makeRedactor([
-        ...(settings.redactionSecrets ?? []),
-        ...collectSecretStrings(settings),
-        ...(settings.vault?.paths ?? []),
-      ]),
-    );
+    // load so installErrorSink has a target during register(). It needs no
+    // secret material: what a sink transmits off-box is a message-free
+    // TransmittableError, so no secret can ride out and nothing is aggregated
+    // into settings for redaction (see src/runtime/reporter.ts).
+    this.#reporter = new RuntimeErrorReporter();
     await this.#kernel.start();
     const installed = await this.#installSkills(settings);
     this.#packages = [

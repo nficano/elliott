@@ -1,13 +1,14 @@
 import { describe, expect, it, spyOn } from "bun:test";
-import { makeRedactor } from "../../src/runtime/redaction";
 import { RuntimeErrorReporter } from "../../src/runtime/reporter";
-import type { CapturedError } from "../../src/runtime/types";
+import type { TransmittableError } from "../../src/runtime/types";
 
-// The reporter is now neutral: console baseline + optional, isolated sinks, and
-// no Sentry/DSN/transport knowledge. These tests pin that contract.
+// The reporter is neutral and enforces a STRUCTURAL secret boundary: it logs the
+// full failure to the local console (allowed — does not leave the process) but
+// hands each sink a TransmittableError that carries NO message, so nothing that
+// could hold an interpolated secret is transmitted off-box. These tests pin that.
 
 describe("RuntimeErrorReporter", () => {
-  it("logs every capture to the console with the mechanism", () => {
+  it("logs the full failure to the console with the mechanism", () => {
     const errorSpy = spyOn(console, "error").mockImplementation(() => {});
     try {
       new RuntimeErrorReporter().capture(new Error("boom"), "turn");
@@ -29,9 +30,9 @@ describe("RuntimeErrorReporter", () => {
     }
   });
 
-  it("forwards a normalized, secret-free CapturedError to each sink", () => {
+  it("hands each sink a message-free TransmittableError (name, frames, mechanism, timestamp)", () => {
     const errorSpy = spyOn(console, "error").mockImplementation(() => {});
-    const seen: CapturedError[] = [];
+    const seen: TransmittableError[] = [];
     try {
       const reporter = new RuntimeErrorReporter();
       reporter.addSink({ capture: (event) => seen.push(event) });
@@ -43,75 +44,59 @@ describe("RuntimeErrorReporter", () => {
     expect(seen).toHaveLength(2);
     const [event] = seen;
     expect(event?.name).toBe("TypeError");
-    expect(event?.message).toBe("no host");
     expect(event?.mechanism).toBe("gateway:slack");
     expect(typeof event?.timestamp).toBe("string");
-    // The event carries only these four keys — no settings, DSN, or token can
-    // ride along because none are ever put on it.
+    expect(Array.isArray(event?.frames)).toBe(true);
+    // Exactly these four keys — and crucially NO `message`, the one field that
+    // could carry an interpolated secret.
     expect(Object.keys(event ?? {}).sort((a, b) => a.localeCompare(b))).toEqual(
       [
+        "frames",
         "mechanism",
-        "message",
         "name",
         "timestamp",
       ],
     );
   });
 
-  it("redacts secrets from a message before the console line and sinks", () => {
-    const logged: string[] = [];
-    const errorSpy = spyOn(console, "error").mockImplementation((line) => {
-      logged.push(String(line));
-    });
-    const seen: CapturedError[] = [];
+  it("transmits no part of a secret interpolated into an exception message", () => {
+    // Property test with NO pre-registered secret list: an unknown credential in
+    // the message must not appear anywhere in what the sink receives — because
+    // the message is never handed to a sink at all.
+    const errorSpy = spyOn(console, "error").mockImplementation(() => {});
+    const secret = "unknowable-credential-9f83aa21c7";
+    const seen: TransmittableError[] = [];
     try {
-      // Seeded with the exact configured values the runtime would pass in.
-      const reporter = new RuntimeErrorReporter(
-        makeRedactor([
-          "http://elliott@127.0.0.1:9080/1",
-          "hvs.LEAKYTOKEN",
-          "secret/data/private",
-        ]),
-      );
+      const reporter = new RuntimeErrorReporter();
       reporter.addSink({ capture: (event) => seen.push(event) });
       reporter.capture(
-        new Error(
-          "Vault read of secret/data/private with hvs.LEAKYTOKEN failed (500)",
-        ),
+        new Error(`upstream rejected token ${secret} on retry`),
         "turn",
       );
     } finally {
       errorSpy.mockRestore();
     }
-    const [event] = seen;
-    expect(event?.message).not.toContain("hvs.LEAKYTOKEN");
-    expect(event?.message).not.toContain("secret/data/private");
-    // The non-secret context survives so the error is still useful.
-    expect(event?.message).toContain("Vault read of");
-    expect(event?.message).toContain("failed (500)");
-    // The console line the runtime emitted is redacted too.
-    expect(logged).toHaveLength(1);
-    expect(logged[0]).not.toContain("hvs.LEAKYTOKEN");
-    expect(logged[0]).not.toContain("secret/data/private");
+    // Nothing the sink received contains any part of the secret.
+    expect(JSON.stringify(seen[0])).not.toContain(secret);
+    for (const frame of seen[0]?.frames ?? []) {
+      expect(frame).not.toContain(secret);
+    }
   });
 
-  it("redacts the mechanism too (console line and sink event)", () => {
+  it("keeps the full message on the local console (which does not leave the process)", () => {
     const logged: string[] = [];
     const errorSpy = spyOn(console, "error").mockImplementation((line) => {
       logged.push(String(line));
     });
-    const seen: CapturedError[] = [];
     try {
-      const reporter = new RuntimeErrorReporter(
-        makeRedactor(["hvs.SECRETMECHANISM"]),
+      new RuntimeErrorReporter().capture(
+        new Error("connect failed for host-42"),
+        "gateway",
       );
-      reporter.addSink({ capture: (event) => seen.push(event) });
-      reporter.capture(new Error("safe"), "hvs.SECRETMECHANISM");
     } finally {
       errorSpy.mockRestore();
     }
-    expect(seen[0]?.mechanism).not.toContain("hvs.SECRETMECHANISM");
-    expect(logged[0]).not.toContain("hvs.SECRETMECHANISM");
+    expect(logged).toEqual(["[gateway] connect failed for host-42"]);
   });
 
   it("isolates a throwing sink so one bad sink never breaks the loop", () => {
@@ -124,12 +109,13 @@ describe("RuntimeErrorReporter", () => {
           throw new Error("sink is broken");
         },
       });
-      reporter.addSink({ capture: (event) => delivered.push(event.message) });
-      expect(() => reporter.capture(new Error("real"), "turn")).not.toThrow();
+      reporter.addSink({ capture: (event) => delivered.push(event.name) });
+      expect(() => reporter.capture(new TypeError("real"), "turn")).not
+        .toThrow();
     } finally {
       errorSpy.mockRestore();
     }
     // The healthy sink still received the event after the broken one threw.
-    expect(delivered).toEqual(["real"]);
+    expect(delivered).toEqual(["TypeError"]);
   });
 });

@@ -196,7 +196,7 @@
         "obs.map"
       ],
       "internalCommunication": "In-process pub/sub: core emits onto runtimeTelemetry; the map's Aggregator subscribes and re-emits db.write/heartbeat; the reporter is a standalone capture funnel.",
-      "ingressContracts": "control <- ingress/agent-core/model-inference (telemetry emit, error capture); data <- memory-persistence (readonly sqlite tail); data <- ingress HTTP (GET map routes); secret <- config (glitchtip.dsn to the glitchtip sink; the neutral reporter is seeded with every configured secret only to redact them out of payloads).",
+      "ingressContracts": "control <- ingress/agent-core/model-inference (telemetry emit, error capture); data <- memory-persistence (readonly sqlite tail); data <- ingress HTTP (GET map routes); secret <- config (glitchtip.dsn to the glitchtip sink's POST target only; the neutral reporter holds no secret — it transmits a message-free TransmittableError, so nothing to redact).",
       "egressContracts": "http -> GlitchTip (Sentry envelope, best-effort); SSE/JSON -> operator browser; in-process -> deployment-substrate (co-located skill).",
       "routing": "bus.emit(type,payload,runId) fan-out to a subscriber set; exact method+path route dispatch for /v1/observability/map*; SqliteTail 1.5s poll.",
       "trustBoundary": "edge (map GET routes are unauthenticated but loopback-published only)",
@@ -902,11 +902,11 @@
     },
     {
       "id": "obs.reporter",
-      "name": "Error reporter (Sentry-compatible DSN) via #capture",
+      "name": "Neutral error reporter (console + message-free sink fan-out) via #capture",
       "kind": "observability",
       "runtime": "live",
       "domain": "observability",
-      "source": "src/runtime/reporter.ts:5; app.ts:361",
+      "source": "src/runtime/reporter.ts; app.ts",
       "classifications": {
         "trustZone": "egress",
         "dataClassification": "operational-metadata",
@@ -918,12 +918,12 @@
         "scalability": "one console line per capture; POST is the sink's concern",
         "failureMode": "each sink is wrapped in try/catch and a broken sink is swallowed; capture never throws into the caller (reporter.ts)"
       },
-      "interface": "RuntimeErrorReporter.capture(error, mechanism): neutral -- redacts name/message/mechanism (redaction.ts), console.error's the baseline, and fans a normalized CapturedError out to every registered ErrorSink. It carries NO transport: no DSN, no envelope, no HTTP. #capture is the runtime's single funnel (app.ts).",
+      "interface": "RuntimeErrorReporter.capture(error, mechanism): logs the FULL failure to the local console (does not leave the process), then fans a message-free TransmittableError (error class + stack FRAMES + mechanism + timestamp) out to every registered ErrorSink. It carries NO transport and no redactor: no DSN, no envelope, no HTTP, no secret list. #capture is the runtime's single funnel (app.ts).",
       "characteristics": [
         "Fed from every failure seam: turn, gateway, gateway:<name>, service:<name>, skill:<name>, evolution-evidence, webhook:ingress (app.ts #capture; skill context.report).",
-        "Seeded (app.ts) with every configured secret value plus shape patterns; the message, name, and mechanism are redacted before the console line and before any sink, so no secret rides out (redaction.ts).",
-        "Only the redacted error name + message + mechanism reach a sink -- no stack payloads, args, or prompt content.",
-        "Sink-agnostic: the default-on glitchtip skill installs a bounded GlitchTipSink that builds the Sentry envelope and POSTs it (skills/glitchtip). With no sink installed (glitchtip disabled), capture is console-only. The old DSN-gated envelope logic no longer lives in core."
+        "STRUCTURAL secret boundary: the error MESSAGE (the one field a caller can interpolate a secret into) is never handed to a sink; only the error class name, stack frames (the 'at ...' lines, never the message header), mechanism, and timestamp cross to a sink. No redaction is performed or needed, and no secret is aggregated into settings.",
+        "Only a message-free TransmittableError reaches a sink -- no message, args, or prompt content; the full message stays in the local console.",
+        "Sink-agnostic: the default-on glitchtip skill installs a bounded GlitchTipSink that builds the Sentry envelope (frames, no message) and POSTs it (skills/glitchtip). With no sink installed (glitchtip disabled), capture is console-only."
       ]
     },
     {
@@ -1826,7 +1826,7 @@
       "kind": "secret",
       "protocol": "env/config (rendered value, read by field name)",
       "label": "glitchtip.dsn",
-      "evidence": "src/runtime/settings-observability.ts -> skills/glitchtip; app.ts (redactor seed)",
+      "evidence": "src/runtime/settings-observability.ts -> skills/glitchtip GlitchTipSink (POST target/auth header)",
       "contract": {
         "payload": "glitchtip.dsn (rendered string; also ELLIOTT_GLITCHTIP_DSN, else the bundled loopback collector)",
         "synchrony": "sync (boot)",
@@ -1839,9 +1839,9 @@
         "errorHandling": "enabled by default; enabled:false disables it and nothing loads; a malformed DSN degrades to console-only",
         "backpressure": "none"
       },
-      "routing": "config observability.glitchtip.dsn (or ELLIOTT_GLITCHTIP_DSN) -> settings.glitchtip.dsn -> the glitchtip skill's GlitchTipSink (POST target); the neutral reporter is separately seeded with it, and every other configured secret, only to redact them out of payloads",
+      "routing": "config observability.glitchtip.dsn (or ELLIOTT_GLITCHTIP_DSN) -> settings.glitchtip.dsn -> the glitchtip skill's GlitchTipSink (POST target)",
       "activation": "boot",
-      "security": "DSN (contains a public key) reaches only the glitchtip sink's POST target/auth header, never an envelope body; it is also a redaction seed so it cannot appear in a captured payload"
+      "security": "DSN (contains a public key) reaches only the glitchtip sink's POST target/auth header, never an envelope body; the envelope has no message field, so no interpolated secret can appear in a payload regardless of the DSN"
     },
     {
       "id": "e.kernel.audit",

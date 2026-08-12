@@ -27,8 +27,8 @@ export const register = async (
     target = parseDsn(settings.dsn);
   } catch {
     // A malformed DSN degrades to the console baseline rather than crashing the
-    // boot. The reported error is redacted so the DSN never reaches a log line
-    // or a captured payload.
+    // boot. The reported error carries a FIXED message that never echoes the DSN,
+    // so the DSN cannot reach a log line — and no sink is installed on this path.
     context.report(
       new Error("glitchtip DSN could not be parsed; reporting disabled"),
       "glitchtip:config",

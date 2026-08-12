@@ -18,7 +18,11 @@ past the cap), delivery is fire-and-forget, and every network failure is
 swallowed. Killing the collector mid-run turns sends into no-ops; errors queue
 and then drop, and neither the sink nor the agent loop crashes.
 
-Payloads carry only the error's type, message, mechanism, timestamp, and the
-configured environment/release. The DSN, tokens, and Vault paths never enter an
-envelope body — the reporter hands the sink a normalized `CapturedError`, never
-settings.
+Payloads carry only structural, secret-safe fields: the error class, its stack
+frames (the `at …` lines — never the `Error: <message>` header), the mechanism,
+timestamp, and the configured environment/release. The error **message is never
+transmitted** — it is the one field a caller can interpolate a secret into, so it
+stays in the local console and never crosses the process boundary. The reporter
+hands the sink a message-free `TransmittableError`, never a message and never
+settings, so no secret can ride out and no redaction is needed. The DSN rides
+only on the POST target and auth header.

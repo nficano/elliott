@@ -1,5 +1,5 @@
 import type { ServiceBinding } from "../../../src/runtime/skills/types";
-import type { CapturedError, ErrorSink } from "../../../src/runtime/types";
+import type { ErrorSink, TransmittableError } from "../../../src/runtime/types";
 import { buildSentryEnvelope, sentryAuthHeader } from "./envelope";
 import type { GlitchTipTarget } from "./types";
 
@@ -7,21 +7,21 @@ const MAX_QUEUED_EVENTS = 100;
 const SEND_TIMEOUT_MILLISECONDS = 5000;
 const ENVELOPE_CONTENT_TYPE = "application/x-sentry-envelope";
 
-// A bounded, drop-oldest error sink that ships CapturedErrors to a Sentry-
+// A bounded, drop-oldest error sink that ships TransmittableErrors to a Sentry-
 // compatible collector as envelopes. Design goals, in priority order:
 //   1. Never break the loop — capture() only enqueues, and delivery is
 //      fire-and-forget with every network failure swallowed.
 //   2. Bounded memory — at most MAX_QUEUED_EVENTS are held; past the cap the
 //      oldest is dropped, so an unreachable collector cannot grow the queue.
 //   3. No secret on the wire beyond the DSN's own auth header — the envelope
-//      body is built from the CapturedError alone.
+//      body is built from the TransmittableError alone.
 // The sink is registered against the runtime error reporter; killing the
 // collector mid-run just turns every send into a swallowed failure.
 export class GlitchTipSink implements ErrorSink {
   readonly #target: GlitchTipTarget;
   readonly #environment: string;
   readonly #release: string;
-  readonly #queue: CapturedError[] = [];
+  readonly #queue: TransmittableError[] = [];
   #sent = 0;
   #dropped = 0;
   #draining = false;
@@ -37,7 +37,7 @@ export class GlitchTipSink implements ErrorSink {
     this.#release = input.release;
   }
 
-  capture(event: CapturedError): void {
+  capture(event: TransmittableError): void {
     if (this.#stopped) return;
     if (this.#queue.length >= MAX_QUEUED_EVENTS) {
       this.#queue.shift();
@@ -87,7 +87,7 @@ export class GlitchTipSink implements ErrorSink {
     }
   }
 
-  async #send(event: CapturedError): Promise<boolean> {
+  async #send(event: TransmittableError): Promise<boolean> {
     const envelope = buildSentryEnvelope({
       error: event,
       environment: this.#environment,

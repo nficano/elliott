@@ -223,11 +223,11 @@
     },
     {
       "id": "obs.reporter",
-      "name": "Neutral error reporter (console baseline + redacted sink fan-out) via #capture",
+      "name": "Neutral error reporter (console baseline + message-free sink fan-out) via #capture",
       "kind": "observability",
       "runtime": "live",
       "domain": "observability",
-      "source": "src/runtime/reporter.ts; src/runtime/redaction.ts; app.ts"
+      "source": "src/runtime/reporter.ts; app.ts"
     },
     {
       "id": "obs.glitchtip.collector",
@@ -665,8 +665,8 @@
       "to": "obs.reporter",
       "kind": "secret",
       "protocol": "env/config (rendered value, read by field name)",
-      "label": "glitchtip.dsn (+ every secret, as redaction seeds)",
-      "evidence": "src/runtime/settings-observability.ts; app.ts (redactor seed)"
+      "label": "glitchtip.dsn (POST target only)",
+      "evidence": "src/runtime/settings-observability.ts -> skills/glitchtip GlitchTipSink (POST target/auth header)"
     },
     {
       "id": "e.kernel.audit",
@@ -789,7 +789,7 @@
       "from": "obs.reporter",
       "to": "obs.glitchtip",
       "kind": "data",
-      "protocol": "in-process ErrorSink.capture (redacted)",
+      "protocol": "in-process ErrorSink.capture (message-free)",
       "label": "capture -> queue"
     },
     {

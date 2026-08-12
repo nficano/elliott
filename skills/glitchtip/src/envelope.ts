@@ -1,16 +1,17 @@
-import { redactPatterns } from "../../../src/runtime/redaction";
 import type { GlitchTipTarget, SentryEnvelopeInput } from "./types";
 
 const SENTRY_PROTOCOL_VERSION = "7";
+// Stands in for the Sentry exception `value` (normally the message). The message
+// is never transmitted — it is the one field that can carry an interpolated
+// secret — so the collector shows this placeholder and points at the local logs.
+const WITHHELD_VALUE = "(message withheld off-box; see local logs)";
 
 // Pure builder for the GlitchTip/Sentry envelope: the envelope header line, the
-// item header line, then the event payload (exception values + mechanism tag),
-// newline-joined. It reads only the CapturedError plus environment/release, so
-// no DSN, token, or Vault path from *settings* can enter the payload. As a last
-// line of defense before the wire it also runs the error name and message
-// through the shared pattern redactor, so a credential-shaped substring cannot
-// leak even if a CapturedError reached the builder un-redacted — the runtime
-// reporter is the primary, seeded redaction point (see src/runtime/reporter.ts).
+// item header line, then the event payload, newline-joined. It reads only the
+// TransmittableError (error class + stack frames + mechanism + timestamp) plus
+// environment/release — there is NO message field to build from, so no
+// interpolated secret can enter the payload by construction. No redaction is
+// applied or needed: what can't hold a secret can't leak one.
 export const buildSentryEnvelope = (input: SentryEnvelopeInput): string => {
   const event = {
     event_id: input.eventId,
@@ -21,8 +22,11 @@ export const buildSentryEnvelope = (input: SentryEnvelopeInput): string => {
     level: "error",
     exception: {
       values: [{
-        type: redactPatterns(input.error.name),
-        value: redactPatterns(input.error.message),
+        type: input.error.name,
+        value: WITHHELD_VALUE,
+        stacktrace: {
+          frames: input.error.frames.map((frame) => ({ function: frame })),
+        },
       }],
     },
     tags: { mechanism: input.error.mechanism },

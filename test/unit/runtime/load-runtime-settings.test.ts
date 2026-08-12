@@ -192,20 +192,20 @@ spec:
     expect(settings.mcp).toEqual([]);
   });
 
-  it("captures reference-resolved secrets as redactionSecrets by provenance, incl. free-form skill config, excluding base_url/model", async () => {
+  it("does not aggregate resolved secrets into any settings field", async () => {
+    // The reporter no longer needs a secret list (it transmits no message), so
+    // no `redactionSecrets`-style aggregate may exist on RuntimeSettings for a
+    // skill's register() to read.
     const root = await writeTree({
       "config/elliott.yaml": `
 runtime: { timezone: UTC }
 llm:
-  base_url: "\${ENV:LLM_BASE}"
+  base_url: http://llm
   api_key: "\${ENV:LLM_KEY}"
-  models: { default: { model: "\${ENV:LLM_MODEL}" } }
+  models: { default: { model: m } }
   profiles: { default: {} }
-skills:
-  custom:
-    encryption_key: "\${ENV:CIPHER}"
 `,
-      "config/secrets.yaml": `vaulted: "\${VAULT:secret/data#vfield}"`,
+      "config/secrets.yaml": "{}",
       "agents/tester.yaml": `
 spec:
   persona: p.md
@@ -216,25 +216,15 @@ spec:
     const settings = await loadRuntimeSettings(
       root,
       "tester",
-      resolver(
-        {
-          LLM_BASE: "https://llm.example/v1",
-          LLM_KEY: "sk-APIKEYVALUE",
-          LLM_MODEL: "big-model-x",
-          CIPHER: "CIPHER-SECRET-VALUE",
-        },
-        { vfield: "VAULT-SECRET-VALUE" },
-      ),
+      resolver({ LLM_KEY: "sk-APIKEYVALUE" }),
     );
-    const seeds = settings.redactionSecrets ?? [];
-    // ENV-resolved api key, a VAULT-resolved secrets.yaml value, and a secret
-    // under a FREE-FORM skill key with no secret-y name are all captured.
-    expect(seeds).toContain("sk-APIKEYVALUE");
-    expect(seeds).toContain("VAULT-SECRET-VALUE");
-    expect(seeds).toContain("CIPHER-SECRET-VALUE");
-    // The two known non-secret reference-backed values stay readable.
-    expect(seeds).not.toContain("https://llm.example/v1");
-    expect(seeds).not.toContain("big-model-x");
+    // No field on settings is an array that pools the resolved api key.
+    for (const property of Object.values(settings)) {
+      if (Array.isArray(property)) {
+        expect(property).not.toContain("sk-APIKEYVALUE");
+      }
+    }
+    expect("redactionSecrets" in settings).toBe(false);
   });
 
   it("omits secrets that fail to resolve and loads evolution.yaml when present", async () => {

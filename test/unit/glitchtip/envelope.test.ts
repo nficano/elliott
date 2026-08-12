@@ -4,11 +4,11 @@ import {
   parseDsn,
   sentryAuthHeader,
 } from "../../../skills/glitchtip/src/envelope";
-import type { CapturedError } from "../../../src/runtime/types";
+import type { TransmittableError } from "../../../src/runtime/types";
 
-const error: CapturedError = {
+const error: TransmittableError = {
   name: "TypeError",
-  message: "boom",
+  frames: ["at handleTurn (/app/loop.ts:10:5)", "at run (/app/main.ts:3:1)"],
   mechanism: "turn",
   timestamp: "2026-08-01T00:00:00.000Z",
 };
@@ -38,7 +38,7 @@ describe("buildSentryEnvelope", () => {
     expect(JSON.parse(lines[1] ?? "")).toEqual({ type: "event" });
   });
 
-  it("writes the event payload with exception, tags, and metadata", () => {
+  it("writes the event payload with the error class, frames, and mechanism — no message", () => {
     const lines = buildSentryEnvelope(input).split("\n");
     expect(JSON.parse(lines[2] ?? "")).toEqual({
       event_id: "abc123",
@@ -47,47 +47,40 @@ describe("buildSentryEnvelope", () => {
       environment: "production",
       release: "1.2.3",
       level: "error",
-      exception: { values: [{ type: "TypeError", value: "boom" }] },
+      exception: {
+        values: [{
+          type: "TypeError",
+          value: "(message withheld off-box; see local logs)",
+          stacktrace: {
+            frames: [
+              { function: "at handleTurn (/app/loop.ts:10:5)" },
+              { function: "at run (/app/main.ts:3:1)" },
+            ],
+          },
+        }],
+      },
       tags: { mechanism: "turn" },
     });
   });
 
-  it("carries the error name and message through to exception.values", () => {
+  it("carries the error class name through to exception.values.type", () => {
     const lines = buildSentryEnvelope({
       ...input,
-      error: { ...error, name: "RangeError", message: "no host" },
+      error: { ...error, name: "RangeError" },
     }).split("\n");
     const payload: {
-      exception: { values: { type: string; value: string; }[]; };
+      exception: { values: { type: string; }[]; };
     } = JSON.parse(lines[2] ?? "");
-    expect(payload.exception.values[0]).toEqual({
-      type: "RangeError",
-      value: "no host",
-    });
+    expect(payload.exception.values[0]?.type).toBe("RangeError");
   });
 
-  it("puts no DSN, public key, or token in the payload body", () => {
-    // The builder only ever sees a CapturedError plus environment/release, so a
-    // secret cannot appear even if one is passed alongside it.
+  it("has no message field to build from, so a message secret cannot appear", () => {
+    // TransmittableError has no message; there is nowhere for an interpolated
+    // secret to enter the envelope, so the builder needs no redaction.
     const body = buildSentryEnvelope(input);
     expect(body).not.toContain("supersecretpublickey");
-    expect(body).not.toContain("hvs.");
-  });
-
-  it("pattern-redacts a credential embedded in the message as a last defense", () => {
-    // Even if a CapturedError reached the builder un-redacted (the reporter is
-    // the primary, seeded redaction point), credential-shaped substrings are
-    // stripped before the wire. This is the adversary's direct-builder repro.
-    const body = buildSentryEnvelope({
-      ...input,
-      error: {
-        ...error,
-        message:
-          "call to https://leakykey@sentry.example/1 with hvs.LEAKYTOKEN",
-      },
-    });
-    expect(body).not.toContain("hvs.LEAKYTOKEN");
-    expect(body).not.toContain("leakykey");
+    // The builder does not even accept a message; the frames are code locations.
+    expect(body).toContain("handleTurn");
   });
 });
 

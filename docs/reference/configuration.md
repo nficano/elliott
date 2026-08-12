@@ -90,8 +90,12 @@ DSN precedence: an explicit `glitchtip.dsn` wins, else the
 `ELLIOTT_GLITCHTIP_DSN` environment variable (read directly at the config
 boundary — unlike a `${ENV:…}` reference it is **not** fatal when unset), else
 the bundled loopback collector. So a stock boot reports to the companion; set
-either to point at your own instance. The DSN and any Vault token/path are
-redacted out of captured error payloads, never transmitted.
+either to point at your own instance. What ships off-box is a message-free error
+skeleton — the error class, its stack frames, and the mechanism — never the error
+message. The message (the one field that can carry an interpolated secret) stays
+in the local console and never crosses the process boundary, so no DSN, token, or
+Vault path can appear in a transmitted payload by construction. A present but
+non-string/empty `dsn` is rejected at boot rather than silently ignored.
 
 ### `tools` (fail-closed allowlists)
 

@@ -77,7 +77,8 @@ observability:
   # collector companion they also ship there automatically. To use your own
   # Sentry/GlitchTip set the ELLIOTT_GLITCHTIP_DSN env var (read directly, safe
   # to leave unset) or an explicit \`dsn:\` literal; \`enabled: false\` stays
-  # console-only. The DSN and any Vault token/path are redacted from payloads.
+  # console-only. What ships off-box is a message-free error skeleton (class +
+  # stack frames + mechanism); the message stays in the local console only.
   glitchtip:
     enabled: true
     # dsn: https://<key>@your-sentry.example/<project>   # or ELLIOTT_GLITCHTIP_DSN
