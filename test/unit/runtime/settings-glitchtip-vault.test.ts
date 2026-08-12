@@ -119,6 +119,14 @@ describe("optionalVault (default-off, fail-closed)", () => {
     ).toEqual({});
   });
 
+  it("fails closed on a whitespace-only address", () => {
+    expect(
+      optionalVault(enabled({ address: " ".repeat(3), paths: ["a"] }), {
+        vault_token: "t",
+      }),
+    ).toEqual({});
+  });
+
   it("fails closed with an empty path allowlist", () => {
     expect(
       optionalVault(enabled({ address: "https://v:8200", paths: [] }), {

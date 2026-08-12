@@ -321,6 +321,12 @@ export interface RuntimeSettings {
   readonly mcp: readonly McpEndpointSettings[];
   readonly glitchtip?: GlitchTipSettings;
   readonly vault?: VaultSettings;
+  // Secret VALUES resolved from references (`${VAULT:…}`/`${ENV:…}`) or the
+  // secrets file at the config boundary — captured by provenance, not field
+  // name. The runtime seeds the error reporter's redactor with these so a
+  // secret cannot ride out in a log line or captured payload, whatever key it
+  // sits under. An in-process seed only; never logged or serialized.
+  readonly redactionSecrets?: readonly string[];
   readonly postgresDsn?: string;
   readonly newsBrief?: NewsBriefSettings;
   // Raw resolved `skills:` config subtree. Agent-local skills (loaded from

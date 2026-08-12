@@ -135,17 +135,16 @@ describe("collectSecretStrings (seed the redactor from settings)", () => {
   });
 
   it("matches snake_case / kebab-case keys and arrays under secret keys", () => {
-    // Agent-skill config is a free-form record; a snake_case `api_key`, an array
-    // of keys, and a nested credentials object must all be collected.
+    // Under a NON-free-form container, a snake_case `api_key`, a kebab-case
+    // `api-key`, an array of keys, and a nested credentials object must all be
+    // collected, while a plainly-named non-secret sibling is not.
     const found = collectSecretStrings({
-      skillConfig: {
-        custom: {
-          api_key: "SNAKE-LEAK",
-          "api-key": "KEBAB-LEAK",
-          api_keys: ["ARRAY-LEAK-1", "ARRAY-LEAK-2"],
-          credentials: { region: "us", secret_value: "NESTED-LEAK" },
-          endpoint: "https://api.example.com",
-        },
+      gateway: {
+        api_key: "SNAKE-LEAK",
+        "api-key": "KEBAB-LEAK",
+        api_keys: ["ARRAY-LEAK-1", "ARRAY-LEAK-2"],
+        credentials: { secret_value: "NESTED-LEAK" },
+        endpoint: "https://api.example.com",
       },
     });
     expect(found).toContain("SNAKE-LEAK");
@@ -153,8 +152,24 @@ describe("collectSecretStrings (seed the redactor from settings)", () => {
     expect(found).toContain("ARRAY-LEAK-1");
     expect(found).toContain("ARRAY-LEAK-2");
     expect(found).toContain("NESTED-LEAK");
-    // A non-secret key elsewhere is not collected.
+    // A non-secret key outside any secret subtree is not collected.
     expect(found).not.toContain("https://api.example.com");
+  });
+
+  it("treats free-form skillConfig/skills subtrees as wholesale sensitive", () => {
+    // The framework has no schema for agent-skill config, so a secret can sit
+    // under ANY key name (encryption_key, cipher, …). Every string there is
+    // collected — name inference can't be trusted where names are arbitrary.
+    const found = collectSecretStrings({
+      skillConfig: {
+        custom: { encryption_key: "FREEFORM-SECRET", nested: ["A", "B"] },
+      },
+      skills: { other: { cipher_seed: "SEED-SECRET" } },
+    });
+    expect(found).toContain("FREEFORM-SECRET");
+    expect(found).toContain("SEED-SECRET");
+    expect(found).toContain("A");
+    expect(found).toContain("B");
   });
 
   it("does not collect non-secret fields (hostnames, model, allowlists)", () => {

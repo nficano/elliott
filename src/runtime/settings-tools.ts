@@ -236,7 +236,7 @@ export const optionalVault = (
   const token = secrets["vault_token"];
   if (token === undefined || token.trim().length === 0) return {};
   const address = optionalStringAt(value, ["tools", "vault", "address"]);
-  if (address === undefined) return {};
+  if (address === undefined || address.trim().length === 0) return {};
   const paths = stringArrayAt(value, ["tools", "vault", "paths"])
     .filter((path) => path.trim().length > 0);
   if (paths.length === 0) return {};

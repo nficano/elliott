@@ -48,6 +48,18 @@ const SECRET_KEY_PATTERN =
 const isSecretKey = (key: string): boolean =>
   SECRET_KEY_PATTERN.test(key.replaceAll(/[^a-z0-9]/gi, "").toLowerCase());
 
+// Free-form config subtrees the framework has NO schema for: agent-skill config
+// (`skillConfig`, the resolved `skills:` block) can hold a secret under ANY key
+// name (encryption_key, cipher, seed, …), so field-name inference can never be
+// complete there. Every string in these subtrees is therefore treated as
+// sensitive — a name-blind rule for the one place names can't be trusted. The
+// authoritative signal is still provenance (config.ts): this is defense in depth
+// so a repro seeding only from settings is covered too.
+const FREEFORM_SECRET_KEYS: ReadonlySet<string> = new Set([
+  "skillConfig",
+  "skills",
+]);
+
 // Every string reachable from a node (through nested objects and arrays alike).
 // Once a key is judged a secret, its ENTIRE value is sensitive — a single string,
 // an array of strings (`api_keys: [...]`), or a nested credentials object — so
@@ -81,7 +93,7 @@ export const collectSecretStrings = (value: unknown): readonly string[] => {
     }
     if (node === null || typeof node !== "object") return;
     for (const [key, child] of Object.entries(node)) {
-      if (isSecretKey(key)) {
+      if (isSecretKey(key) || FREEFORM_SECRET_KEYS.has(key)) {
         pushAllStrings(child, found);
       } else {
         walk(child);

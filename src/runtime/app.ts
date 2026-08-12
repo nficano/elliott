@@ -194,13 +194,15 @@ export class ElliottRuntime {
     );
     // The reporter is neutral: console baseline now, sinks attached later by
     // whichever skills register them (e.g. glitchtip). Created before skills
-    // load so installErrorSink has a target during register(). Seed its
-    // redactor with EVERY configured secret value (LLM key, gateway tokens, SSH
-    // key, webhook secrets, DSN, Vault token) plus Vault paths, so any secret
-    // interpolated into an error message is stripped before it reaches the
-    // console or any sink.
+    // load so installErrorSink has a target during register(). Seed its redactor
+    // from three layers so any secret interpolated into an error message is
+    // stripped before it reaches the console or any sink: (1) provenance —
+    // every value resolved from a `${VAULT:…}`/`${ENV:…}` reference or the
+    // secrets file, determined by ORIGIN not field name (settings.redactionSecrets);
+    // (2) name/free-form collection over the resolved settings; (3) Vault paths.
     this.#reporter = new RuntimeErrorReporter(
       makeRedactor([
+        ...(settings.redactionSecrets ?? []),
         ...collectSecretStrings(settings),
         ...(settings.vault?.paths ?? []),
       ]),

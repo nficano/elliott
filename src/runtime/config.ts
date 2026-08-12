@@ -124,8 +124,17 @@ export const loadRuntimeSettings = async (
   const secrets = await loadSecrets(root, resolver);
   const agent = await loadAgentDefinition(root, agentName);
   const evolution = await loadEvolutionConfig(root);
-  const resolved = await resolveTree(config, resolver);
-  return {
+  // Provenance: capture every value that came from a `${VAULT:…}`/`${ENV:…}`
+  // reference, plus every resolved secrets.yaml value (the secrets file is
+  // secret by definition). These are THE secrets — determined by origin, not by
+  // a field-name guess — so a resolved secret under any key (including free-form
+  // agent-skill config) is redacted from logs and captured payloads.
+  const referenceSecrets = new Set<string>();
+  const resolved = await resolveTree(config, resolver, (value) => {
+    referenceSecrets.add(value);
+  });
+  for (const value of Object.values(secrets)) referenceSecrets.add(value);
+  const base: RuntimeSettings = {
     ...coreSettings(root, resolved, agent),
     ...optionalSettings(root, resolved, secrets),
     mcp: mcpSettings(agent, secrets),
@@ -134,6 +143,15 @@ export const loadRuntimeSettings = async (
     ...governanceSettings(resolved),
     ...installSettings(resolved),
   };
+  // The two known non-secret reference-backed values (the LLM base URL and model
+  // id) stay readable in error text; everything else that came from a reference
+  // is treated as sensitive. Any credentials embedded in the base URL are still
+  // stripped by the URL-userinfo shape pattern in the redactor.
+  const nonSecret = new Set([base.llmBaseUrl, base.model]);
+  const redactionSecrets = [...referenceSecrets].filter(
+    (value) => value.length > 0 && !nonSecret.has(value),
+  );
+  return { ...base, redactionSecrets };
 };
 
 // Parse the `install:` block (installable skills) off the resolved config.
@@ -361,18 +379,28 @@ const loadSecrets = async (
   return output;
 };
 
+// `onResolved` records every value that came from a `${VAULT:…}`/`${ENV:…}`
+// reference — its provenance. This is how secrecy is determined for redaction:
+// by ORIGIN (resolved from a secret reference or the secrets file), not by
+// guessing a field name after the reference has already collapsed to a plain
+// string. A literal in the config carries no reference, so it is not recorded.
 const resolveTree = async (
   value: unknown,
   resolver: SecretResolver,
+  onResolved?: (resolved: string) => void,
 ): Promise<unknown> => {
-  if (typeof value === "string") return resolveExpression(value, resolver);
+  if (typeof value === "string") {
+    return resolveExpression(value, resolver, onResolved);
+  }
   if (Array.isArray(value)) {
-    return Promise.all(value.map((item) => resolveTree(item, resolver)));
+    return Promise.all(
+      value.map((item) => resolveTree(item, resolver, onResolved)),
+    );
   }
   if (!isJsonRecord(value)) return value;
   const entries = await Promise.all(
     Object.entries(value).map(async ([key, item]) =>
-      [key, await resolveTree(item, resolver)] as const
+      [key, await resolveTree(item, resolver, onResolved)] as const
     ),
   );
   return Object.fromEntries(entries);
@@ -381,10 +409,13 @@ const resolveTree = async (
 const resolveExpression = async (
   value: string,
   resolver: SecretResolver,
+  onResolved?: (resolved: string) => void,
 ): Promise<string> => {
   const vault = /^\$\{VAULT:([^#}]+)#([^}]+)\}$/.exec(value);
   if (vault?.[1] !== undefined && vault[2] !== undefined) {
-    return resolver.vault(vault[1], vault[2]);
+    const resolved = await resolver.vault(vault[1], vault[2]);
+    onResolved?.(resolved);
+    return resolved;
   }
   const env = /^\$\{ENV:([^}]+)\}$/.exec(value);
   if (env?.[1] !== undefined) {
@@ -392,6 +423,7 @@ const resolveExpression = async (
     if (result === undefined) {
       throw new Error(`Environment is missing ${env[1]}`);
     }
+    onResolved?.(result);
     return result;
   }
   return value;
