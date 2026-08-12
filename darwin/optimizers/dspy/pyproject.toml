@@ -1,0 +1,21 @@
+[project]
+name = "elliott-dspy-companion"
+version = "1.0.0"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+  "dspy==3.2.1",
+]
+
+[tool.uv]
+package = false
+
+# The worker imports the Python-only optimizer adapter from the repository root
+# on PYTHONPATH; point basedpyright at the same layout.
+# Use the local uv venv so dspy's real exports (Signature, LM, GEPA, …) resolve.
+[tool.basedpyright]
+extraPaths = ["../../.."]
+stubPath = "../python/typings"
+venvPath = "."
+venv = ".venv"
+pythonVersion = "3.12"
+reportMissingModuleSource = "none"

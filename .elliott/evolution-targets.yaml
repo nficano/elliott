@@ -1,0 +1,23 @@
+targets:
+  - componentRef: core/prompt/elliott-interaction-profile
+    targetClass: prompt-segment
+    riskClass: C2
+    baselinePath: assets/prompts/elliott.md
+    allowedMutationPaths: [assets/prompts/elliott.md]
+    frozenPaths:
+      - agents/elliott.yaml
+      - src/prompt/index.ts
+      - src/prompt/types.ts
+      - src/runtime/agent.ts
+  - componentRef: core/tool/description-catalog
+    targetClass: tool-description
+    riskClass: C2
+    baselinePath: assets/tool-descriptions.json
+    mutationPath: assets/tool-descriptions.json
+    runtimeToolNames: ["*"]
+    defaultSources: [synthetic]
+    allowedMutationPaths: [assets/tool-descriptions.json]
+    frozenPaths:
+      - src/runtime/skills
+      - src/catalog
+      - skills

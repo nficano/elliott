@@ -1,0 +1,23 @@
+{
+  "folders": [
+    {
+      "path": ".",
+    }
+  ],
+  "settings": {
+    "// Elliott YAML schemas": "Explicit associations below take priority over the JSON Schema Store catalog, which otherwise mismatches skills/**/manifest.yaml to the unrelated 'Cloud-Pipelines / Pipeline component' schema.",
+    "yaml.schemas": {
+      "./schemas/elliott-component.json": "**/skills/**/manifest.yaml",
+      "./schemas/elliott-agent.json": "**/agents/*.yaml"
+    },
+    "files.exclude": {
+      "**/.artifacts": true,
+      "**/.elliott": true,
+      "**/.elliott-runtime": true,
+      "**/.repos": true,
+      "**/.dockerignore": true,
+      "**/bun.lock": true,
+      "**/dprint.json": true
+    }
+  }
+}

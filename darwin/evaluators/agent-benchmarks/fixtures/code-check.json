@@ -1,0 +1,74 @@
+{
+  "operation": "checkCandidate",
+  "run": {
+    "id": "evr_codecheck1",
+    "principalId": "EvolutionEvaluator",
+    "baselineSnapshotId": "snapshot-baseline",
+    "engineRef": "organization/evaluator/darwinian",
+    "engineKind": "darwinian",
+    "configurationDigest": "sha256:configuration",
+    "signalIds": [],
+    "target": {
+      "targetClass": "code",
+      "componentRef": "core/code-check/smoke",
+      "baselineDigest": "sha256:baseline",
+      "riskClass": "C2",
+      "mutationPath": "src/value.ts",
+      "allowedMutationPaths": ["src/value.ts"],
+      "frozenPaths": []
+    },
+    "budgets": {
+      "maximumCandidates": 2,
+      "maximumTokens": 100,
+      "maximumCostUsd": 1,
+      "maximumDurationMilliseconds": 30000,
+      "maximumConcurrency": 1
+    },
+    "state": {
+      "_tag": "shortlisted",
+      "candidateIds": ["evc_codecheck1"],
+      "sealedAt": "2026-01-01T00:00:00Z"
+    },
+    "createdAt": "2026-01-01T00:00:00Z",
+    "updatedAt": "2026-01-01T00:00:00Z"
+  },
+  "candidate": {
+    "id": "evc_codecheck1",
+    "runId": "evr_codecheck1",
+    "targetDigest": "sha256:baseline",
+    "candidateDigest": "sha256:3d844efb6f2cbb888ed99af04d256dacb2417544fe6572ed47aa937f4312ccca",
+    "patch": "--- a/src/value.ts\n+++ b/src/value.ts\n",
+    "materializedContent": "{\"files\":{\"src/value.ts\":\"export const value = 2;\\n\"}}",
+    "engineTraceDigest": "sha256:trace",
+    "usage": {
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "costUsd": 0,
+      "latencyMilliseconds": 0
+    },
+    "constraints": [],
+    "createdAt": "2026-01-01T00:00:00Z"
+  },
+  "codeSandbox": {
+    "checkoutRef": "candidate://code-check",
+    "checkoutFiles": [
+      {
+        "path": "src/value.ts",
+        "digest": "sha256:5d8f65d2774e206bc9f7a7a4ad39ca2dc563b5c31e46ab57ef4874961237ce29",
+        "content": "export const value = 1;\n",
+        "executable": false
+      }
+    ],
+    "targetFiles": ["src/value.ts"],
+    "testCommands": [["bun", "test"]],
+    "cpuQuota": 1,
+    "memoryMb": 512,
+    "pids": 64,
+    "timeoutMilliseconds": 30000,
+    "networkEnabled": false,
+    "repositoryCredentialsMounted": false,
+    "gitRemotePresent": false,
+    "activeTreeWritable": false,
+    "containerRuntimeSocketMounted": false
+  }
+}

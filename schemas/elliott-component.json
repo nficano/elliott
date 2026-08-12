@@ -1,0 +1,262 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://elliott.dev/schemas/component.json",
+  "title": "Elliott Component (manifest.yaml)",
+  "description": "Manifest for an elliott/v1 component (tool, gateway, extension, mcp-endpoint, scheduler, …).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["apiVersion", "kind", "profile", "metadata", "spec"],
+  "properties": {
+    "apiVersion": {
+      "const": "elliott/v1",
+      "description": "Manifest API version. Only elliott/v1 is understood by the loader."
+    },
+    "kind": {
+      "description": "Component kind. See src/core/types.ts ComponentKind.",
+      "enum": [
+        "agent",
+        "skill",
+        "tool",
+        "resource",
+        "gateway",
+        "mcp-endpoint",
+        "mcp-exposure",
+        "extension",
+        "interaction-profile",
+        "memory",
+        "policy",
+        "evaluator",
+        "model-provider",
+        "model-profile",
+        "scheduler"
+      ]
+    },
+    "profile": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Security/interaction profile name, e.g. gateway-standard, tool-standard, tool-local-only, extension-standard."
+    },
+    "metadata": { "$ref": "#/definitions/metadata" },
+    "spec": { "$ref": "#/definitions/spec" }
+  },
+  "definitions": {
+    "metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["namespace", "name", "version"],
+      "properties": {
+        "namespace": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1 },
+        "version": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$",
+          "description": "Semantic version, e.g. 1.0.0."
+        }
+      }
+    },
+    "egress": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["class"],
+      "properties": {
+        "class": {
+          "enum": ["none", "lan", "declared"],
+          "description": "Egress posture. `declared` requires an explicit `hosts` allowlist."
+        },
+        "hosts": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Allowlisted egress hosts (used with class: declared)."
+        }
+      }
+    },
+    "capability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["capability"],
+      "properties": {
+        "capability": {
+          "type": "string",
+          "description": "Capability name, e.g. network.connect, secret.use, fs.read, fs.write, process.execute."
+        },
+        "resources": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "deferred": {
+          "type": "boolean",
+          "description": "JIT operator approval on first use."
+        }
+      }
+    },
+    "companion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "image"],
+      "properties": {
+        "name": { "type": "string" },
+        "image": {
+          "type": "string",
+          "description": "Container image reference, ideally digest-pinned."
+        },
+        "endpoint": { "type": "string" },
+        "egress": { "$ref": "#/definitions/egress" },
+        "volumes": {
+          "type": "array",
+          "items": { "type": "object" }
+        }
+      }
+    },
+    "export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ref", "implementation"],
+      "properties": {
+        "ref": {
+          "type": "string",
+          "description": "Exported component ref, e.g. gateway/slack, tool/files."
+        },
+        "implementation": {
+          "type": "string",
+          "description": "Path to the implementation module, relative to the component root."
+        }
+      }
+    },
+    "spec": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "document",
+        "protocols",
+        "capabilities",
+        "egress",
+        "isolation",
+        "exports"
+      ],
+      "properties": {
+        "document": {
+          "type": "string",
+          "description": "Human-facing document filename, e.g. TOOL.md, GATEWAY.md, EXTENSION.md, MCP.md, SCHEDULER.md, EVALUATOR.md."
+        },
+        "protocols": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "capabilities": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/capability" }
+        },
+        "egress": { "$ref": "#/definitions/egress" },
+        "isolation": {
+          "enum": [
+            "declarative",
+            "in-process",
+            "process",
+            "container",
+            "remote"
+          ],
+          "description": "Requested isolation level. See src/core/types.ts IsolationLevel."
+        },
+        "outputTrust": {
+          "enum": ["trusted", "untrusted"]
+        },
+        "senderAllowlist": {
+          "enum": ["required", "optional", "none"]
+        },
+        "companions": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/companion" }
+        },
+        "exports": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/definitions/export" }
+        },
+        "topology": { "$ref": "#/definitions/topology" }
+      }
+    },
+    "topology": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Optional connection-graph metadata consumed by scripts/gen-topology.mjs to place this component in docs/elliott-topology.json. Ignored by the runtime loader (bundled.ts reads only document/protocols/exports).",
+      "properties": {
+        "node": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["id", "kind", "domain"],
+          "description": "The connection-graph node this component contributes. Omit only if the component contributes no node.",
+          "properties": {
+            "id": {
+              "type": "string",
+              "description": "Graph node id, e.g. tool.files, gateway.slack, service.scheduler."
+            },
+            "kind": {
+              "enum": [
+                "gateway",
+                "tool",
+                "service",
+                "mcp-endpoint",
+                "observability",
+                "evaluator",
+                "provider",
+                "runtime",
+                "agent-loop",
+                "memory",
+                "database",
+                "learning",
+                "container",
+                "secret-source"
+              ],
+              "description": "Graph node kind (the authoritative role, which may differ from the manifest `kind`: e.g. gateway-gmail declares kind:gateway but contributes a tool node)."
+            },
+            "domain": {
+              "type": "string",
+              "description": "Architectural domain id (ingress, agent-core, tool-execution, external-integrations, mcp-federation, self-evolution, observability, …)."
+            },
+            "trustZone": { "type": "string" },
+            "dataClassification": { "type": "string" },
+            "criticality": { "type": "string" }
+          }
+        },
+        "dispatch": {
+          "enum": ["socket", "route", "tool", "service", "none"],
+          "description": "How the runtime reaches this node; drives the auto-derived edge. socket: gateway→inbound. route: http→node + node→inbound. tool: toolExec→node. service/none: no auto edge (declare via `edges`)."
+        },
+        "gate": {
+          "type": "string",
+          "description": "Liveness gate that sets the node `runtime` flag: 'always' (live), a settings key like 'settings.slack' (config-gated), or 'config:<path>'."
+        },
+        "egressTargets": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "External endpoints this node reaches (informational)."
+        },
+        "edges": {
+          "type": "array",
+          "description": "Extra edges beyond the auto-derived one. Use the literal 'self' for this component's own node id.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["from", "to", "kind"],
+            "properties": {
+              "from": { "type": "string" },
+              "to": { "type": "string" },
+              "kind": {
+                "enum": [
+                  "data",
+                  "control",
+                  "persist",
+                  "learn",
+                  "health",
+                  "secret"
+                ]
+              },
+              "protocol": { "type": "string" },
+              "label": { "type": "string" }
+            }
+          }
+        }
+      }
+    }
+  }
+}

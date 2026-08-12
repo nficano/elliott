@@ -1,0 +1,21 @@
+node_modules/
+dist/
+coverage/
+.playwright-mcp/
+.ruff_cache/
+.DS_Store
+*.log
+.env
+.venv/
+__pycache__/
+.elliott-runtime/
+.artifacts/
+.repos/effect
+native/hot-core/target/
+native/*.node
+
+# Track shared Claude Code project settings (global gitignore excludes
+# .claude/ wholesale); local state under .claude/ stays ignored.
+!.claude/
+.claude/*
+!.claude/settings.json

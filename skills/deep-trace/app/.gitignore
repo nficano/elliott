@@ -1,0 +1,12 @@
+# Generated during dev/build — never committed.
+.nuxt/
+.output/
+storybook-static/
+test-results/
+playwright-report/
+*.tsbuildinfo
+
+# The generated SPA IS committed: the extension registers one route per file
+# in dist/ (see skills/telemetry-map/src/app-dist.ts). Overrides the repo
+# root's global dist/ ignore.
+!dist/

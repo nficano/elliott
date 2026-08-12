@@ -1,0 +1,22 @@
+apiVersion: elliott/v1
+kind: scheduler
+profile: scheduler-standard
+metadata: { namespace: core, name: scheduler, version: 1.0.0 }
+spec:
+  document: SKILL.md
+  protocols: [scheduler]
+  capabilities: []
+  egress: { class: none }
+  isolation: container
+  topology:
+    node: { id: service.scheduler, kind: service, domain: tool-execution, trustZone: sandboxed, dataClassification: user-content, criticality: supporting }
+    dispatch: tool
+    gate: always
+    egressTargets: []
+    # Outbound delivery goes to the primary gateway resolved at runtime
+    # (context.deliver -> #deliver -> primaryGateway.send). Gateways are now
+    # installable skills rather than built-ins, so this edge has no static
+    # target node; delivery is dynamic and soft-degrades when none is installed.
+    edges: []
+  exports:
+    - { ref: scheduler/reminders, implementation: src/index.ts }

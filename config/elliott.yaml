@@ -1,0 +1,67 @@
+runtime:
+  timezone: UTC
+  http: { port: 8080 }
+
+store:
+  # Optional external Postgres store. Omit `dsn` to run on the embedded
+  # SQLite default (TDD D-12). To enable:
+  # dsn: ${ENV:ELLIOTT_POSTGRES_DSN}
+  pool: { max: 10 }
+  vectors: { dim: 768, type: vector }
+
+llm:
+  # Any OpenAI-compatible endpoint: a provider's native /v1, a LiteLLM
+  # proxy, or a local server. No endpoint or model ships as a default —
+  # set these environment variables (or replace the expressions with
+  # literals in your agent repo's copy of this file). A missing variable
+  # fails the boot naming it.
+  base_url: ${ENV:ELLIOTT_LLM_BASE_URL} # e.g. https://api.example.com/v1
+  api_key: ${ENV:ELLIOTT_LLM_API_KEY}
+  max_parallel: 12
+  models:
+    # Agents select a tier by name (spec.modelProfile), never a hardcoded
+    # model. Add tiers (fast, standard, deep, …) as your deployment needs.
+    default:
+      model: ${ENV:ELLIOTT_LLM_MODEL}
+      context_window: 128000
+  profiles:
+    default: { max_tokens: 4096, temperature: 0.4 }
+
+budgets:
+  cold_tokens_max: 12000
+  monthly_usd_max: 200
+  per_turn_usd_max: 2
+
+observability:
+  # Optional Sentry-compatible error reporting (GlitchTip or Sentry).
+  # Absent ⇒ errors log to the console only.
+  # glitchtip:
+  #   dsn: ${ENV:ELLIOTT_GLITCHTIP_DSN}
+
+notify:
+  webhook_url: ""
+  default_channels: []
+
+tools:
+  files:
+    enabled: true
+    root: .elliott-runtime/workspace
+  terminal:
+    enabled: false
+    root: .elliott-runtime/workspace
+    allowed_commands: []
+  ssh:
+    enabled: false
+    user: elliott
+    hosts: []
+
+skills:
+  deep_trace:
+    # The observability map ships enabled and serves on the runtime HTTP port
+    # at /v1/observability/map. To publish it beyond localhost, provide
+    # proxy.route / dns.local facilities (e.g. traefik + pihole skills) and
+    # set the hostname the route should answer on:
+    #
+    # public_hostname: elliott.example.com
+    # service_url: http://127.0.0.1:8080
+    enabled: true

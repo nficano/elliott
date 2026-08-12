@@ -1,0 +1,28 @@
+apiVersion: elliott/v1
+kind: agent
+metadata:
+  namespace: workspace
+  name: elliott
+  version: 1.0.0
+spec:
+  persona: assets/prompts/elliott.md
+  modelProfile: default
+  components:
+    - core/mcp-endpoint/mcp-client
+    - core/tool/fetch
+    - core/tool/files
+    - core/tool/terminal
+    - core/tool/ssh
+    - core/scheduler/scheduler
+    - core/extension/deep-trace
+  # External MCP servers this agent connects to. None by default — agent repos
+  # declare their own. Example:
+  #
+  # mcp:
+  #   - id: example
+  #     url: https://mcp.example.com/mcp
+  #     transport: streamable-http
+  #   - id: home-assistant
+  #     url: http://homeassistant.local:8123/mcp_server/sse
+  #     transport: sse
+  #     authorizationSecret: ha_token

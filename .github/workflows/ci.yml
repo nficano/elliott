@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Cancel in-progress runs for the same ref (e.g. new push to a PR)
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test (${{ matrix.posture }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        posture: [standard, hardened, regulated]
+    env:
+      ELLIOTT_POSTURE: ${{ matrix.posture }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history so ratchet:check can diff coverage floors against
+          # the merge-base with origin/main.
+          fetch-depth: 0
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.8
+      - run: bun install --frozen-lockfile
+      - run: bun run typecheck
+      - run: bun run lint
+      - run: bun run format:check
+      - run: bun run ratchet:check
+      - run: bun run unicode:check
+      - run: bun run workflows:check
+      - run: bun test
+      - run: bun run footprint:check
+      - run: bun run hot-core:check
+      - run: cargo fmt --manifest-path native/hot-core/Cargo.toml --all -- --check
+      - run: cargo clippy --manifest-path native/hot-core/Cargo.toml --workspace --all-targets -- -D warnings
+
+  # Deploy retired: elliott is a framework consumed as a package. The
+  # deployable is a consumer agent (pod) repo, which boots elliott's runtime
+  # with its own agentRoot and owns its deploy job. elliott CI only tests.
+  # See docs/explanation/agent-skills.md.

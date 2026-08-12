@@ -1,0 +1,50 @@
+{
+  "name": "deep-trace-app",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Nuxt rewrite of the Elliott telemetry map explorer UI.",
+  "type": "module",
+  "scripts": {
+    "dev": "nuxt dev",
+    "build": "nuxt build",
+    "generate": "nuxt generate",
+    "postgenerate": "rm -rf dist && cp -R .output/public dist",
+    "preview": "nuxt preview",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "typecheck": "nuxt typecheck",
+    "test": "vitest run",
+    "storybook": "storybook dev -p 6006",
+    "storybook:build": "storybook build",
+    "e2e": "playwright test"
+  },
+  "dependencies": {
+    "nuxt": "^4.2.2",
+    "vue": "^3.5.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.50.0",
+    "@storybook/vue3-vite": "^9.1.0",
+    "@tailwindcss/vite": "^4.1.0",
+    "@vitejs/plugin-vue": "^6.0.8",
+    "@vue/test-utils": "^2.4.6",
+    "eslint": "^9.31.0",
+    "eslint-plugin-perfectionist": "^4.15.0",
+    "eslint-plugin-security": "^4.0.1",
+    "eslint-plugin-sonarjs": "^3.0.5",
+    "eslint-plugin-storybook": "^10.3.6",
+    "eslint-plugin-unicorn": "^62.0.0",
+    "eslint-plugin-vue": "^10.5.1",
+    "globals": "^16.2.0",
+    "happy-dom": "^18.0.0",
+    "storybook": "^9.1.0",
+    "tailwindcss": "^4.1.0",
+    "typescript": "^5.7.2",
+    "typescript-eslint": "^8.54.0",
+    "unplugin-auto-import": "^21.0.0",
+    "unplugin-vue-components": "^32.1.0",
+    "vitest": "^3.2.0",
+    "vue-eslint-parser": "^10.2.0",
+    "vue-tsc": "^3.0.0"
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "include": ["darwin/optimizers"],
+  "extraPaths": ["."],
+  "stubPath": "darwin/optimizers/python/typings",
+  "reportMissingModuleSource": "none",
+  "reportUninitializedInstanceVariable": "none",
+  "pythonVersion": "3.12"
+}

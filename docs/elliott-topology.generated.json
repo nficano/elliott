@@ -1,0 +1,780 @@
+{
+  "version": "1.2.0-generated",
+  "title": "Elliott Runtime — Connection Graph (generated)",
+  "generatedFrom": "scripts/gen-topology.mjs: docs/topology.spine.json + skills/**/manifest.yaml spec.topology + agents/elliott.yaml mcp[] + config/elliott.yaml gates",
+  "note": "Auto-generated structural connection graph. Nodes/uniform-edges derive from each module's manifest; the runtime spine is hand-authored. `runtime` here is a static approximation (secret-gated => config-gated); the live deep-trace extension resolves actual liveness.",
+  "nodeKinds": [
+    "secret-source",
+    "gateway",
+    "runtime",
+    "agent-loop",
+    "provider",
+    "tool",
+    "service",
+    "mcp-endpoint",
+    "memory",
+    "database",
+    "learning",
+    "evaluator",
+    "extension",
+    "observability",
+    "container"
+  ],
+  "edgeKinds": [
+    "data",
+    "control",
+    "persist",
+    "learn",
+    "health",
+    "secret"
+  ],
+  "nodes": [
+    {
+      "id": "secret.vault",
+      "name": "Vault secret source (configured KV path)",
+      "kind": "secret-source",
+      "runtime": "live",
+      "domain": "secrets",
+      "source": "src/runtime/config.ts"
+    },
+    {
+      "id": "runtime.http",
+      "name": "Bun.serve -> #handleRequest (single HTTP server)",
+      "kind": "runtime",
+      "runtime": "live",
+      "domain": "ingress",
+      "source": "src/runtime/server.ts:7; src/runtime/app.ts:336"
+    },
+    {
+      "id": "runtime.inbound",
+      "name": "#handleInbound (dedup + snapshot pin + turn open)",
+      "kind": "runtime",
+      "runtime": "live",
+      "domain": "ingress",
+      "source": "src/runtime/app.ts:246"
+    },
+    {
+      "id": "runtime.agentLoop",
+      "name": "RuntimeAgent.turn (round loop <= 8)",
+      "kind": "agent-loop",
+      "runtime": "live",
+      "domain": "agent-core",
+      "source": "src/runtime/agent.ts:43"
+    },
+    {
+      "id": "runtime.prompt",
+      "name": "Prompt assembly (#systemPrompt + contextualInput)",
+      "kind": "runtime",
+      "runtime": "live",
+      "domain": "agent-core",
+      "source": "src/runtime/agent.ts:91"
+    },
+    {
+      "id": "runtime.router",
+      "name": "Route attestation (#attest fixed {baseUrl, model})",
+      "kind": "runtime",
+      "runtime": "live",
+      "domain": "model-inference",
+      "source": "src/runtime/model/client.ts:64"
+    },
+    {
+      "id": "runtime.modelClient",
+      "name": "RuntimeModelClient.complete -> /v1/chat/completions",
+      "kind": "runtime",
+      "runtime": "live",
+      "domain": "model-inference",
+      "source": "src/runtime/model/client.ts:23"
+    },
+    {
+      "id": "runtime.toolExec",
+      "name": "#execute (tool dispatch; Promise.all fan-out in turn)",
+      "kind": "runtime",
+      "runtime": "live",
+      "domain": "agent-core",
+      "source": "src/runtime/agent.ts:105"
+    },
+    {
+      "id": "runtime.kernel",
+      "name": "AgentKernel (boot + snapshots + evolution; turn path bypasses it)",
+      "kind": "runtime",
+      "runtime": "live",
+      "domain": "kernel-governance",
+      "source": "src/runtime/kernel.ts:4; src/kernel.ts:36"
+    },
+    {
+      "id": "provider.litellm",
+      "name": "LiteLLM gateway (configured llm.base_url)",
+      "kind": "provider",
+      "runtime": "live",
+      "domain": "model-inference",
+      "source": "config/elliott.yaml:16; src/runtime/model/client.ts:28"
+    },
+    {
+      "id": "provider.ollama",
+      "name": "Ollama provider (canonical-only; never instantiated)",
+      "kind": "provider",
+      "runtime": "dormant",
+      "domain": "model-inference",
+      "source": "src/providers/ollama/index.ts:13"
+    },
+    {
+      "id": "memory.sessionStore",
+      "name": "SessionStore (bun:sqlite, WAL; only .evolution sub-store consumed)",
+      "kind": "memory",
+      "runtime": "live",
+      "domain": "memory-persistence",
+      "source": "src/memory/session-store/index.ts:37; app.ts:77"
+    },
+    {
+      "id": "memory.evidence",
+      "name": "RuntimeEvolutionEvidence sink (wraps the TurnObserver)",
+      "kind": "memory",
+      "runtime": "live",
+      "domain": "memory-persistence",
+      "source": "src/runtime/evolution-evidence.ts:26; app.ts:125"
+    },
+    {
+      "id": "memory.curated",
+      "name": "Curated memory (MEMORY.md / USER.md) - library-only",
+      "kind": "memory",
+      "runtime": "dormant",
+      "domain": "memory-persistence",
+      "source": "src/memory/curated/index.ts:41"
+    },
+    {
+      "id": "memory.snapshots",
+      "name": "Snapshots (FileSnapshotStore; per-conversation in-memory ID pin)",
+      "kind": "memory",
+      "runtime": "live",
+      "domain": "memory-persistence",
+      "source": "src/core/snapshot/snapshot.ts:125; src/runtime/conversation-snapshots.ts:4"
+    },
+    {
+      "id": "database.sessions",
+      "name": "sessions.sqlite (5 evolution tables written at runtime)",
+      "kind": "database",
+      "runtime": "live",
+      "domain": "memory-persistence",
+      "source": ".elliott-runtime/sessions.sqlite; DDL session-store/index.ts:25 + evolution.ts:12"
+    },
+    {
+      "id": "learning.signals",
+      "name": "Evolution signal detection (evolution-signals.ts via scheduler)",
+      "kind": "learning",
+      "runtime": "live",
+      "domain": "self-evolution",
+      "source": "src/runtime/evolution-signals.ts:113; evolution-scheduler.ts:210"
+    },
+    {
+      "id": "learning.triage",
+      "name": "Evolution signal triage (score + gate; top-scored)",
+      "kind": "learning",
+      "runtime": "live",
+      "domain": "self-evolution",
+      "source": "src/learning/evolution/continuous/triage.ts:22"
+    },
+    {
+      "id": "learning.proposals",
+      "name": "Proposals (FileProposalStore) -> canary -> promote/rollback",
+      "kind": "learning",
+      "runtime": "live",
+      "domain": "self-evolution",
+      "source": "src/learning/proposals/index.ts:18; src/runtime/evolution.ts:342"
+    },
+    {
+      "id": "learning.control",
+      "name": "Evolution control plane (/v1/control/evolution, token-gated)",
+      "kind": "learning",
+      "runtime": "config-gated",
+      "domain": "self-evolution",
+      "source": "src/runtime/evolution.ts:500; app.ts:350"
+    },
+    {
+      "id": "evaluator.gauntlet",
+      "name": "Evolution evaluation (orchestrator.evaluate -> harness -> HTTP evaluator)",
+      "kind": "evaluator",
+      "runtime": "live",
+      "domain": "self-evolution",
+      "source": "src/learning/evolution/orchestrator/operations.ts:128; evaluation/harness.ts"
+    },
+    {
+      "id": "obs.telemetry",
+      "name": "RuntimeTelemetry bus (in-process pub/sub, ring, SSE)",
+      "kind": "observability",
+      "runtime": "live",
+      "domain": "observability",
+      "source": "src/runtime/telemetry.ts:16"
+    },
+    {
+      "id": "obs.footprint",
+      "name": "FootprintTracker (in-memory; instantiated in kernel, unfed)",
+      "kind": "observability",
+      "runtime": "dormant",
+      "domain": "kernel-governance",
+      "source": "src/observability/index.ts:33; src/kernel.ts:52"
+    },
+    {
+      "id": "obs.audit",
+      "name": "AuditLog (hash-chained, Merkle, in-memory; kernel+evolution only)",
+      "kind": "observability",
+      "runtime": "live",
+      "domain": "kernel-governance",
+      "source": "src/audit/log.ts:25; src/kernel.ts:41"
+    },
+    {
+      "id": "obs.reporter",
+      "name": "Error reporter (Sentry-compatible DSN) via #capture",
+      "kind": "observability",
+      "runtime": "live",
+      "domain": "observability",
+      "source": "src/runtime/reporter.ts:5; app.ts:361"
+    },
+    {
+      "id": "container.elliott",
+      "name": "elliott app container (runtime.http port)",
+      "kind": "container",
+      "runtime": "live",
+      "domain": "deployment-substrate",
+      "source": "deploy/docker-compose.yml:4"
+    },
+    {
+      "id": "container.postgres",
+      "name": "postgres (pgvector) - declared; no runtime reader",
+      "kind": "container",
+      "runtime": "declared",
+      "domain": "deployment-substrate",
+      "source": "deploy/docker-compose.yml:49"
+    },
+    {
+      "id": "container.browser",
+      "name": "agent-browser (browserless/chromium; isolated network)",
+      "kind": "container",
+      "runtime": "live",
+      "domain": "deployment-substrate",
+      "source": "deploy/docker-compose.yml:65"
+    },
+    {
+      "id": "obs.map",
+      "name": "deep-trace (skills/deep-trace/src/index.ts)",
+      "kind": "observability",
+      "runtime": "live",
+      "domain": "observability",
+      "source": "skills/deep-trace/src/index.ts",
+      "classifications": {
+        "trustZone": "edge",
+        "dataClassification": "operational-metadata",
+        "criticality": "supporting"
+      }
+    },
+    {
+      "id": "evaluator.benchmarks",
+      "name": "evaluator-agent-benchmarks (skills/evaluator-agent-benchmarks/src/index.ts)",
+      "kind": "evaluator",
+      "runtime": "config-gated",
+      "domain": "self-evolution",
+      "source": "skills/evaluator-agent-benchmarks/src/index.ts",
+      "classifications": {
+        "trustZone": "egress",
+        "dataClassification": "internal",
+        "criticality": "latent"
+      },
+      "egressTargets": [
+        "benchmarks companion (HTTP, sealed OCI)"
+      ]
+    },
+    {
+      "id": "evaluator.darwinian",
+      "name": "evaluator-darwinian (skills/evaluator-darwinian/src/index.ts)",
+      "kind": "evaluator",
+      "runtime": "config-gated",
+      "domain": "self-evolution",
+      "source": "skills/evaluator-darwinian/src/index.ts",
+      "classifications": {
+        "trustZone": "egress",
+        "dataClassification": "internal",
+        "criticality": "latent"
+      },
+      "egressTargets": [
+        "darwinian companion (HTTP, sealed OCI)"
+      ]
+    },
+    {
+      "id": "evaluator.dspy",
+      "name": "evaluator-dspy (skills/evaluator-dspy/src/index.ts)",
+      "kind": "evaluator",
+      "runtime": "config-gated",
+      "domain": "self-evolution",
+      "source": "skills/evaluator-dspy/src/index.ts",
+      "classifications": {
+        "trustZone": "egress",
+        "dataClassification": "internal",
+        "criticality": "latent"
+      },
+      "egressTargets": [
+        "dspy companion (HTTP, sealed OCI)"
+      ]
+    },
+    {
+      "id": "tool.fetch",
+      "name": "fetch (skills/fetch/src/index.ts)",
+      "kind": "tool",
+      "runtime": "live",
+      "domain": "external-integrations",
+      "source": "skills/fetch/src/index.ts",
+      "classifications": {
+        "trustZone": "egress",
+        "dataClassification": "untrusted-external",
+        "criticality": "supporting"
+      },
+      "egressTargets": [
+        "public http/https"
+      ]
+    },
+    {
+      "id": "tool.files",
+      "name": "files (skills/files/src/index.ts)",
+      "kind": "tool",
+      "runtime": "live",
+      "domain": "tool-execution",
+      "source": "skills/files/src/index.ts",
+      "classifications": {
+        "trustZone": "sandboxed",
+        "dataClassification": "user-content",
+        "criticality": "supporting"
+      }
+    },
+    {
+      "id": "mcp.client",
+      "name": "mcp-client (skills/mcp-client/src/index.ts)",
+      "kind": "mcp-endpoint",
+      "runtime": "live",
+      "domain": "mcp-federation",
+      "source": "skills/mcp-client/src/index.ts",
+      "classifications": {
+        "trustZone": "egress",
+        "dataClassification": "untrusted-external",
+        "criticality": "supporting"
+      },
+      "egressTargets": [
+        "configured MCP servers"
+      ]
+    },
+    {
+      "id": "service.scheduler",
+      "name": "scheduler (skills/scheduler/src/index.ts)",
+      "kind": "service",
+      "runtime": "live",
+      "domain": "tool-execution",
+      "source": "skills/scheduler/src/index.ts",
+      "classifications": {
+        "trustZone": "sandboxed",
+        "dataClassification": "user-content",
+        "criticality": "supporting"
+      }
+    },
+    {
+      "id": "tool.ssh",
+      "name": "ssh (skills/ssh/src/index.ts)",
+      "kind": "tool",
+      "runtime": "config-gated",
+      "domain": "tool-execution",
+      "source": "skills/ssh/src/index.ts",
+      "classifications": {
+        "trustZone": "sandboxed",
+        "dataClassification": "secret",
+        "criticality": "supporting"
+      },
+      "egressTargets": [
+        "allowlisted ssh hosts"
+      ]
+    },
+    {
+      "id": "tool.terminal",
+      "name": "terminal (skills/terminal/src/index.ts)",
+      "kind": "tool",
+      "runtime": "config-gated",
+      "domain": "tool-execution",
+      "source": "skills/terminal/src/index.ts",
+      "classifications": {
+        "trustZone": "sandboxed",
+        "dataClassification": "internal",
+        "criticality": "supporting"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e.inbound.loop",
+      "from": "runtime.inbound",
+      "to": "runtime.agentLoop",
+      "kind": "control",
+      "protocol": "in-process",
+      "label": "agent.turn(conversation, text)",
+      "evidence": "src/runtime/app.ts:292"
+    },
+    {
+      "id": "e.loop.prompt",
+      "from": "runtime.agentLoop",
+      "to": "runtime.prompt",
+      "kind": "data",
+      "protocol": "in-process",
+      "label": "assemble system + messages + tools",
+      "evidence": "src/runtime/agent.ts:65"
+    },
+    {
+      "id": "e.prompt.model",
+      "from": "runtime.prompt",
+      "to": "runtime.modelClient",
+      "kind": "data",
+      "protocol": "in-process",
+      "label": "ModelTurnRequest",
+      "evidence": "src/runtime/agent.ts:72"
+    },
+    {
+      "id": "e.model.router",
+      "from": "runtime.modelClient",
+      "to": "runtime.router",
+      "kind": "control",
+      "protocol": "in-process",
+      "label": "attest fixed route",
+      "evidence": "src/runtime/model/client.ts:61"
+    },
+    {
+      "id": "e.model.litellm",
+      "from": "runtime.modelClient",
+      "to": "provider.litellm",
+      "kind": "data",
+      "protocol": "http (POST /v1/chat/completions, Bearer)",
+      "label": "chat completion request",
+      "evidence": "src/runtime/model/client.ts:28"
+    },
+    {
+      "id": "e.router.selection",
+      "from": "runtime.router",
+      "to": "runtime.agentLoop",
+      "kind": "control",
+      "protocol": "in-process",
+      "label": "RuntimeModelSelection",
+      "evidence": "src/runtime/agent.ts:76"
+    },
+    {
+      "id": "e.loop.toolexec",
+      "from": "runtime.agentLoop",
+      "to": "runtime.toolExec",
+      "kind": "control",
+      "protocol": "in-process (Promise.all fan-out)",
+      "label": "tool calls",
+      "evidence": "src/runtime/agent.ts:82"
+    },
+    {
+      "id": "e.loop.evidence",
+      "from": "runtime.inbound",
+      "to": "memory.evidence",
+      "kind": "persist",
+      "protocol": "in-process (beginTurn / finishRun in #handleInbound)",
+      "label": "turn evidence (runs)",
+      "evidence": "src/runtime/app.ts:279,298,304"
+    },
+    {
+      "id": "e.toolexec.evidence",
+      "from": "runtime.toolExec",
+      "to": "memory.evidence",
+      "kind": "persist",
+      "protocol": "in-process (observer.onToolProgress)",
+      "label": "tool_calls + component_uses",
+      "evidence": "src/runtime/evolution-evidence.ts:205,230"
+    },
+    {
+      "id": "e.model.evidence",
+      "from": "runtime.modelClient",
+      "to": "memory.evidence",
+      "kind": "persist",
+      "protocol": "in-process (observer.onModelSelection)",
+      "label": "model selection -> model_selections",
+      "evidence": "src/runtime/evolution-evidence.ts:155"
+    },
+    {
+      "id": "e.evidence.store",
+      "from": "memory.evidence",
+      "to": "memory.sessionStore",
+      "kind": "persist",
+      "protocol": "in-process (SessionEvolutionStore)",
+      "label": "evidence sink -> store",
+      "evidence": "src/runtime/app.ts:126"
+    },
+    {
+      "id": "e.store.db",
+      "from": "memory.sessionStore",
+      "to": "database.sessions",
+      "kind": "persist",
+      "protocol": "sqlite (INSERT, WAL)",
+      "label": "INSERT (evolution tables)",
+      "evidence": "src/memory/session-store/evolution.ts"
+    },
+    {
+      "id": "e.inbound.snap",
+      "from": "runtime.inbound",
+      "to": "memory.snapshots",
+      "kind": "control",
+      "protocol": "in-process (RuntimeConversationSnapshots.resolve)",
+      "label": "pin snapshot id per conversation",
+      "evidence": "src/runtime/app.ts:273"
+    },
+    {
+      "id": "e.kernel.snap",
+      "from": "runtime.kernel",
+      "to": "memory.snapshots",
+      "kind": "persist",
+      "protocol": "in-process (kernel.snapshots / FileSnapshotStore)",
+      "label": "ensureRuntimeSnapshot (boot)",
+      "evidence": "src/runtime/app.ts:95"
+    },
+    {
+      "id": "e.db.signals",
+      "from": "database.sessions",
+      "to": "learning.signals",
+      "kind": "learn",
+      "protocol": "sqlite read (evolution scheduler tails evidence)",
+      "label": "evidence -> signal",
+      "evidence": "src/runtime/evolution-scheduler.ts:191-216"
+    },
+    {
+      "id": "e.signals.triage",
+      "from": "learning.signals",
+      "to": "learning.triage",
+      "kind": "learn",
+      "protocol": "in-process (selectRuntimeEvolutionSignal)",
+      "label": "signals -> top-scored selection",
+      "evidence": "src/runtime/evolution-scheduler.ts:210"
+    },
+    {
+      "id": "e.triage.eval",
+      "from": "learning.triage",
+      "to": "evaluator.gauntlet",
+      "kind": "learn",
+      "protocol": "in-process (orchestrator.scope -> evaluate)",
+      "label": "scoped run -> evaluate",
+      "evidence": "src/learning/evolution/application/index.ts:237"
+    },
+    {
+      "id": "e.eval.proposals",
+      "from": "evaluator.gauntlet",
+      "to": "learning.proposals",
+      "kind": "learn",
+      "protocol": "in-process (authorEvolutionProposal)",
+      "label": "author proposal",
+      "evidence": "src/learning/evolution/orchestrator/index.ts:78"
+    },
+    {
+      "id": "e.proposals.control",
+      "from": "learning.proposals",
+      "to": "learning.control",
+      "kind": "control",
+      "protocol": "http (token-gated)",
+      "label": "review / promote / rollback",
+      "evidence": "src/runtime/app.ts:350"
+    },
+    {
+      "id": "e.tel.inbound",
+      "from": "runtime.inbound",
+      "to": "obs.telemetry",
+      "kind": "control",
+      "protocol": "in-process (bus.emit)",
+      "label": "emit inbound / turn.begin / turn.finish",
+      "evidence": "src/runtime/app.ts:250,287,299"
+    },
+    {
+      "id": "e.tel.model",
+      "from": "runtime.modelClient",
+      "to": "obs.telemetry",
+      "kind": "control",
+      "protocol": "in-process (observer -> bus.emit)",
+      "label": "emit model.request / model.selection",
+      "evidence": "src/runtime/telemetry.ts:98,106"
+    },
+    {
+      "id": "e.tel.tool",
+      "from": "runtime.toolExec",
+      "to": "obs.telemetry",
+      "kind": "control",
+      "protocol": "in-process (observer -> bus.emit)",
+      "label": "emit tool.progress",
+      "evidence": "src/runtime/telemetry.ts:109"
+    },
+    {
+      "id": "e.inbound.reporter",
+      "from": "runtime.inbound",
+      "to": "obs.reporter",
+      "kind": "control",
+      "protocol": "in-process (#capture)",
+      "label": "turn failure -> error report",
+      "evidence": "src/runtime/app.ts:306,361"
+    },
+    {
+      "id": "e.vault.model",
+      "from": "secret.vault",
+      "to": "runtime.modelClient",
+      "kind": "secret",
+      "protocol": "env (rendered value, read by field name)",
+      "label": "llmApiKey -> Bearer",
+      "evidence": "src/runtime/config.ts:179 -> model/client.ts:33"
+    },
+    {
+      "id": "e.vault.reporter",
+      "from": "secret.vault",
+      "to": "obs.reporter",
+      "kind": "secret",
+      "protocol": "env (rendered value, read by field name)",
+      "label": "glitchtipDsn",
+      "evidence": "src/runtime/config.ts:208 -> reporter.ts"
+    },
+    {
+      "id": "e.kernel.audit",
+      "from": "runtime.kernel",
+      "to": "obs.audit",
+      "kind": "persist",
+      "protocol": "in-process (AuditLog.append)",
+      "label": "kernel lifecycle records",
+      "evidence": "src/kernel.ts:41,99,111,118"
+    },
+    {
+      "id": "e.kernel.footprint",
+      "from": "runtime.kernel",
+      "to": "obs.footprint",
+      "kind": "control",
+      "protocol": "in-process (instantiation; unfed)",
+      "label": "contains FootprintTracker (dormant)",
+      "evidence": "src/kernel.ts:52"
+    },
+    {
+      "id": "e.elliott.pg",
+      "from": "container.elliott",
+      "to": "container.postgres",
+      "kind": "control",
+      "protocol": "compose depends_on (startup ordering; no runtime TCP)",
+      "label": "depends_on: service_healthy",
+      "evidence": "deploy/docker-compose.yml:24-26"
+    },
+    {
+      "id": "e.elliott.browser",
+      "from": "container.elliott",
+      "to": "container.browser",
+      "kind": "data",
+      "protocol": "tcp (shared isolated 'browser' network)",
+      "label": "browser network",
+      "evidence": "deploy/docker-compose.yml:27,65-75"
+    },
+    {
+      "id": "e.gen.obs.telemetry--obs.map",
+      "from": "obs.telemetry",
+      "to": "obs.map",
+      "kind": "data",
+      "protocol": "in-process subscribe -> SSE",
+      "label": "subscribe -> stream"
+    },
+    {
+      "id": "e.gen.obs.map--obs.telemetry",
+      "from": "obs.map",
+      "to": "obs.telemetry",
+      "kind": "control",
+      "protocol": "in-process (bus.emit)",
+      "label": "emit db.write/heartbeat"
+    },
+    {
+      "id": "e.gen.database.sessions--obs.map",
+      "from": "database.sessions",
+      "to": "obs.map",
+      "kind": "data",
+      "protocol": "sqlite (readonly tail)",
+      "label": "read-only tail"
+    },
+    {
+      "id": "e.gen.runtime.http--obs.map",
+      "from": "runtime.http",
+      "to": "obs.map",
+      "kind": "data",
+      "protocol": "in-process route dispatch",
+      "label": "serve map routes"
+    },
+    {
+      "id": "e.gen.obs.map--container.elliott",
+      "from": "obs.map",
+      "to": "container.elliott",
+      "kind": "health",
+      "protocol": "in-process (bundled skill)",
+      "label": "runs inside"
+    },
+    {
+      "id": "e.gen.evaluator.gauntlet--evaluator.benchmarks",
+      "from": "evaluator.gauntlet",
+      "to": "evaluator.benchmarks",
+      "kind": "learn",
+      "protocol": "http (POST, conditional on *_URL)",
+      "label": "compare/baseline"
+    },
+    {
+      "id": "e.gen.evaluator.gauntlet--evaluator.darwinian",
+      "from": "evaluator.gauntlet",
+      "to": "evaluator.darwinian",
+      "kind": "learn",
+      "protocol": "http (POST, conditional on *_URL)",
+      "label": "evolve"
+    },
+    {
+      "id": "e.gen.evaluator.gauntlet--evaluator.dspy",
+      "from": "evaluator.gauntlet",
+      "to": "evaluator.dspy",
+      "kind": "learn",
+      "protocol": "http (POST, conditional on *_URL)",
+      "label": "optimize"
+    },
+    {
+      "id": "e.gen.runtime.toolExec--tool.fetch",
+      "from": "runtime.toolExec",
+      "to": "tool.fetch",
+      "kind": "data",
+      "protocol": "in-process (ToolDefinition.execute)",
+      "label": "execute"
+    },
+    {
+      "id": "e.gen.runtime.toolExec--tool.files",
+      "from": "runtime.toolExec",
+      "to": "tool.files",
+      "kind": "data",
+      "protocol": "in-process (ToolDefinition.execute)",
+      "label": "execute"
+    },
+    {
+      "id": "e.gen.runtime.toolExec--mcp.client",
+      "from": "runtime.toolExec",
+      "to": "mcp.client",
+      "kind": "data",
+      "protocol": "in-process (ToolDefinition.execute)",
+      "label": "execute"
+    },
+    {
+      "id": "e.gen.runtime.toolExec--service.scheduler",
+      "from": "runtime.toolExec",
+      "to": "service.scheduler",
+      "kind": "data",
+      "protocol": "in-process (ToolDefinition.execute)",
+      "label": "execute"
+    },
+    {
+      "id": "e.gen.runtime.toolExec--tool.ssh",
+      "from": "runtime.toolExec",
+      "to": "tool.ssh",
+      "kind": "data",
+      "protocol": "in-process (ToolDefinition.execute)",
+      "label": "execute"
+    },
+    {
+      "id": "e.gen.runtime.toolExec--tool.terminal",
+      "from": "runtime.toolExec",
+      "to": "tool.terminal",
+      "kind": "data",
+      "protocol": "in-process (ToolDefinition.execute)",
+      "label": "execute"
+    }
+  ]
+}

@@ -1,0 +1,76 @@
+{
+  "run": {
+    "id": "evr_smoke002",
+    "principalId": "EvolutionOptimizer",
+    "baselineSnapshotId": "snapshot-baseline",
+    "engineRef": "organization/evaluator/darwinian",
+    "engineKind": "darwinian",
+    "configurationDigest": "sha256:configuration",
+    "signalIds": [],
+    "target": {
+      "targetClass": "code",
+      "componentRef": "workspace/component/smoke",
+      "baselineDigest": "sha256:baseline",
+      "riskClass": "C1",
+      "mutationPath": "src/value.ts",
+      "allowedMutationPaths": ["src/value.ts"],
+      "frozenPaths": ["component.yaml"]
+    },
+    "budgets": {
+      "maximumCandidates": 2,
+      "maximumTokens": 100,
+      "maximumCostUsd": 1,
+      "maximumDurationMilliseconds": 10000,
+      "maximumConcurrency": 1
+    },
+    "state": {
+      "_tag": "optimizing",
+      "startedAt": "2026-01-01T00:00:00Z",
+      "candidateCount": 0
+    },
+    "createdAt": "2026-01-01T00:00:00Z",
+    "updatedAt": "2026-01-01T00:00:00Z"
+  },
+  "dataset": {
+    "id": "evd_smoke002",
+    "targetDigest": "sha256:baseline",
+    "digest": "sha256:dataset",
+    "splitSeed": 7,
+    "trainDigest": "sha256:train",
+    "validationDigest": "sha256:validation",
+    "classification": "public",
+    "sources": [],
+    "trainCases": [],
+    "validationCases": [],
+    "holdoutSealed": true
+  },
+  "baselineContent": "export const value = 1;\n",
+  "maximumCandidates": 2,
+  "maximumTokens": 100,
+  "maximumCostUsd": 1,
+  "maximumDurationMilliseconds": 10000,
+  "maximumConcurrency": 1,
+  "seed": 7,
+  "codeSandbox": {
+    "checkoutRef": "candidate://evc_smoke002",
+    "checkoutFiles": [
+      {
+        "path": "src/value.ts",
+        "digest": "sha256:5d8f65d2774e206bc9f7a7a4ad39ca2dc563b5c31e46ab57ef4874961237ce29",
+        "content": "export const value = 1;\n",
+        "executable": false
+      }
+    ],
+    "targetFiles": ["src/value.ts"],
+    "testCommands": [["bun", "test"]],
+    "cpuQuota": 1,
+    "memoryMb": 512,
+    "pids": 64,
+    "timeoutMilliseconds": 5000,
+    "networkEnabled": false,
+    "repositoryCredentialsMounted": false,
+    "gitRemotePresent": false,
+    "activeTreeWritable": false,
+    "containerRuntimeSocketMounted": false
+  }
+}

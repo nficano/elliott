@@ -1,0 +1,24 @@
+#!/usr/bin/env sh
+# elliott pre-push quality gate. Wired via core.hooksPath=.githooks (installed
+# by scripts/setup-hooks.sh, run from the `prepare` lifecycle on `bun install`).
+#
+# Blocks a push unless:
+#   1. The coverage floors in scripts/coverage-gate.ts were not lowered —
+#      `bun run ratchet:check`.
+#   2. Lint reports zero problems (errors AND warnings) — `bun run lint:strict`.
+#   3. Test coverage meets the ratchet floor in scripts/coverage-gate.ts
+#      (target: 90%) — `bun run test:coverage`.
+#
+# Bypass in an emergency with:  git push --no-verify
+set -eu
+
+echo "▶ elliott pre-push: coverage floors only move up…"
+bun run ratchet:check
+
+echo "▶ elliott pre-push: lint (0 problems allowed)…"
+bun run lint:strict
+
+echo "▶ elliott pre-push: tests + coverage gate…"
+bun run test:coverage
+
+echo "✓ elliott pre-push checks passed"

@@ -1,0 +1,29 @@
+apiVersion: elliott/v1
+kind: evaluator
+profile: evaluator-benchmark-isolated
+metadata: { namespace: organization, name: evaluator-agent-benchmarks, version: 1.0.0 }
+spec:
+  document: SKILL.md
+  protocols: [evaluation.runner, benchmark.runner]
+  capabilities:
+    - { capability: evaluation.run, resources: [snapshot://granted/**] }
+    - { capability: evolution.dataset.read, resources: [dataset://sealed/holdout/**] }
+    - { capability: evolution.candidate.read, resources: [candidate://granted/**] }
+  egress: { class: none }
+  isolation: container
+  outputTrust: untrusted
+  companions:
+    - name: agent-benchmarks
+      image: elliott/evaluator-agent-benchmarks@sha256:06e349cc5c315a1214f1bfbe12cd30c32b2bbb4772e5351a25c4eb707804d2d4
+      endpoint: http://127.0.0.1:9073
+      egress: { class: none }
+      volumes: []
+  topology:
+    node: { id: evaluator.benchmarks, kind: evaluator, domain: self-evolution, trustZone: egress, dataClassification: internal, criticality: latent }
+    dispatch: none
+    gate: "config:evolution.evaluatorEndpoint"
+    egressTargets: [ "benchmarks companion (HTTP, sealed OCI)" ]
+    edges:
+      - { from: evaluator.gauntlet, to: self, kind: learn, protocol: "http (POST, conditional on *_URL)", label: compare/baseline }
+  exports:
+    - { ref: evaluator/agent-benchmarks, implementation: src/index.ts }

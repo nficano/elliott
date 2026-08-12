@@ -1,0 +1,19 @@
+apiVersion: elliott/v1
+kind: mcp-endpoint
+profile: mcp-endpoint-standard
+metadata: { namespace: core, name: mcp-client, version: 1.0.0 }
+spec:
+  document: SKILL.md
+  protocols: [tool.executor, resource.reader, prompt.source]
+  capabilities:
+    - { capability: network.connect, resources: [declared://server-host] }
+  egress: { class: declared, hosts: [] }
+  isolation: container
+  outputTrust: untrusted
+  topology:
+    node: { id: mcp.client, kind: mcp-endpoint, domain: mcp-federation, trustZone: egress, dataClassification: untrusted-external, criticality: supporting }
+    dispatch: tool
+    gate: always
+    egressTargets: [ configured MCP servers ]
+  exports:
+    - { ref: mcp-endpoint/mcp-client, implementation: src/index.ts }

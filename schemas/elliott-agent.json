@@ -1,0 +1,65 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://elliott.dev/schemas/agent.json",
+  "title": "Elliott Agent (agents/*.yaml)",
+  "description": "Manifest for an elliott/v1 agent: a persona plus the components and MCP servers it composes.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["apiVersion", "kind", "metadata", "spec"],
+  "properties": {
+    "apiVersion": { "const": "elliott/v1" },
+    "kind": { "const": "agent" },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["namespace", "name", "version"],
+      "properties": {
+        "namespace": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1 },
+        "version": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$"
+        }
+      }
+    },
+    "spec": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["persona", "modelProfile", "components"],
+      "properties": {
+        "persona": {
+          "type": "string",
+          "description": "Path to the persona/system-prompt document."
+        },
+        "modelProfile": {
+          "type": "string",
+          "description": "Model profile name from config (e.g. fast, standard, deep)."
+        },
+        "components": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Component refs to compose, e.g. core/gateway/gateway-slack."
+        },
+        "mcp": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "url", "transport"],
+            "properties": {
+              "id": { "type": "string" },
+              "url": { "type": "string" },
+              "transport": {
+                "enum": ["streamable-http", "sse", "stdio"]
+              },
+              "authorizationSecret": {
+                "type": "string",
+                "description": "Secret key (in config/secrets.yaml) holding the bearer token."
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
