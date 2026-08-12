@@ -191,11 +191,10 @@ export class ElliottRuntime {
     this.#evidenceStore = new SessionStore(
       path.join(settings.stateDirectory, "sessions.sqlite"),
     );
-    this.#reporter = new RuntimeErrorReporter(
-      settings.glitchtipDsn,
-      settings.environment,
-      settings.release,
-    );
+    // The reporter is neutral: console baseline now, sinks attached later by
+    // whichever skills register them (e.g. glitchtip). Created before skills
+    // load so installErrorSink has a target during register().
+    this.#reporter = new RuntimeErrorReporter();
     await this.#kernel.start();
     const installed = await this.#installSkills(settings);
     this.#packages = [
@@ -426,6 +425,7 @@ export class ElliottRuntime {
       // (which only run post-boot) see every package.
       packages: () => this.#packageViews,
       report: (error, mechanism) => this.#capture(error, mechanism),
+      installErrorSink: (sink) => this.#reporter?.addSink(sink),
       deliver: (text) => this.#deliver(text),
     };
   }

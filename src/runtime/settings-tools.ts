@@ -10,6 +10,7 @@ import {
 import type {
   CloudflaredSettings,
   FilesSettings,
+  GlitchTipSettings,
   HomeAssistantSettings,
   LitellmSpendSettings,
   PiholeSettings,
@@ -19,6 +20,7 @@ import type {
   SubscriptionUsageSettings,
   TerminalSettings,
   TraefikSettings,
+  VaultSettings,
   WebhookProvisionerSettings,
 } from "./types";
 
@@ -26,6 +28,13 @@ const DEFAULT_WORKSPACE = ".elliott-runtime/workspace";
 const DEFAULT_SMTPS_PORT = 465;
 const DEFAULT_CERT_RESOLVER = "letsencrypt";
 const DEFAULT_ENTRY_POINT = "websecure";
+// Zero-wiring default: with error reporting on but no operator DSN, the reporter
+// posts to the bundled collector companion. The companion is a loopback sidecar
+// (deploy/compose.glitchtip.yml), so the address mirrors the evaluator
+// companions' 127.0.0.1:90xx convention. "elliott" is a non-secret public-key
+// placeholder and "1" the project id; the collector accepts any key. When the
+// companion is absent the sink simply drops — nothing crashes.
+const DEFAULT_GLITCHTIP_COLLECTOR_DSN = "http://elliott@127.0.0.1:9080/1";
 
 export const optionalFiles = (
   value: unknown,
@@ -218,6 +227,40 @@ const litellmSpend = (
   const apiKey = secrets["litellm_admin_key"];
   if (baseUrl === undefined || apiKey === undefined) return undefined;
   return { baseUrl, apiKey };
+};
+
+// Error reporting is on by default and needs no setup step: absent config — or
+// any value other than an explicit `enabled: false` — keeps it on. With no
+// operator `dsn` it targets the bundled collector companion, so error
+// visibility works with zero wiring; set `dsn` to send to your own Sentry or
+// GlitchTip instead, or `enabled: false` to stay console-only. The DSN never
+// enters a captured error payload — only the POST target and auth header.
+export const optionalGlitchTip = (
+  value: unknown,
+): { readonly glitchtip?: GlitchTipSettings; } => {
+  if (valueAt(value, ["observability", "glitchtip", "enabled"]) === false) {
+    return {};
+  }
+  const dsn = optionalStringAt(value, ["observability", "glitchtip", "dsn"])
+    ?? DEFAULT_GLITCHTIP_COLLECTOR_DSN;
+  return { glitchtip: { dsn } };
+};
+
+// HashiCorp Vault, off unless explicitly enabled AND fully specified. Like the
+// ssh tool it fails closed: a missing token, address, or (crucially) an empty
+// path allowlist leaves the skill unregistered rather than exposing all of
+// Vault. The token resolves from secrets.yaml (`vault_token`) at the boundary.
+export const optionalVault = (
+  value: unknown,
+  secrets: Readonly<Record<string, string>>,
+): { readonly vault?: VaultSettings; } => {
+  if (valueAt(value, ["tools", "vault", "enabled"]) !== true) return {};
+  const token = secrets["vault_token"];
+  const address = optionalStringAt(value, ["tools", "vault", "address"]);
+  if (token === undefined || address === undefined) return {};
+  const paths = stringArrayAt(value, ["tools", "vault", "paths"]);
+  if (paths.length === 0) return {};
+  return { vault: { address, token, paths } };
 };
 
 export const optionalCloudflared = (

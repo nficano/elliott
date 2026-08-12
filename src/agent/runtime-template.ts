@@ -72,10 +72,13 @@ budgets:
   per_turn_usd_max: 2
 
 observability:
-  # Optional Sentry-compatible error reporting (GlitchTip or Sentry).
-  # Absent ⇒ errors log to the console only.
-  # glitchtip:
-  #   dsn: \${ENV:ELLIOTT_GLITCHTIP_DSN}
+  # Sentry-compatible error reporting (GlitchTip or Sentry). ON by default and
+  # needs no setup: errors always log to the console, and with the bundled
+  # collector companion they also ship there automatically. Set \`dsn\` to use
+  # your own Sentry/GlitchTip, or \`enabled: false\` to stay console-only.
+  glitchtip:
+    enabled: true
+    # dsn: \${ENV:ELLIOTT_GLITCHTIP_DSN}
 
 notify:
   webhook_url: ""
@@ -93,6 +96,13 @@ tools:
     enabled: false
     user: elliott
     hosts: []
+  # HashiCorp Vault, off by default. Enable it AND set an address, a token
+  # (secrets.yaml \`vault_token\`), and a non-empty \`paths\` allowlist; it fails
+  # closed, so an empty allowlist leaves the skill unregistered.
+  vault:
+    enabled: false
+    address: "" # e.g. https://vault.internal:8200
+    paths: [] # full KV v2 API paths, e.g. secret/data/myapp
 
 skills:
   deep_trace:
@@ -109,6 +119,8 @@ export const RUNTIME_SECRETS_YAML =
 # boots. Name here every key your agent's skills consume.
 ssh_private_key: \${ENV:ELLIOTT_SSH_PRIVATE_KEY}
 webhook_signing_secret: \${ENV:ELLIOTT_WEBHOOK_SIGNING_SECRET}
+# Only when tools.vault.enabled — the token the vault skill reads with.
+# vault_token: \${ENV:ELLIOTT_VAULT_TOKEN}
 `;
 
 // Boots the installed elliott package (frameworkRoot) against this

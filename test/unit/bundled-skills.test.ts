@@ -14,10 +14,12 @@ const IMPLEMENTED = [
   "evaluator-dspy",
   "fetch",
   "files",
+  "glitchtip",
   "mcp-client",
   "scheduler",
   "ssh",
   "terminal",
+  "vault",
 ];
 
 describe("Elliott bundled component packages", () => {

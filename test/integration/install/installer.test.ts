@@ -290,6 +290,7 @@ describe("installed skill registration", () => {
       stateDirectory: path.join(root, ".state"),
       packages: () => [],
       report: () => {},
+      installErrorSink: () => {},
       deliver: async () => {},
     });
     const tools = loaded.flatMap((skill) => skill.registration.tools ?? []);

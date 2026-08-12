@@ -28,6 +28,7 @@ import {
 import {
   optionalCloudflared,
   optionalFiles,
+  optionalGlitchTip,
   optionalHomeAssistant,
   optionalPihole,
   optionalSmtp,
@@ -35,6 +36,7 @@ import {
   optionalSubscriptionUsage,
   optionalTerminal,
   optionalTraefik,
+  optionalVault,
   optionalWebhookProvisioner,
 } from "./settings-tools";
 import type {
@@ -299,14 +301,11 @@ const optionalSettings = (
   ...optionalCloudflared(resolved),
   ...optionalPihole(resolved, secrets),
   ...optionalTraefik(resolved),
+  ...optionalVault(resolved, secrets),
   ...optionalWebhookProvisioner(resolved),
   ...optionalDeepTrace(resolved),
   ...optionalSubscriptionUsage(resolved, secrets),
-  ...optionalStringProperty("glitchtipDsn", resolved, [
-    "observability",
-    "glitchtip",
-    "dsn",
-  ]),
+  ...optionalGlitchTip(resolved),
   ...optionalStringProperty("postgresDsn", resolved, ["store", "dsn"]),
   ...optionalNewsBrief(resolved, secrets),
   ...optionalSkillConfig(resolved),

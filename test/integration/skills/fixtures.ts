@@ -12,6 +12,7 @@ import type {
   SkillRegistration,
 } from "../../../src/runtime/skills/types";
 import type {
+  ErrorSink,
   InboundMessage,
   RuntimeSettings,
   ToolDefinition,
@@ -125,13 +126,16 @@ export const makeSmokeContext = async (
   readonly context: SkillContext;
   readonly reported: readonly string[];
   readonly delivered: readonly string[];
+  readonly sinks: readonly ErrorSink[];
 }> => {
   const stateDirectory = await mkdtemp(path.join(tmpdir(), "elliott-smoke-"));
   const reported: string[] = [];
   const delivered: string[] = [];
+  const sinks: ErrorSink[] = [];
   return {
     reported,
     delivered,
+    sinks,
     context: {
       settings: { ...smokeSettings(stateDirectory), ...overrides },
       stateDirectory,
@@ -139,6 +143,9 @@ export const makeSmokeContext = async (
       packages: () => [],
       report: (error, mechanism) =>
         reported.push(`${mechanism}: ${String(error)}`),
+      installErrorSink: (sink) => {
+        sinks.push(sink);
+      },
       deliver: async (text) => {
         delivered.push(text);
       },

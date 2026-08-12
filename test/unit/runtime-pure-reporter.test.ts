@@ -1,60 +1,78 @@
-import { describe, expect, it } from "bun:test";
-import { buildSentryEnvelope } from "../../src/runtime/reporter";
+import { describe, expect, it, spyOn } from "bun:test";
+import { RuntimeErrorReporter } from "../../src/runtime/reporter";
+import type { CapturedError } from "../../src/runtime/types";
 
-const input = {
-  error: new TypeError("boom"),
-  mechanism: "turn",
-  environment: "production",
-  release: "1.2.3",
-  eventId: "abc123",
-  timestamp: "2026-08-01T00:00:00.000Z",
-};
+// The reporter is now neutral: console baseline + optional, isolated sinks, and
+// no Sentry/DSN/transport knowledge. These tests pin that contract.
 
-describe("buildSentryEnvelope", () => {
-  it("emits three newline-joined JSON lines", () => {
-    const lines = buildSentryEnvelope(input).split("\n");
-    expect(lines).toHaveLength(3);
+describe("RuntimeErrorReporter", () => {
+  it("logs every capture to the console with the mechanism", () => {
+    const errorSpy = spyOn(console, "error").mockImplementation(() => {});
+    try {
+      new RuntimeErrorReporter().capture(new Error("boom"), "turn");
+      expect(errorSpy).toHaveBeenCalledWith("[turn] boom");
+    } finally {
+      errorSpy.mockRestore();
+    }
   });
 
-  it("writes the envelope header with the event id and sent_at timestamp", () => {
-    const lines = buildSentryEnvelope(input).split("\n");
-    expect(JSON.parse(lines[0] ?? "")).toEqual({
-      event_id: "abc123",
-      sent_at: "2026-08-01T00:00:00.000Z",
-    });
+  it("is console-only with no sink installed", () => {
+    const errorSpy = spyOn(console, "error").mockImplementation(() => {});
+    try {
+      // No throw, no transport — the baseline path when glitchtip is disabled.
+      expect(() =>
+        new RuntimeErrorReporter().capture("plain string failure", "boot")
+      ).not.toThrow();
+    } finally {
+      errorSpy.mockRestore();
+    }
   });
 
-  it("writes the item header identifying an event", () => {
-    const lines = buildSentryEnvelope(input).split("\n");
-    expect(JSON.parse(lines[1] ?? "")).toEqual({ type: "event" });
+  it("forwards a normalized, secret-free CapturedError to each sink", () => {
+    const errorSpy = spyOn(console, "error").mockImplementation(() => {});
+    const seen: CapturedError[] = [];
+    try {
+      const reporter = new RuntimeErrorReporter();
+      reporter.addSink({ capture: (event) => seen.push(event) });
+      reporter.addSink({ capture: (event) => seen.push(event) });
+      reporter.capture(new TypeError("no host"), "gateway:slack");
+    } finally {
+      errorSpy.mockRestore();
+    }
+    expect(seen).toHaveLength(2);
+    const [event] = seen;
+    expect(event?.name).toBe("TypeError");
+    expect(event?.message).toBe("no host");
+    expect(event?.mechanism).toBe("gateway:slack");
+    expect(typeof event?.timestamp).toBe("string");
+    // The event carries only these four keys — no settings, DSN, or token can
+    // ride along because none are ever put on it.
+    expect(Object.keys(event ?? {}).sort((a, b) => a.localeCompare(b))).toEqual(
+      [
+        "mechanism",
+        "message",
+        "name",
+        "timestamp",
+      ],
+    );
   });
 
-  it("writes the event payload with exception, tags, and metadata", () => {
-    const lines = buildSentryEnvelope(input).split("\n");
-    expect(JSON.parse(lines[2] ?? "")).toEqual({
-      event_id: "abc123",
-      timestamp: "2026-08-01T00:00:00.000Z",
-      platform: "javascript",
-      environment: "production",
-      release: "1.2.3",
-      level: "error",
-      exception: { values: [{ type: "TypeError", value: "boom" }] },
-      tags: { mechanism: "turn" },
-    });
-  });
-
-  it("carries the error name and message through to exception.values", () => {
-    const lines = buildSentryEnvelope({
-      ...input,
-      error: new RangeError("no host"),
-    })
-      .split("\n");
-    const payload: {
-      exception: { values: { type: string; value: string; }[]; };
-    } = JSON.parse(lines[2] ?? "");
-    expect(payload.exception.values[0]).toEqual({
-      type: "RangeError",
-      value: "no host",
-    });
+  it("isolates a throwing sink so one bad sink never breaks the loop", () => {
+    const errorSpy = spyOn(console, "error").mockImplementation(() => {});
+    const delivered: string[] = [];
+    try {
+      const reporter = new RuntimeErrorReporter();
+      reporter.addSink({
+        capture: () => {
+          throw new Error("sink is broken");
+        },
+      });
+      reporter.addSink({ capture: (event) => delivered.push(event.message) });
+      expect(() => reporter.capture(new Error("real"), "turn")).not.toThrow();
+    } finally {
+      errorSpy.mockRestore();
+    }
+    // The healthy sink still received the event after the broken one threw.
+    expect(delivered).toEqual(["real"]);
   });
 });

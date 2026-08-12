@@ -152,7 +152,7 @@ describe("loadRuntimeSettings", () => {
       serviceUrl: "http://127.0.0.1:9090",
     });
     expect(settings.skillConfig?.["custom"]).toEqual({ flag: true });
-    expect(settings.glitchtipDsn).toBe("https://glitchtip.example/1");
+    expect(settings.glitchtip).toEqual({ dsn: "https://glitchtip.example/1" });
     expect(settings.postgresDsn).toBe("postgres://local/db");
     expect(settings.governance.deny).toEqual(["tool.danger"]);
     expect(settings.install?.registry).toBe("example/skills");

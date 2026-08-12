@@ -319,7 +319,8 @@ export interface RuntimeSettings {
   readonly subscriptionUsage?: SubscriptionUsageSettings;
   readonly webhookSecret?: string;
   readonly mcp: readonly McpEndpointSettings[];
-  readonly glitchtipDsn?: string;
+  readonly glitchtip?: GlitchTipSettings;
+  readonly vault?: VaultSettings;
   readonly postgresDsn?: string;
   readonly newsBrief?: NewsBriefSettings;
   // Raw resolved `skills:` config subtree. Agent-local skills (loaded from
@@ -425,9 +426,40 @@ export interface RuntimeModelCompleter {
   ) => Promise<ModelTurnResult>;
 }
 
-export interface GlitchTipTarget {
-  readonly endpoint: string;
-  readonly publicKey: string;
+// A failure the runtime captured, normalized for reporting: error identity and
+// where it happened, nothing more. Deliberately carries no settings, DSN,
+// token, path, or payload — so a sink can never leak a secret it was never
+// handed. See src/runtime/reporter.ts and skills/glitchtip.
+export interface CapturedError {
+  readonly name: string;
+  readonly message: string;
+  readonly mechanism: string;
+  readonly timestamp: string;
+}
+
+// A destination the error reporter fans captured failures out to. Installed by
+// a skill (see SkillContext.installErrorSink); the core reporter knows only
+// this interface, never a concrete transport.
+export interface ErrorSink {
+  capture(event: CapturedError): void;
+}
+
+// Error reporting configuration, resolved at the config boundary. Presence
+// means reporting is enabled; `dsn` is either the operator's own Sentry/
+// GlitchTip DSN or, with zero wiring, the bundled collector companion's
+// address. The DSN is opaque here and never enters a CapturedError payload.
+export interface GlitchTipSettings {
+  readonly dsn: string;
+}
+
+// HashiCorp Vault access for the (default-off) vault skill. `paths` is a
+// fail-closed KV allowlist: a vault skill with no readable paths does not
+// register, mirroring the ssh host-allowlist doctrine. The token is an opaque
+// reference resolved at the config boundary and never logged or returned.
+export interface VaultSettings {
+  readonly address: string;
+  readonly token: string;
+  readonly paths: readonly string[];
 }
 
 export interface InboundContextEntity {

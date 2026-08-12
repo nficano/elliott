@@ -1,4 +1,5 @@
 import type {
+  ErrorSink,
   InboundMessage,
   RuntimeSettings,
   ToolDefinition,
@@ -145,6 +146,13 @@ export interface SkillContext {
   // (which only run after boot) see the full list.
   packages(): readonly SkillPackageView[];
   report(error: unknown, mechanism: string): void;
+  // Install a sink that receives every subsequently-captured error, already
+  // normalized and secret-free. The runtime forwards its error reporter's
+  // captures here; the glitchtip skill uses it to attach error reporting
+  // without the core runtime depending on any reporter transport. A skill that
+  // installs no sink (or is disabled) leaves error handling at the console
+  // baseline — nothing about it appears at boot.
+  installErrorSink(sink: ErrorSink): void;
   deliver(text: string): Promise<void>;
 }
 

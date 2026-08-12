@@ -44,6 +44,7 @@ const makeContext = async (
     report: (error) => {
       reported.push(error);
     },
+    installErrorSink: () => {},
     deliver: async () => {},
   };
   return { context, reported };

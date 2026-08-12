@@ -32,6 +32,7 @@ const registration: SkillRegistration = await register({
   report: (error, mechanism) => {
     console.error(`[harness] ${mechanism}:`, error);
   },
+  installErrorSink: () => {},
   deliver: async () => {},
 });
 

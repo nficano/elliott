@@ -1,0 +1,22 @@
+apiVersion: elliott/v1
+kind: tool
+profile: tool-standard
+metadata: { namespace: core, name: vault, version: 1.0.0 }
+spec:
+  document: SKILL.md
+  protocols: [tool.executor]
+  capabilities:
+    - { capability: network.connect, resources: [declared://vault] }
+    - { capability: secret.use, resources: [secret://tools/vault/token] }
+  egress: { class: declared, hosts: [] }
+  isolation: container
+  outputTrust: untrusted
+  topology:
+    node: { id: tool.vault, kind: secret-source, domain: tool-execution, trustZone: sandboxed, dataClassification: secret, criticality: supporting }
+    dispatch: tool
+    gate: "config:tools.vault.enabled"
+    egressTargets: [ "allowlisted vault server (KV v2 read)" ]
+    edges:
+      - { from: self, to: secret.vault, kind: secret, protocol: "http (GET v1/<path>)", label: "read allowlisted path" }
+  exports:
+    - { ref: tool/vault, implementation: src/index.ts }

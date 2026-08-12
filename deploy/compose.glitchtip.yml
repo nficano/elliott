@@ -1,0 +1,38 @@
+# GlitchTip collector companion — the glitchtip skill's zero-wiring default sink.
+#
+# The glitchtip skill (core, on by default) ships captured errors to a Sentry-
+# compatible collector. With no operator DSN it targets
+#
+#     http://elliott@127.0.0.1:9080/1
+#
+# so this fragment runs a minimal collector as a LOOPBACK SIDECAR of the
+# `elliott` app container: it joins the app's network namespace, so the runtime
+# reaches it on 127.0.0.1:9080 with no cross-container networking — the same
+# loopback convention the evaluator companions use. Kill this container and the
+# runtime keeps serving: the sink's sends fail closed, errors queue then drop,
+# and neither the sink nor the loop crashes.
+#
+# Compose it alongside your deployment's base file (the one defining `elliott`):
+#   docker compose -f <your-compose>.yml \
+#                  -f deploy/compose.glitchtip.yml up -d
+#
+# To use your own Sentry/GlitchTip instead, set observability.glitchtip.dsn (or
+# ELLIOTT_GLITCHTIP_DSN) and omit this fragment; the skill then posts there and
+# this collector is unnecessary.
+
+name: elliott
+
+services:
+  elliott-glitchtip:
+    build:
+      context: ./glitchtip
+    image: elliott/glitchtip-collector:1
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    # Loopback sidecar: share the app's netns so the runtime reaches the
+    # collector on 127.0.0.1:9080. Requires the `elliott` service (base compose).
+    network_mode: "service:elliott"
+    restart: unless-stopped

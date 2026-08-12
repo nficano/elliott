@@ -1,0 +1,24 @@
+apiVersion: elliott/v1
+kind: extension
+profile: extension-standard
+metadata: { namespace: core, name: glitchtip, version: 1.0.0 }
+spec:
+  document: SKILL.md
+  protocols: [health.checker]
+  capabilities:
+    - {
+        capability: network.connect,
+        resources: [declared://glitchtip-collector],
+      }
+  egress: { class: declared, hosts: [] }
+  isolation: container
+  topology:
+    node: { id: obs.glitchtip, kind: observability, domain: observability, trustZone: edge, dataClassification: operational-metadata, criticality: supporting }
+    dispatch: none
+    gate: "config:observability.glitchtip.enabled"
+    egressTargets: [ "glitchtip collector / Sentry (envelope POST)" ]
+    edges:
+      - { from: runtime.reporter, to: self, kind: data, protocol: "in-process ErrorSink.capture", label: "capture -> queue" }
+      - { from: self, to: obs.glitchtip.collector, kind: data, protocol: "http (POST envelope, best-effort)", label: ship }
+  exports:
+    - { ref: extension/glitchtip, implementation: src/index.ts }

@@ -114,6 +114,26 @@ export const BUNDLED_CATALOG: readonly BundledComponentDescriptor[] = Object
       senderAllowlistRequired: false,
       untrustedOutput: false,
     }),
+    descriptor({
+      name: "glitchtip",
+      kind: "extension",
+      protocols: ["health.checker"],
+      egress: egressClass("declared"),
+      isolation: "container",
+      secretRefs: [],
+      senderAllowlistRequired: false,
+      untrustedOutput: false,
+    }),
+    descriptor({
+      name: "vault",
+      kind: "tool",
+      protocols: ["tool.executor"],
+      egress: egressClass("declared"),
+      isolation: "container",
+      secretRefs: ["secret://tools/vault/token"],
+      senderAllowlistRequired: false,
+      untrustedOutput: true,
+    }),
   ]);
 
 export type * from "./types";
