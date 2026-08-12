@@ -222,18 +222,23 @@ const litellmSpend = (
 };
 
 // HashiCorp Vault, off unless explicitly enabled AND fully specified. Like the
-// ssh tool it fails closed: a missing token, address, or (crucially) an empty
-// path allowlist leaves the skill unregistered rather than exposing all of
-// Vault. The token resolves from secrets.yaml (`vault_token`) at the boundary.
+// ssh tool it fails closed: it registers only when the flag is true and a
+// NON-EMPTY token, a non-empty address, and at least one non-empty allowlist
+// path are all present. Empty/whitespace values (an unset `${ENV:…}` rendered to
+// "", a `paths: [""]` typo) are treated as absent, not accepted — an unusable
+// Vault tool must not register as enabled. The token resolves from secrets.yaml
+// (`vault_token`) at the boundary.
 export const optionalVault = (
   value: unknown,
   secrets: Readonly<Record<string, string>>,
 ): { readonly vault?: VaultSettings; } => {
   if (valueAt(value, ["tools", "vault", "enabled"]) !== true) return {};
   const token = secrets["vault_token"];
+  if (token === undefined || token.trim().length === 0) return {};
   const address = optionalStringAt(value, ["tools", "vault", "address"]);
-  if (token === undefined || address === undefined) return {};
-  const paths = stringArrayAt(value, ["tools", "vault", "paths"]);
+  if (address === undefined) return {};
+  const paths = stringArrayAt(value, ["tools", "vault", "paths"])
+    .filter((path) => path.trim().length > 0);
   if (paths.length === 0) return {};
   return { vault: { address, token, paths } };
 };

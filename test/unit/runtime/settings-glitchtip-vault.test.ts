@@ -44,10 +44,20 @@ describe("optionalGlitchTip (default-on error reporting)", () => {
     ).toEqual({});
   });
 
-  it("stays on for a truthy or unrecognized enabled value", () => {
-    expect(
-      optionalGlitchTip({ observability: { glitchtip: { enabled: "true" } } }),
-    ).toEqual({ glitchtip: { dsn: DEFAULT_DSN } });
+  it("stays on for any recognized truthy spelling", () => {
+    for (const flag of [true, 1, "true", "True", " yes ", "on", "1"]) {
+      expect(
+        optionalGlitchTip({ observability: { glitchtip: { enabled: flag } } }),
+      ).toEqual({ glitchtip: { dsn: DEFAULT_DSN } });
+    }
+  });
+
+  it("throws on a malformed enabled value instead of failing open", () => {
+    for (const bad of ["flase", "maybe", "enabled", 2, {}]) {
+      expect(() =>
+        optionalGlitchTip({ observability: { glitchtip: { enabled: bad } } })
+      ).toThrow("observability.glitchtip.enabled must be true or false");
+    }
   });
 
   it("uses the ELLIOTT_GLITCHTIP_DSN env override when no config dsn is set", () => {
@@ -115,6 +125,37 @@ describe("optionalVault (default-off, fail-closed)", () => {
         vault_token: "t",
       }),
     ).toEqual({});
+  });
+
+  it("fails closed on an empty token (rendered from an unset secret)", () => {
+    expect(
+      optionalVault(enabled({ address: "https://v:8200", paths: ["a"] }), {
+        vault_token: "",
+      }),
+    ).toEqual({});
+  });
+
+  it("fails closed when the allowlist holds only empty/whitespace paths", () => {
+    expect(
+      optionalVault(enabled({ address: "https://v:8200", paths: ["", "  "] }), {
+        vault_token: "t",
+      }),
+    ).toEqual({});
+  });
+
+  it("drops empty paths but keeps the real ones", () => {
+    expect(
+      optionalVault(
+        enabled({ address: "https://v:8200", paths: ["", "secret/data/app"] }),
+        { vault_token: "t" },
+      ),
+    ).toEqual({
+      vault: {
+        address: "https://v:8200",
+        token: "t",
+        paths: ["secret/data/app"],
+      },
+    });
   });
 
   it("resolves when the flag, address, token, and allowlist are all present", () => {

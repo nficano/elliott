@@ -71,10 +71,15 @@ describe("makeRedactor (exact secret values + shapes)", () => {
     expect(out).toContain("Vault read of");
   });
 
-  it("ignores too-short literals so a message is not shredded", () => {
-    const redact = makeRedactor(["ab", ""]);
-    expect(redact("a stable readable message ab")).toBe(
-      "a stable readable message ab",
+  it("redacts short secrets too — a short secret is still a secret", () => {
+    const redact = makeRedactor(["abc"]);
+    expect(redact("password abc rejected")).not.toContain("abc");
+  });
+
+  it("drops only empty/whitespace literals (they would shred every message)", () => {
+    const redact = makeRedactor(["", " ".repeat(3)]);
+    expect(redact("a stable readable message")).toBe(
+      "a stable readable message",
     );
   });
 
@@ -127,6 +132,29 @@ describe("collectSecretStrings (seed the redactor from settings)", () => {
     expect(found).toContain("postgres://u:PGPASSWORD@db/app");
     expect(found).toContain("hvs.VTOKEN");
     expect(found).toContain("Bearer MCPTOK");
+  });
+
+  it("matches snake_case / kebab-case keys and arrays under secret keys", () => {
+    // Agent-skill config is a free-form record; a snake_case `api_key`, an array
+    // of keys, and a nested credentials object must all be collected.
+    const found = collectSecretStrings({
+      skillConfig: {
+        custom: {
+          api_key: "SNAKE-LEAK",
+          "api-key": "KEBAB-LEAK",
+          api_keys: ["ARRAY-LEAK-1", "ARRAY-LEAK-2"],
+          credentials: { region: "us", secret_value: "NESTED-LEAK" },
+          endpoint: "https://api.example.com",
+        },
+      },
+    });
+    expect(found).toContain("SNAKE-LEAK");
+    expect(found).toContain("KEBAB-LEAK");
+    expect(found).toContain("ARRAY-LEAK-1");
+    expect(found).toContain("ARRAY-LEAK-2");
+    expect(found).toContain("NESTED-LEAK");
+    // A non-secret key elsewhere is not collected.
+    expect(found).not.toContain("https://api.example.com");
   });
 
   it("does not collect non-secret fields (hostnames, model, allowlists)", () => {

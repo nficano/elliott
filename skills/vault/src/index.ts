@@ -20,23 +20,35 @@ const VAULT_TOKEN_HEADER = "x-vault-token";
 export const register = (context: SkillContext): SkillRegistration => {
   const settings = context.settings.vault;
   if (settings === undefined) return {};
-  return { tools: [readTool(settings)] };
+  return { tools: [describeTool(settings)] };
 };
 
-const readTool = (settings: VaultSettings): ToolDefinition => ({
-  name: "vault_kv_read",
+// The tool deliberately returns METADATA ONLY — which fields exist at an
+// allowlisted path and whether they are provisioned — never a secret value.
+// Tool output is placed verbatim into model context (agent.ts wraps it as
+// [UNTRUSTED TOOL OUTPUT]); returning a raw secret there would break the
+// opaque-secret invariant (CLAUDE.md: secrets are resolved at the config
+// boundary, never handed to the model). Secret VALUES reach the skills that need
+// them via `${VAULT:path#field}` config expressions, not through this tool.
+const describeTool = (settings: VaultSettings): ToolDefinition => ({
+  name: "vault_kv_describe",
   description:
-    "Read a secret from an allowlisted HashiCorp Vault KV v2 path. Allowed "
-    + `paths: ${settings.paths.join(", ")}. Pass an optional field to read one `
-    + "key; otherwise every key at the path is returned. Values are sensitive.",
+    "Inspect an allowlisted HashiCorp Vault KV v2 path WITHOUT revealing any "
+    + "secret value: returns the field names present at the path (JSON "
+    + "{path, fields}), or — with an optional `field` — whether that field is "
+    + `provisioned (JSON {path, field, present}). Allowed paths: ${
+      settings.paths.join(", ")
+    }.`
+    + " Secret values are resolved at the config boundary and never enter tool "
+    + "output or the model context.",
   inputSchema: objectSchema({
     path: { type: "string" },
     field: { type: "string" },
   }, ["path"]),
-  execute: (input) => performRead(settings, input),
+  execute: (input) => performDescribe(settings, input),
 });
 
-const performRead = async (
+const performDescribe = async (
   settings: VaultSettings,
   input: unknown,
 ): Promise<string> => {
@@ -48,16 +60,21 @@ const performRead = async (
   }
   const data = await read(settings, requestedPath);
   const field = optionalField(input);
-  if (field === undefined) {
-    return JSON.stringify(data).slice(0, MAX_TOOL_OUTPUT_CHARACTERS);
+  if (field !== undefined) {
+    // Presence = the field exists and holds a non-empty value. No value echoed.
+    const present = field in data && !isEmptyValue(data[field]);
+    return JSON.stringify({ path: requestedPath, field, present });
   }
-  if (!(field in data)) {
-    throw new Error("Requested field is absent at the Vault path");
-  }
-  const value = data[field];
-  const text = typeof value === "string" ? value : JSON.stringify(value);
-  return text.slice(0, MAX_TOOL_OUTPUT_CHARACTERS);
+  const fields = Object.keys(data).sort((a, b) => a.localeCompare(b));
+  return JSON.stringify({ path: requestedPath, fields }).slice(
+    0,
+    MAX_TOOL_OUTPUT_CHARACTERS,
+  );
 };
+
+const isEmptyValue = (value: unknown): boolean =>
+  value === undefined || value === null
+  || (typeof value === "string" && value.length === 0);
 
 const optionalField = (input: unknown): string | undefined =>
   isJsonRecord(input) && typeof input["field"] === "string"
@@ -65,9 +82,11 @@ const optionalField = (input: unknown): string | undefined =>
     : undefined;
 
 // KV v2 read: GET <address>/v1/<path> with the token header, returning the
-// inner data map (body.data.data). Every failure throws a generic error — the
-// token, the address host, and the requested path never appear in the message,
-// so nothing sensitive can ride out through a captured error payload.
+// inner data map (body.data.data). The values are used only to derive metadata
+// (field names / presence) and never leave the process. Every failure throws a
+// generic error — the token, the address host, and the requested path never
+// appear in the message, so nothing sensitive can ride out through a captured
+// error payload.
 const read = async (
   settings: VaultSettings,
   secretPath: string,
