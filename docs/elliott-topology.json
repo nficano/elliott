@@ -223,11 +223,19 @@
     },
     {
       "id": "obs.reporter",
-      "name": "Error reporter (Sentry-compatible DSN) via #capture",
+      "name": "Neutral error reporter (console baseline + redacted sink fan-out) via #capture",
       "kind": "observability",
       "runtime": "live",
       "domain": "observability",
-      "source": "src/runtime/reporter.ts:5; app.ts:361"
+      "source": "src/runtime/reporter.ts; src/runtime/redaction.ts; app.ts"
+    },
+    {
+      "id": "obs.glitchtip.collector",
+      "name": "glitchtip collector companion (loopback sidecar; in-memory reference sink)",
+      "kind": "container",
+      "runtime": "declared",
+      "domain": "observability",
+      "source": "deploy/glitchtip/Dockerfile; deploy/compose.glitchtip.yml"
     },
     {
       "id": "container.elliott",
@@ -344,6 +352,22 @@
       }
     },
     {
+      "id": "obs.glitchtip",
+      "name": "glitchtip (skills/glitchtip/src/index.ts)",
+      "kind": "observability",
+      "runtime": "live",
+      "domain": "observability",
+      "source": "skills/glitchtip/src/index.ts",
+      "classifications": {
+        "trustZone": "edge",
+        "dataClassification": "operational-metadata",
+        "criticality": "supporting"
+      },
+      "egressTargets": [
+        "glitchtip collector / Sentry (envelope POST)"
+      ]
+    },
+    {
       "id": "mcp.client",
       "name": "mcp-client (skills/mcp-client/src/index.ts)",
       "kind": "mcp-endpoint",
@@ -400,6 +424,22 @@
         "dataClassification": "internal",
         "criticality": "supporting"
       }
+    },
+    {
+      "id": "tool.vault",
+      "name": "vault (skills/vault/src/index.ts)",
+      "kind": "secret-source",
+      "runtime": "config-gated",
+      "domain": "tool-execution",
+      "source": "skills/vault/src/index.ts",
+      "classifications": {
+        "trustZone": "sandboxed",
+        "dataClassification": "secret",
+        "criticality": "supporting"
+      },
+      "egressTargets": [
+        "allowlisted vault server (KV v2 read)"
+      ]
     }
   ],
   "edges": [
@@ -624,9 +664,9 @@
       "from": "secret.vault",
       "to": "obs.reporter",
       "kind": "secret",
-      "protocol": "env (rendered value, read by field name)",
-      "label": "glitchtipDsn",
-      "evidence": "src/runtime/config.ts:208 -> reporter.ts"
+      "protocol": "env/config (rendered value, read by field name)",
+      "label": "glitchtip.dsn (+ every secret, as redaction seeds)",
+      "evidence": "src/runtime/settings-observability.ts; app.ts (redactor seed)"
     },
     {
       "id": "e.kernel.audit",
@@ -745,6 +785,22 @@
       "label": "execute"
     },
     {
+      "id": "e.gen.obs.reporter--obs.glitchtip",
+      "from": "obs.reporter",
+      "to": "obs.glitchtip",
+      "kind": "data",
+      "protocol": "in-process ErrorSink.capture (redacted)",
+      "label": "capture -> queue"
+    },
+    {
+      "id": "e.gen.obs.glitchtip--obs.glitchtip.collector",
+      "from": "obs.glitchtip",
+      "to": "obs.glitchtip.collector",
+      "kind": "data",
+      "protocol": "http (POST envelope, best-effort)",
+      "label": "ship"
+    },
+    {
       "id": "e.gen.runtime.toolExec--mcp.client",
       "from": "runtime.toolExec",
       "to": "mcp.client",
@@ -775,6 +831,22 @@
       "kind": "data",
       "protocol": "in-process (ToolDefinition.execute)",
       "label": "execute"
+    },
+    {
+      "id": "e.gen.runtime.toolExec--tool.vault",
+      "from": "runtime.toolExec",
+      "to": "tool.vault",
+      "kind": "data",
+      "protocol": "in-process (ToolDefinition.execute)",
+      "label": "execute"
+    },
+    {
+      "id": "e.gen.tool.vault--secret.vault",
+      "from": "tool.vault",
+      "to": "secret.vault",
+      "kind": "secret",
+      "protocol": "http (GET v1/<path>)",
+      "label": "read allowlisted path"
     }
   ]
 }

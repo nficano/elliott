@@ -6,6 +6,12 @@
 # deployment. Point observability.glitchtip.dsn at a real Sentry/GlitchTip when
 # you outgrow it.
 #
+# It binds 127.0.0.1 only. Deployed as a loopback sidecar
+# (compose.glitchtip.yml: network_mode "service:elliott") it shares the app's
+# network namespace, so the runtime reaches it on 127.0.0.1:9080 while nothing on
+# any other interface or a shared bridge can reach the unauthenticated GET / that
+# lists retained events. No port is published; there is no EXPOSE.
+#
 # The collector source is inlined below (not a repo .ts/.js file) so it stays
 # outside the framework's typecheck/lint surface; deploy/ is not part of the TS
 # project.
@@ -43,7 +49,7 @@ const record = (body) => {
 
 Bun.serve({
   port: PORT,
-  hostname: "0.0.0.0",
+  hostname: "127.0.0.1",
   async fetch(req) {
     const url = new URL(req.url);
     if (req.method === "POST" && url.pathname.endsWith("/envelope/")) {
@@ -60,8 +66,7 @@ Bun.serve({
   },
 });
 
-console.log(`glitchtip collector listening on :${PORT}`);
+console.log(`glitchtip collector listening on 127.0.0.1:${PORT}`);
 EOF
 
-EXPOSE 9080
 CMD ["bun", "collector.mjs"]

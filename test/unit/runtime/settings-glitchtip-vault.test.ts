@@ -38,6 +38,12 @@ describe("optionalGlitchTip (default-on error reporting)", () => {
     }
   });
 
+  it("treats numeric 0 for enabled as disabled (YAML `enabled: 0`)", () => {
+    expect(
+      optionalGlitchTip({ observability: { glitchtip: { enabled: 0 } } }),
+    ).toEqual({});
+  });
+
   it("stays on for a truthy or unrecognized enabled value", () => {
     expect(
       optionalGlitchTip({ observability: { glitchtip: { enabled: "true" } } }),

@@ -10,10 +10,10 @@ import type { GlitchTipSettings } from "./types";
 const DEFAULT_GLITCHTIP_COLLECTOR_DSN = "http://elliott@127.0.0.1:9080/1";
 
 // A default-on flag is disabled only by an explicitly falsy value. Recognize
-// the boolean `false` and the common YAML-ish falsy spellings ("false", "no",
-// "off", "0", any case/whitespace) so `enabled: "false"` disables outbound
-// reporting instead of silently failing open. Any other value keeps the
-// default (on).
+// the boolean `false`, the number `0` (YAML `enabled: 0` parses to a number),
+// and the common YAML-ish falsy spellings ("false", "no", "off", "0", any
+// case/whitespace) so any of them disables outbound reporting instead of
+// silently failing open. Any other value keeps the default (on).
 const GLITCHTIP_DISABLE_VALUES: ReadonlySet<string> = new Set([
   "false",
   "no",
@@ -22,7 +22,7 @@ const GLITCHTIP_DISABLE_VALUES: ReadonlySet<string> = new Set([
 ]);
 
 const glitchtipDisabled = (value: unknown): boolean => {
-  if (value === false) return true;
+  if (value === false || value === 0) return true;
   if (typeof value !== "string") return false;
   return GLITCHTIP_DISABLE_VALUES.has(value.trim().toLowerCase());
 };

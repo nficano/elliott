@@ -18,7 +18,7 @@ spec:
     gate: "config:observability.glitchtip.enabled"
     egressTargets: [ "glitchtip collector / Sentry (envelope POST)" ]
     edges:
-      - { from: runtime.reporter, to: self, kind: data, protocol: "in-process ErrorSink.capture", label: "capture -> queue" }
+      - { from: obs.reporter, to: self, kind: data, protocol: "in-process ErrorSink.capture (redacted)", label: "capture -> queue" }
       - { from: self, to: obs.glitchtip.collector, kind: data, protocol: "http (POST envelope, best-effort)", label: ship }
   exports:
     - { ref: extension/glitchtip, implementation: src/index.ts }

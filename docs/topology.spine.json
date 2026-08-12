@@ -195,11 +195,19 @@
     },
     {
       "id": "obs.reporter",
-      "name": "Error reporter (Sentry-compatible DSN) via #capture",
+      "name": "Neutral error reporter (console baseline + redacted sink fan-out) via #capture",
       "kind": "observability",
       "runtime": "live",
       "domain": "observability",
-      "source": "src/runtime/reporter.ts:5; app.ts:361"
+      "source": "src/runtime/reporter.ts; src/runtime/redaction.ts; app.ts"
+    },
+    {
+      "id": "obs.glitchtip.collector",
+      "name": "glitchtip collector companion (loopback sidecar; in-memory reference sink)",
+      "kind": "container",
+      "runtime": "declared",
+      "domain": "observability",
+      "source": "deploy/glitchtip/Dockerfile; deploy/compose.glitchtip.yml"
     },
     {
       "id": "container.elliott",
@@ -448,9 +456,9 @@
       "from": "secret.vault",
       "to": "obs.reporter",
       "kind": "secret",
-      "protocol": "env (rendered value, read by field name)",
-      "label": "glitchtipDsn",
-      "evidence": "src/runtime/config.ts:208 -> reporter.ts"
+      "protocol": "env/config (rendered value, read by field name)",
+      "label": "glitchtip.dsn (+ every secret, as redaction seeds)",
+      "evidence": "src/runtime/settings-observability.ts; app.ts (redactor seed)"
     },
     {
       "id": "e.kernel.audit",

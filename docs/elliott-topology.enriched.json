@@ -43,7 +43,7 @@
       ],
       "internalCommunication": "Single node; no intra-domain traffic. Values are materialized once at boot by the config loader's SecretResolver.",
       "ingressContracts": "None at runtime. At deploy time the deploy pipeline authenticates to Vault via AppRole and renders the configured secrets path into the container environment.",
-      "egressContracts": "Rendered strings flow OUT one-way into model-inference (llmApiKey -> Bearer; llmBaseUrl is a non-secret config literal, elliott.yaml:16), observability (glitchtipDsn), external-integrations (brave/firecrawl/parallel/gmail/bluebubbles/smtp/ssh keys), deployment-substrate (browser_token) via ${VAULT:path#field} config expressions.",
+      "egressContracts": "Rendered strings flow OUT one-way into model-inference (llmApiKey -> Bearer; llmBaseUrl is a non-secret config literal, elliott.yaml:16), observability (glitchtip.dsn), external-integrations (brave/firecrawl/parallel/gmail/bluebubbles/smtp/ssh keys), deployment-substrate (browser_token) via ${VAULT:path#field} config expressions.",
       "routing": "config.ts resolveExpression() matches ${VAULT:path#field}/${ENV:name} and calls SecretResolver.vault/env; the runtime resolver reads the vault-rendered value from process.env by field name.",
       "trustBoundary": "secret",
       "dataClassification": "secret",
@@ -196,7 +196,7 @@
         "obs.map"
       ],
       "internalCommunication": "In-process pub/sub: core emits onto runtimeTelemetry; the map's Aggregator subscribes and re-emits db.write/heartbeat; the reporter is a standalone capture funnel.",
-      "ingressContracts": "control <- ingress/agent-core/model-inference (telemetry emit, error capture); data <- memory-persistence (readonly sqlite tail); data <- ingress HTTP (GET map routes); secret <- secrets (glitchtipDsn).",
+      "ingressContracts": "control <- ingress/agent-core/model-inference (telemetry emit, error capture); data <- memory-persistence (readonly sqlite tail); data <- ingress HTTP (GET map routes); secret <- config (glitchtip.dsn to the glitchtip sink; the neutral reporter is seeded with every configured secret only to redact them out of payloads).",
       "egressContracts": "http -> GlitchTip (Sentry envelope, best-effort); SSE/JSON -> operator browser; in-process -> deployment-substrate (co-located skill).",
       "routing": "bus.emit(type,payload,runId) fan-out to a subscriber set; exact method+path route dispatch for /v1/observability/map*; SqliteTail 1.5s poll.",
       "trustBoundary": "edge (map GET routes are unauthenticated but loopback-published only)",
@@ -914,16 +914,16 @@
         "statefulness": "stateless",
         "concurrency": "stateless-parallel",
         "lifecycle": "on-demand",
-        "idempotency": "fresh event_id per event; best-effort",
-        "scalability": "one POST per capture",
-        "failureMode": "send failures are caught and only console.error'd; capture never throws into the caller (reporter.ts:20-25)"
+        "idempotency": "fresh event_id per event (in the glitchtip sink); best-effort",
+        "scalability": "one console line per capture; POST is the sink's concern",
+        "failureMode": "each sink is wrapped in try/catch and a broken sink is swallowed; capture never throws into the caller (reporter.ts)"
       },
-      "interface": "RuntimeErrorReporter.capture(error, mechanism): console.error + (if DSN) POST a Sentry envelope to the GlitchTip endpoint (reporter.ts:16-60). #capture(error, mechanism) is the runtime's single funnel (app.ts:361).",
+      "interface": "RuntimeErrorReporter.capture(error, mechanism): neutral -- redacts name/message/mechanism (redaction.ts), console.error's the baseline, and fans a normalized CapturedError out to every registered ErrorSink. It carries NO transport: no DSN, no envelope, no HTTP. #capture is the runtime's single funnel (app.ts).",
       "characteristics": [
         "Fed from every failure seam: turn, gateway, gateway:<name>, service:<name>, skill:<name>, evolution-evidence, webhook:ingress (app.ts #capture; skill context.report).",
-        "Sends a Sentry/GlitchTip envelope (x-sentry-envelope) with type/value + mechanism tag, environment, release; DSN parsed to endpoint+publicKey (reporter.ts:28-78).",
-        "Only the error name + message + mechanism are sent -- no stack payloads, args, or prompt content.",
-        "Config-gated on glitchtipDsn: without it, capture degrades to console.error only (reporter.ts:19)."
+        "Seeded (app.ts) with every configured secret value plus shape patterns; the message, name, and mechanism are redacted before the console line and before any sink, so no secret rides out (redaction.ts).",
+        "Only the redacted error name + message + mechanism reach a sink -- no stack payloads, args, or prompt content.",
+        "Sink-agnostic: the default-on glitchtip skill installs a bounded GlitchTipSink that builds the Sentry envelope and POSTs it (skills/glitchtip). With no sink installed (glitchtip disabled), capture is console-only. The old DSN-gated envelope logic no longer lives in core."
       ]
     },
     {
@@ -1824,24 +1824,24 @@
       "from": "secret.vault",
       "to": "obs.reporter",
       "kind": "secret",
-      "protocol": "env (rendered value, read by field name)",
-      "label": "glitchtipDsn",
-      "evidence": "src/runtime/config.ts:208 -> reporter.ts",
+      "protocol": "env/config (rendered value, read by field name)",
+      "label": "glitchtip.dsn",
+      "evidence": "src/runtime/settings-observability.ts -> skills/glitchtip; app.ts (redactor seed)",
       "contract": {
-        "payload": "glitchtipDsn (rendered string)",
+        "payload": "glitchtip.dsn (rendered string; also ELLIOTT_GLITCHTIP_DSN, else the bundled loopback collector)",
         "synchrony": "sync (boot)",
         "direction": "one-way (config)",
         "cardinality": "1:1",
-        "delivery": "env at boot",
+        "delivery": "env/config at boot",
         "ordering": "boot",
         "idempotency": "static",
-        "authz": "Vault-rendered",
-        "errorHandling": "optional -- an omitted DSN just disables sending",
+        "authz": "config/Vault-rendered",
+        "errorHandling": "enabled by default; enabled:false disables it and nothing loads; a malformed DSN degrades to console-only",
         "backpressure": "none"
       },
-      "routing": "config observability.glitchtip.dsn -> settings.glitchtipDsn -> RuntimeErrorReporter (config.ts:208 -> reporter.ts:10-11)",
+      "routing": "config observability.glitchtip.dsn (or ELLIOTT_GLITCHTIP_DSN) -> settings.glitchtip.dsn -> the glitchtip skill's GlitchTipSink (POST target); the neutral reporter is separately seeded with it, and every other configured secret, only to redact them out of payloads",
       "activation": "boot",
-      "security": "DSN (contains public key) held only in the reporter; not exposed"
+      "security": "DSN (contains a public key) reaches only the glitchtip sink's POST target/auth header, never an envelope body; it is also a redaction seed so it cannot appear in a captured payload"
     },
     {
       "id": "e.kernel.audit",
@@ -2247,7 +2247,7 @@
       "PERSISTENCE PATH (digest-only): agent-core + model-inference + ingress --threaded TurnObserver--> memory-persistence (evidence sink -> shared bun:sqlite handle -> 5 evolution tables written at runtime: runs, tool_calls, component_uses, feedback, model_selections, WAL); every write is #capture-guarded and stores only hashes, latencies, ids, and dispositions -- never raw prompt/args/tool output. Immutable content-addressed snapshot ids (from kernel-governance) stamp each run for provenance.",
       "LEARNING LOOP (gated, off-hot-path): memory-persistence (sqlite reads) --> self-evolution signals -> triage (score/gate) -> gauntlet (orchestrator+harness+independent evaluator) -> companions (sealed OCI over HTTP) -> proposals -> canary -> operator control plane; entirely inert unless evolution config + evolutionRuntime + continuous.enabled resolve, and driven by a distinct scheduler principal barred from approve/promote/rollback.",
       "OBSERVABILITY TAP: ingress + agent-core + model-inference --emit--> observability (in-process telemetry bus, 512-ring, subscriber-isolated) --> telemetry-map (SSE + read-only sqlite tail); a parallel error funnel (#capture) egresses to GlitchTip. Prompt content crosses this tap only when ELLIOTT_TELEMETRY_PROMPTS!=0; otherwise digests only.",
-      "SECRET FLOW: secrets (Vault the configured secrets path, rendered into env at deploy) --field-name reads at boot--> model-inference (llmApiKey -> Bearer; the LiteLLM base_url is a non-secret config literal) and observability (glitchtipDsn), plus external-integrations API keys and the browser companion token; unresolved optional secrets silently disable their skill; secrets are never logged, telemetered, or revealed to the model.",
+      "SECRET FLOW: secrets (Vault the configured secrets path, rendered into env at deploy) --field-name reads at boot--> model-inference (llmApiKey -> Bearer; the LiteLLM base_url is a non-secret config literal) and observability (glitchtip.dsn), plus external-integrations API keys and the browser companion token; unresolved optional secrets silently disable their skill; secrets are never logged, telemetered, or revealed to the model.",
       "OUTBOUND DELIVERY: tool-execution (scheduler 30s tick) --context.deliver--> ingress (primary gateway send) delivers due reminders without ever opening a turn -- the one core path that pushes to the user outside a request/response."
     ]
   }

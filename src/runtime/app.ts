@@ -28,7 +28,7 @@ import { HTTP_NOT_FOUND, HTTP_OK, HTTP_SERVICE_UNAVAILABLE } from "./http";
 import { makeRuntimeKernel } from "./kernel";
 import { logRuntimeStarted } from "./logging";
 import { RuntimeModelClient } from "./model/client";
-import { makeRedactor } from "./redaction";
+import { collectSecretStrings, makeRedactor } from "./redaction";
 import { RuntimeErrorReporter } from "./reporter";
 import { runtimeComponentSummary, startRuntimeServer } from "./server";
 import {
@@ -195,15 +195,14 @@ export class ElliottRuntime {
     // The reporter is neutral: console baseline now, sinks attached later by
     // whichever skills register them (e.g. glitchtip). Created before skills
     // load so installErrorSink has a target during register(). Seed its
-    // redactor with the exact secret values resolved at the config boundary so
-    // a DSN, Vault token, or Vault path interpolated into an error message is
-    // stripped before it reaches the console or any sink.
+    // redactor with EVERY configured secret value (LLM key, gateway tokens, SSH
+    // key, webhook secrets, DSN, Vault token) plus Vault paths, so any secret
+    // interpolated into an error message is stripped before it reaches the
+    // console or any sink.
     this.#reporter = new RuntimeErrorReporter(
       makeRedactor([
-        ...(settings.glitchtip === undefined ? [] : [settings.glitchtip.dsn]),
-        ...(settings.vault === undefined
-          ? []
-          : [settings.vault.token, ...settings.vault.paths]),
+        ...collectSecretStrings(settings),
+        ...(settings.vault?.paths ?? []),
       ]),
     );
     await this.#kernel.start();

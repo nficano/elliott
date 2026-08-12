@@ -32,13 +32,17 @@ export class RuntimeErrorReporter {
 
   capture(error: unknown, mechanism: string): void {
     const failure = error instanceof Error ? error : new Error(String(error));
+    // Redact the mechanism too: it is a caller-supplied string that lands in the
+    // console line and the envelope's mechanism tag, so a secret must not ride
+    // out through it either.
+    const safeMechanism = this.#redact(mechanism);
     const message = this.#redact(failure.message);
-    console.error(`[${mechanism}] ${message}`);
+    console.error(`[${safeMechanism}] ${message}`);
     if (this.#sinks.length === 0) return;
     const event: CapturedError = {
       name: this.#redact(failure.name),
       message,
-      mechanism,
+      mechanism: safeMechanism,
       timestamp: new Date().toISOString(),
     };
     for (const sink of this.#sinks) {

@@ -95,6 +95,25 @@ describe("RuntimeErrorReporter", () => {
     expect(logged[0]).not.toContain("secret/data/private");
   });
 
+  it("redacts the mechanism too (console line and sink event)", () => {
+    const logged: string[] = [];
+    const errorSpy = spyOn(console, "error").mockImplementation((line) => {
+      logged.push(String(line));
+    });
+    const seen: CapturedError[] = [];
+    try {
+      const reporter = new RuntimeErrorReporter(
+        makeRedactor(["hvs.SECRETMECHANISM"]),
+      );
+      reporter.addSink({ capture: (event) => seen.push(event) });
+      reporter.capture(new Error("safe"), "hvs.SECRETMECHANISM");
+    } finally {
+      errorSpy.mockRestore();
+    }
+    expect(seen[0]?.mechanism).not.toContain("hvs.SECRETMECHANISM");
+    expect(logged[0]).not.toContain("hvs.SECRETMECHANISM");
+  });
+
   it("isolates a throwing sink so one bad sink never breaks the loop", () => {
     const errorSpy = spyOn(console, "error").mockImplementation(() => {});
     const delivered: string[] = [];
