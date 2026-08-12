@@ -30,6 +30,30 @@ describe("optionalGlitchTip (default-on error reporting)", () => {
     ).toEqual({});
   });
 
+  it("treats a scalar `glitchtip` block as the enable flag (no fail-open)", () => {
+    // A present-but-scalar block must NOT be read as absent-and-on.
+    expect(optionalGlitchTip({ observability: { glitchtip: false } })).toEqual(
+      {},
+    );
+    for (const off of [0, "off", "no"]) {
+      expect(optionalGlitchTip({ observability: { glitchtip: off } })).toEqual(
+        {},
+      );
+    }
+    for (const on of [true, 1, "on"]) {
+      expect(optionalGlitchTip({ observability: { glitchtip: on } })).toEqual({
+        glitchtip: { dsn: DEFAULT_DSN },
+      });
+    }
+  });
+
+  it("throws on a present-but-unparseable scalar glitchtip block", () => {
+    for (const bad of [42, "banana", []]) {
+      expect(() => optionalGlitchTip({ observability: { glitchtip: bad } }))
+        .toThrow("observability.glitchtip.enabled must be true or false");
+    }
+  });
+
   it("treats falsy string values for enabled as disabled (no fail-open)", () => {
     for (const flag of ["false", "False", " off ", "no", "0"]) {
       expect(

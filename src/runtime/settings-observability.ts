@@ -1,3 +1,4 @@
+import { isJsonRecord } from "../providers/http";
 import { valueAt } from "./settings";
 import type { GlitchTipSettings } from "./types";
 
@@ -56,30 +57,40 @@ export const glitchtipExplicitlyDisabled = (value: unknown): boolean => {
   }
 };
 
-// Error reporting is on by default and needs no setup step: an absent
-// `observability.glitchtip` block keeps it on. DSN precedence: an explicit
-// config `dsn` wins, else the `ELLIOTT_GLITCHTIP_DSN` environment override (read
-// at the config boundary and passed in), else the bundled collector companion —
-// so error visibility works with zero wiring, points at your own Sentry/GlitchTip
-// when either is set, and a falsy `enabled` stays console-only. The DSN never
-// enters a captured error payload — only the POST target and auth header.
+const envOrDefaultDsn = (envDsn?: string): string =>
+  envDsn !== undefined && envDsn.length > 0
+    ? envDsn
+    : DEFAULT_GLITCHTIP_COLLECTOR_DSN;
+
+// Error reporting is on by default and needs no setup step. The
+// `observability.glitchtip` block may be:
+//   - absent            -> on, targeting the env/default collector.
+//   - a SCALAR flag      -> the block itself acts as `enabled`
+//                          (`glitchtip: false` disables; `glitchtip: true`
+//                          enables the default collector). A present-but-
+//                          unparseable scalar (`glitchtip: 42`) THROWS — it must
+//                          never be treated as absent and silently fail open to
+//                          outbound reporting.
+//   - an OBJECT          -> `{ enabled?, dsn? }` with the usual precedence.
+// DSN precedence (object form): an explicit `dsn` wins, else the
+// `ELLIOTT_GLITCHTIP_DSN` env override, else the bundled collector companion. The
+// DSN never enters a captured error payload — only the POST target/auth header.
 export const optionalGlitchTip = (
   value: unknown,
   envDsn?: string,
 ): { readonly glitchtip?: GlitchTipSettings; } => {
-  if (
-    !glitchtipEnabled(valueAt(value, ["observability", "glitchtip", "enabled"]))
-  ) {
-    return {};
+  const block = valueAt(value, ["observability", "glitchtip"]);
+  if (block !== undefined && !isJsonRecord(block)) {
+    return glitchtipEnabled(block)
+      ? { glitchtip: { dsn: envOrDefaultDsn(envDsn) } }
+      : {};
   }
+  const enabled = isJsonRecord(block) ? block["enabled"] : undefined;
+  if (!glitchtipEnabled(enabled)) return {};
   const configuredDsn = explicitDsn(
-    valueAt(value, ["observability", "glitchtip", "dsn"]),
+    isJsonRecord(block) ? block["dsn"] : undefined,
   );
-  const envOverride = envDsn !== undefined && envDsn.length > 0
-    ? envDsn
-    : undefined;
-  const dsn = configuredDsn ?? envOverride ?? DEFAULT_GLITCHTIP_COLLECTOR_DSN;
-  return { glitchtip: { dsn } };
+  return { glitchtip: { dsn: configuredDsn ?? envOrDefaultDsn(envDsn) } };
 };
 
 // A present operator `dsn` must be a non-empty string. Absent -> undefined (fall

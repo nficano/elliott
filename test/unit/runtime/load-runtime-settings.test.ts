@@ -260,6 +260,29 @@ observability:
       .rejects.toThrow("Environment is missing MISSING_GLITCHTIP_DSN");
   });
 
+  it("boots when `enabled` is a REFERENCE that resolves to false, unused dsn missing", async () => {
+    // enabled itself is a ${ENV:…} reference; resolving it to a disabled value
+    // must drop the unused dsn before its (missing) reference aborts boot.
+    const root = await writeTree(withGlitchtip("\"${ENV:GLITCHTIP_ENABLED}\""));
+    const settings = await loadRuntimeSettings(
+      root,
+      "tester",
+      resolver({ GLITCHTIP_ENABLED: "false" }),
+    );
+    expect(settings.glitchtip).toBeUndefined();
+  });
+
+  it("aborts when `enabled` reference resolves to true and dsn is unresolvable", async () => {
+    const root = await writeTree(withGlitchtip("\"${ENV:GLITCHTIP_ENABLED}\""));
+    await expect(
+      loadRuntimeSettings(
+        root,
+        "tester",
+        resolver({ GLITCHTIP_ENABLED: "true" }),
+      ),
+    ).rejects.toThrow("Environment is missing MISSING_GLITCHTIP_DSN");
+  });
+
   it("omits secrets that fail to resolve and loads evolution.yaml when present", async () => {
     const root = await writeTree({
       "config/elliott.yaml": `

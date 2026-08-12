@@ -124,13 +124,28 @@ export const envBackedSecretResolver: SecretResolver = {
 // reference is unresolvable still errors loudly, which is correct — you asked
 // for that endpoint. Only the explicit-off case short-circuits; the resulting
 // settings are identical either way (a disabled glitchtip yields no settings).
-const stripDisabledGlitchtipDsn = (config: unknown): unknown => {
+const stripDisabledGlitchtipDsn = async (
+  config: unknown,
+  resolver: SecretResolver,
+): Promise<unknown> => {
   if (!isJsonRecord(config)) return config;
   const observability = config["observability"];
   if (!isJsonRecord(observability)) return config;
   const glitchtip = observability["glitchtip"];
   if (!isJsonRecord(glitchtip) || !("dsn" in glitchtip)) return config;
-  if (!glitchtipExplicitlyDisabled(glitchtip["enabled"])) return config;
+  // Resolve `enabled` FIRST — it may itself be a `${ENV:…}`/`${VAULT:…}`
+  // reference — so a reference that resolves to a disabled value drops the unused
+  // dsn. If `enabled` is itself unresolvable, leave the block untouched; the main
+  // resolution surfaces that error.
+  let enabled = glitchtip["enabled"];
+  if (typeof enabled === "string") {
+    try {
+      enabled = await resolveExpression(enabled, resolver);
+    } catch {
+      return config;
+    }
+  }
+  if (!glitchtipExplicitlyDisabled(enabled)) return config;
   return {
     ...config,
     observability: {
@@ -147,8 +162,9 @@ export const loadRuntimeSettings = async (
   agentName = "elliott",
   resolver: SecretResolver = envBackedSecretResolver,
 ): Promise<RuntimeSettings> => {
-  const config = stripDisabledGlitchtipDsn(
+  const config = await stripDisabledGlitchtipDsn(
     await loadYaml(path.join(root, "config/elliott.yaml")),
+    resolver,
   );
   const secrets = await loadSecrets(root, resolver);
   const agent = await loadAgentDefinition(root, agentName);
