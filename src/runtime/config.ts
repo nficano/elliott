@@ -90,9 +90,16 @@ export const readMountedSecrets = (
   );
 };
 
+// The ambient process environment BEFORE the ELLIOTT_SECRETS_FILE overlay.
+// Non-secret deployment metadata that is TRANSMITTED off-box in error telemetry
+// (ELLIOTT_ENV, ELLIOTT_RELEASE) is read from here, never from `environment`:
+// those two values ride in every GlitchTip envelope, so they must not be
+// sourceable from the secrets file, which holds the secrets Elliott resolves.
+const processEnv: Readonly<Record<string, string | undefined>> = Bun.env;
+
 const environment: Readonly<Record<string, string | undefined>> = {
-  ...Bun.env,
-  ...readMountedSecrets(Bun.env),
+  ...processEnv,
+  ...readMountedSecrets(processEnv),
 };
 
 // ELLIOTT_HTTP_PORT overrides the configured port for local runs (e.g. when the
@@ -105,7 +112,9 @@ const httpPort = (resolved: unknown): number => {
 };
 
 export const runtimeEnvironment = environment;
-export const runtimeName = environment["ELLIOTT_ENV"] ?? "prod";
+// Transmitted in error telemetry — sourced from the ambient env only, never the
+// secrets-file overlay (see processEnv above).
+export const runtimeName = processEnv["ELLIOTT_ENV"] ?? "prod";
 
 export const envBackedSecretResolver: SecretResolver = {
   env: (name) => environment[name],
@@ -296,7 +305,7 @@ const coreSettings = (
   const modelProfile = stringAt(agent, ["spec", "modelProfile"]);
   return {
     environment: runtimeName,
-    release: environment["ELLIOTT_RELEASE"] ?? "dev",
+    release: processEnv["ELLIOTT_RELEASE"] ?? "dev",
     timezone: stringAt(resolved, ["runtime", "timezone"]),
     port: httpPort(resolved),
     persona: path.join(root, stringAt(agent, ["spec", "persona"])),

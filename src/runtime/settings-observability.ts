@@ -75,11 +75,24 @@ const envOrDefaultDsn = (envDsn?: string): string =>
 // DSN precedence (object form): an explicit `dsn` wins, else the
 // `ELLIOTT_GLITCHTIP_DSN` env override, else the bundled collector companion. The
 // DSN never enters a captured error payload — only the POST target/auth header.
+// Navigate to the `observability.glitchtip` block, rejecting a present-but-
+// malformed ancestor rather than collapsing it to "absent". `observability`
+// itself must be absent or a mapping; a scalar there (e.g. `observability:
+// false`) is a config error, not a silent "glitchtip absent → on" — that would
+// fail open to outbound reporting.
+const glitchtipBlock = (value: unknown): unknown => {
+  const observability = valueAt(value, ["observability"]);
+  if (observability !== undefined && !isJsonRecord(observability)) {
+    throw new Error("observability must be a mapping");
+  }
+  return isJsonRecord(observability) ? observability["glitchtip"] : undefined;
+};
+
 export const optionalGlitchTip = (
   value: unknown,
   envDsn?: string,
 ): { readonly glitchtip?: GlitchTipSettings; } => {
-  const block = valueAt(value, ["observability", "glitchtip"]);
+  const block = glitchtipBlock(value);
   if (block !== undefined && !isJsonRecord(block)) {
     return glitchtipEnabled(block)
       ? { glitchtip: { dsn: envOrDefaultDsn(envDsn) } }

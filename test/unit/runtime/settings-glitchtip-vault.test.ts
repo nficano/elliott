@@ -54,6 +54,15 @@ describe("optionalGlitchTip (default-on error reporting)", () => {
     }
   });
 
+  it("rejects a malformed `observability` ancestor instead of failing open", () => {
+    // A present-but-scalar ancestor must not collapse to an absent glitchtip
+    // block and silently enable the outbound collector.
+    for (const observability of [false, "off", [], 0]) {
+      expect(() => optionalGlitchTip({ observability }))
+        .toThrow("observability must be a mapping");
+    }
+  });
+
   it("treats falsy string values for enabled as disabled (no fail-open)", () => {
     for (const flag of ["false", "False", " off ", "no", "0"]) {
       expect(
