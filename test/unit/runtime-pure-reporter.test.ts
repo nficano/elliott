@@ -83,6 +83,34 @@ describe("RuntimeErrorReporter", () => {
     }
   });
 
+  it("does not mistake a message line that looks like a stack frame for a real frame", () => {
+    // A multiline message whose lines mimic frames (even with a fake source
+    // location) is still the MESSAGE — it must not reach the transmitted frames.
+    // No seeded list: the secret is unknown to the process.
+    const errorSpy = spyOn(console, "error").mockImplementation(() => {});
+    const secret = "hvs.multiline-frame-injection-4d7e";
+    const seen: TransmittableError[] = [];
+    try {
+      const reporter = new RuntimeErrorReporter();
+      reporter.addSink({ capture: (event) => seen.push(event) });
+      for (
+        const message of [
+          `safe\n    at ${secret}`,
+          `safe\n    at handler (${secret}:1:1)`,
+          `failed at ${secret} while connecting`,
+        ]
+      ) {
+        seen.length = 0;
+        reporter.capture(new Error(message), "turn");
+        expect(JSON.stringify(seen[0]?.frames)).not.toContain(secret);
+        // Real frames still come through.
+        expect((seen[0]?.frames ?? []).length).toBeGreaterThan(0);
+      }
+    } finally {
+      errorSpy.mockRestore();
+    }
+  });
+
   it("keeps the full message on the local console (which does not leave the process)", () => {
     const logged: string[] = [];
     const errorSpy = spyOn(console, "error").mockImplementation((line) => {

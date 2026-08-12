@@ -42,6 +42,20 @@ const glitchtipEnabled = (value: unknown): boolean => {
   );
 };
 
+// Whether a raw `enabled` value EXPLICITLY disables glitchtip. Used at the config
+// boundary to decide, before reference resolution, whether the (unused) dsn can
+// be dropped so an unresolvable ${…} reference under a turned-off feature cannot
+// abort boot. A malformed value is not "disabled" — it is kept so optionalGlitchTip
+// surfaces the same loud error it would otherwise; only an explicit off short-
+// circuits.
+export const glitchtipExplicitlyDisabled = (value: unknown): boolean => {
+  try {
+    return !glitchtipEnabled(value);
+  } catch {
+    return false;
+  }
+};
+
 // Error reporting is on by default and needs no setup step: an absent
 // `observability.glitchtip` block keeps it on. DSN precedence: an explicit
 // config `dsn` wins, else the `ELLIOTT_GLITCHTIP_DSN` environment override (read

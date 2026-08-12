@@ -2,18 +2,32 @@ import type { ErrorSink, TransmittableError } from "./types";
 
 const MAX_TRANSMITTED_FRAMES = 30;
 const STACK_FRAME_LINE = /^\s+at\s/;
+// A genuine V8 frame carries a source location — a colon immediately followed by
+// a digit (`file:line`, `:line:col`, `native:1:11`). Kept simple/linear on
+// purpose (no backtracking): the header slice below is the primary defense; this
+// only trims the odd non-frame line that survives it.
+const STACK_FRAME_LOCATION = /:\d/;
 
-// Extract only the stack FRAMES — the `at fn (file:line:col)` lines — from an
-// error's stack, dropping the `Error: <message>` header entirely (the header,
-// which may be multi-line, is the one place an interpolated secret lives). What
-// remains are code locations, never runtime values. Bounded so a deep stack
-// cannot bloat a payload.
+// Extract only the real stack FRAMES from an error's stack, never any part of
+// its message. The stack is `${name}: ${message}` followed by the frames, so the
+// header spans exactly as many lines as the message — even when the message
+// itself contains lines that look like frames (e.g. "safe\n    at <secret>").
+// We therefore drop the header by its known LINE COUNT rather than by pattern:
+// an attacker cannot smuggle a message line past the cut, because any newline
+// they add to the message grows the cut by the same amount. What remains are
+// genuine V8 frames (kept only if they carry a real source location); these are
+// code locations, never runtime values. Bounded so a deep stack cannot bloat a
+// payload.
 const stackFrames = (error: Error): readonly string[] => {
   const stack = error.stack;
   if (typeof stack !== "string") return [];
+  const headerLineCount = error.message.split("\n").length;
   return stack
     .split("\n")
-    .filter((line) => STACK_FRAME_LINE.test(line))
+    .slice(headerLineCount)
+    .filter((line) =>
+      STACK_FRAME_LINE.test(line) && STACK_FRAME_LOCATION.test(line)
+    )
     .map((line) => line.trim())
     .slice(0, MAX_TRANSMITTED_FRAMES);
 };

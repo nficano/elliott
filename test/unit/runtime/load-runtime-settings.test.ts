@@ -227,6 +227,39 @@ spec:
     expect("redactionSecrets" in settings).toBe(false);
   });
 
+  const withGlitchtip = (enabled: string): Record<string, string> => ({
+    "config/elliott.yaml": `
+runtime: { timezone: UTC }
+llm:
+  base_url: http://llm
+  api_key: key
+  models: { default: { model: m } }
+  profiles: { default: {} }
+observability:
+  glitchtip:
+    enabled: ${enabled}
+    dsn: "\${ENV:MISSING_GLITCHTIP_DSN}"
+`,
+    "config/secrets.yaml": "{}",
+    "agents/tester.yaml": "spec: { persona: p.md, modelProfile: default }",
+    "p.md": "p",
+  });
+
+  it("boots when glitchtip is disabled even if its dsn reference is unresolvable", async () => {
+    // A turned-off feature's dsn is never used, so an unresolvable ${ENV:…}
+    // reference under it must not abort boot.
+    const root = await writeTree(withGlitchtip("false"));
+    const settings = await loadRuntimeSettings(root, "tester", resolver());
+    expect(settings.glitchtip).toBeUndefined();
+  });
+
+  it("still aborts when glitchtip is ENABLED with an unresolvable dsn reference", async () => {
+    // Enabling it with a dsn you cannot resolve is a real config error.
+    const root = await writeTree(withGlitchtip("true"));
+    await expect(loadRuntimeSettings(root, "tester", resolver()))
+      .rejects.toThrow("Environment is missing MISSING_GLITCHTIP_DSN");
+  });
+
   it("omits secrets that fail to resolve and loads evolution.yaml when present", async () => {
     const root = await writeTree({
       "config/elliott.yaml": `

@@ -20,7 +20,10 @@ import {
   stringArrayAt,
   stringAt,
 } from "./settings";
-import { optionalGlitchTip } from "./settings-observability";
+import {
+  glitchtipExplicitlyDisabled,
+  optionalGlitchTip,
+} from "./settings-observability";
 import {
   optionalDeepTrace,
   optionalNewsBrief,
@@ -115,12 +118,38 @@ export const envBackedSecretResolver: SecretResolver = {
   },
 };
 
+// A disabled glitchtip never uses its `dsn`, so remove it before reference
+// resolution: an unresolvable `${ENV:…}`/`${VAULT:…}` reference under a feature
+// that is turned OFF must not abort boot. An ENABLED glitchtip whose dsn
+// reference is unresolvable still errors loudly, which is correct — you asked
+// for that endpoint. Only the explicit-off case short-circuits; the resulting
+// settings are identical either way (a disabled glitchtip yields no settings).
+const stripDisabledGlitchtipDsn = (config: unknown): unknown => {
+  if (!isJsonRecord(config)) return config;
+  const observability = config["observability"];
+  if (!isJsonRecord(observability)) return config;
+  const glitchtip = observability["glitchtip"];
+  if (!isJsonRecord(glitchtip) || !("dsn" in glitchtip)) return config;
+  if (!glitchtipExplicitlyDisabled(glitchtip["enabled"])) return config;
+  return {
+    ...config,
+    observability: {
+      ...observability,
+      glitchtip: Object.fromEntries(
+        Object.entries(glitchtip).filter(([key]) => key !== "dsn"),
+      ),
+    },
+  };
+};
+
 export const loadRuntimeSettings = async (
   root: string,
   agentName = "elliott",
   resolver: SecretResolver = envBackedSecretResolver,
 ): Promise<RuntimeSettings> => {
-  const config = await loadYaml(path.join(root, "config/elliott.yaml"));
+  const config = stripDisabledGlitchtipDsn(
+    await loadYaml(path.join(root, "config/elliott.yaml")),
+  );
   const secrets = await loadSecrets(root, resolver);
   const agent = await loadAgentDefinition(root, agentName);
   const evolution = await loadEvolutionConfig(root);
