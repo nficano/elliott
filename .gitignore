@@ -19,3 +19,7 @@ native/*.node
 !.claude/
 .claude/*
 !.claude/settings.json
+
+# Consolidation-run scaffolding: the runner and everything it generates.
+elliott-run.sh
+.run/
