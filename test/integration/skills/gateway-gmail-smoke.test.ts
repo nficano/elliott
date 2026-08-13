@@ -9,7 +9,7 @@ import {
 
 // Tier-1 skill-logic smoke for gateway-gmail: OAuth token mint, search, and
 // the inbound push webhook's token verification. See
-// docs/contributing/skill-e2e-smoke-strategy.md.
+// docs/explanation/testing-strategy.md.
 
 afterEach(() => {
   mock.restore();

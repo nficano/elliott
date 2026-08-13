@@ -1,8 +1,7 @@
 # How to enable the terminal and SSH tools
 
-Both tools ship disabled and are inert without an explicit allowlist — a
-skill with no allowlist registers nothing. That shape is intentional; keep
-it (see [Design decisions](../explanation/design-decisions.md)).
+Both ship disabled, and both stay unregistered without an explicit allowlist.
+Flipping `enabled` alone does nothing.
 
 ## Terminal
 
@@ -13,12 +12,11 @@ tools:
   terminal:
     enabled: true
     root: .elliott-runtime/workspace
-    allowed_commands: [ls, cat, rg]   # must be non-empty
+    allowed_commands: [ls, cat, rg]
 ```
 
-- `root` confines execution to the workspace directory.
-- An empty `allowed_commands` list means the tool does not register, even
-  with `enabled: true`.
+`root` confines execution to that directory. `allowed_commands` must be
+non-empty; with `[]` the tool does not register even when `enabled: true`.
 
 ## SSH
 
@@ -27,25 +25,42 @@ tools:
   ssh:
     enabled: true
     user: elliott
-    hosts: [web-01]                   # must be non-empty
+    hosts: [web-01]
 ```
 
-plus a private key the secret reference resolves to:
+Plus a key in `config/secrets.yaml`:
 
 ```yaml
-# config/secrets.yaml
 ssh_private_key: ${ENV:ELLIOTT_SSH_PRIVATE_KEY}
-# or, from HashiCorp Vault KV:
+# or from Vault:
 # ssh_private_key: ${VAULT:secret/data/example#ssh_private_key}
 ```
 
-All three conditions are required — `enabled`, a non-empty `hosts` list,
-and a resolvable `ssh_private_key`. Absent any one of them, the tool stays
-unregistered and the rest of the runtime boots normally.
+All three conditions are required: the flag, a non-empty `hosts` list, and a
+resolvable `ssh_private_key`. Miss any one and the tool stays unregistered while
+the rest of the runtime boots.
 
 ## Verify
 
-Restart the runtime and confirm the tools appear in the registered tool
-set. Every call still passes the per-skill guard (command / host
-allowlist) *and* the governance layer — governance is defense in depth
-above the skill guards, not a replacement for them.
+Restart and check the tool count:
+
+```bash
+curl -s localhost:8080/healthz
+```
+
+If the count did not move, the boot log names what was missing.
+
+## What happens on each call
+
+`ssh_exec` runs through the kernel's capability broker with a grant scoped to
+exactly the hosts you listed, so a host outside `hosts` is denied before the
+skill's own guard ever sees it, and the denial lands in the audit trail. The
+terminal tool checks its command allowlist inside the skill and is wrapped by
+the same governance chokepoint every tool passes through.
+
+Both layers stay in place. Governance sits above the per-skill guards rather
+than replacing them.
+
+## If you need to shut one off without a restart
+
+Use the [governance kill switch](operate-the-governance-kill-switch.md).

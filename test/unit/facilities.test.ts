@@ -16,7 +16,7 @@ import type { EchoBinding } from "./types";
 
 // Unit coverage for the facility seam itself: the directory (registration,
 // consumer scoping, validation, idempotent grants, persistence, release) and
-// the JSON-schema subset validator behind it. See docs/explanation/skill-facilities.md.
+// the JSON-schema subset validator behind it. See docs/explanation/facilities.md.
 
 const tempState = (): Promise<string> =>
   mkdtemp(path.join(tmpdir(), "elliott-facilities-"));

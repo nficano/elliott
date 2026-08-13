@@ -6,15 +6,25 @@ spec:
   document: SKILL.md
   protocols: [message.source, message.sink, identity.resolver]
   capabilities:
-    # wss.slack.com is Socket Mode's WebSocket endpoint: gateway.ts opens it
-    # by connecting to whatever `url` apps.connections.open (a slack.com Web
-    # API call) returns, not a hostname our own code hardcodes — this is
-    # Slack's documented Socket Mode host, listed explicitly since the
-    # egress model here is exact-match only (src/placement/egress.ts
-    # egressAllows), not domain-suffix matching.
+    # gateway.ts opens Socket Mode by connecting to whatever `url`
+    # apps.connections.open (a slack.com Web API call) returns, not a hostname
+    # our own code hardcodes. Slack serves those URLs from a fixed, documented
+    # set of hosts — wss-primary and wss-backup for server clients, plus
+    # wss-mobile for its mobile apps, which this gateway is not — published as
+    # the domains to exempt from SSL-decrypting proxies at
+    # https://slack.com/help/articles/360001603387. Both server hosts are
+    # listed because the egress model here is exact-match only
+    # (src/placement/egress.ts egressAllows), not domain-suffix matching: a
+    # single guessed hostname denies the other half of the pair.
     - {
         capability: network.connect,
-        resources: [slack.com, slack-edge.com, hooks.slack.com, wss.slack.com],
+        resources: [
+          slack.com,
+          slack-edge.com,
+          hooks.slack.com,
+          wss-primary.slack.com,
+          wss-backup.slack.com,
+        ],
       }
     # secret://facilities/webhook is webhook-provisioner's internal
     # loopback-hop signing secret, not gateway-slack's own — the
@@ -29,7 +39,17 @@ spec:
         capability: facility.use,
         resources: ["facility://core/ingress.webhook@1"],
       }
-  egress: { class: declared, hosts: [slack.com, slack-edge.com, hooks.slack.com, wss.slack.com] }
+  egress:
+    {
+      class: declared,
+      hosts: [
+        slack.com,
+        slack-edge.com,
+        hooks.slack.com,
+        wss-primary.slack.com,
+        wss-backup.slack.com,
+      ],
+    }
   isolation: container
   senderAllowlist: required
   outputTrust: untrusted

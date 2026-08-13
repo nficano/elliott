@@ -160,6 +160,40 @@ describe("Elliott bundled component packages", () => {
     expect(withTopology.length).toBe(packages.length);
   });
 
+  it("declares the same egress in each manifest.yaml as in the catalog", async () => {
+    // The descriptor array in src/catalog/descriptors.ts and each package's
+    // manifest.yaml are maintained by hand, separately, and nothing at boot
+    // compares them — so an egress host added to one silently disagrees with
+    // the other. Three consecutive adversary rounds filed a variant of that
+    // drift. Compare the pair directly instead of trusting review to catch it.
+    const packages = await loadBundledPackages(root);
+    const drift: string[] = [];
+    for (const item of packages) {
+      const manifest = parse(
+        await readFile(path.join(item.directory, "manifest.yaml"), "utf8"),
+      ) as { spec?: { egress?: { class?: string; hosts?: string[]; }; }; };
+      const descriptor = BUNDLED_CATALOG.find((it) => it.name === item.name);
+      // egressClass() normalizes (dedupes and sorts); manifests are hand-
+      // written in whatever order reads best, so compare as sets.
+      const byName = (left: string, right: string): number =>
+        left.localeCompare(right);
+      const declared = [...manifest.spec?.egress?.hosts ?? []].sort(byName);
+      const catalogued = [...descriptor?.egress.hosts ?? []].sort(byName);
+      if (
+        manifest.spec?.egress?.class !== descriptor?.egress.kind
+        || declared.join(",") !== catalogued.join(",")
+      ) {
+        drift.push(item.name);
+      }
+    }
+    expect(drift).toEqual([]);
+    // Socket Mode dials a URL apps.connections.open picks at runtime; both
+    // hosts Slack serves those from have to be in the exact-match allowlist.
+    const slack = BUNDLED_CATALOG.find((it) => it.name === "gateway-slack");
+    expect(slack?.egress.hosts).toContain("wss-primary.slack.com");
+    expect(slack?.egress.hosts).toContain("wss-backup.slack.com");
+  });
+
   it("joins catalog and registrations into SkillContext package views", async () => {
     const packages = await loadBundledPackages(root);
     const views = collectPackageViews(packages, [{

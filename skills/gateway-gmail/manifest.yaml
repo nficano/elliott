@@ -18,6 +18,15 @@ spec:
   # publicUrl()/fetchPublicUrl() enforce the SSRF boundary for that one path
   # at the code level (src/runtime/skills/http.ts), the same "dynamic public
   # destination" guard the fetch skill relies on for the same reason.
+  #
+  # That the static list therefore does not cover every host this gateway can
+  # dial is deliberate, not an omission to be fixed by widening the class.
+  # `class: any` is not available to a bundled component at all: the data-plane
+  # invariant in test/unit/data-plane.test.ts asserts no BUNDLED_CATALOG entry
+  # ships egress.kind === "any". Components whose destinations are supplied at
+  # runtime rather than at build time declare the hosts they do know and lean
+  # on a code-level guard for the rest — see fetch, ssh, and vault, which
+  # declare `hosts: []` for exactly this reason.
   egress: { class: declared, hosts: [gmail.googleapis.com, oauth2.googleapis.com] }
   isolation: container
   senderAllowlist: required

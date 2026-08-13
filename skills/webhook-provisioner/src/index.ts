@@ -13,7 +13,7 @@ import type { EndpointRecord, IngressCounters } from "./types";
 // webhooks in-process behind the operator-configured hooks hostname and
 // forward verified payloads to the consumer's internal route over the
 // loopback. Dormant until the hooks base URL and the internal signing secret
-// are both configured. See docs/explanation/skill-facilities.md.
+// are both configured. See docs/explanation/facilities.md.
 export const register = async (
   context: SkillContext,
 ): Promise<SkillRegistration> => {

@@ -17,7 +17,7 @@ layers share this tree:
 Deployment happens from a separate agent (pod) repo, which consumes
 elliott as a package. Agent-specific skills belong in that agent repo,
 **not** in `skills/` here — `skills/` is for framework-shipped,
-generally useful capabilities. See `docs/explanation/agent-skills.md`.
+generally useful capabilities. See `docs/explanation/framework-vs-agent-repos.md`.
 
 ## Commands
 
@@ -69,18 +69,20 @@ returning bindings of five kinds: `tools`, `gateways`, `routes`, `services`,
 `facilities`. Providers of facilities register before consumers (two-pass
 loader); `register()` failures are reported but boot continues degraded —
 so cover new skills with the smoke tests in `test/integration/skills/`.
-Conformance gates live in `test/conformance/` (one per TDD invariant;
-`docs/explanation/elliott-tdd.md` is the authority).
+Conformance gates live in `test/conformance/`, one per invariant, and they
+are **the** authority — a design claim with no gate behind it is not an
+invariant. The index is `docs/reference/conformance-gates.md`.
 
 ## Docs
 
-`docs/` follows Diátaxis, split by reader intent: `getting-started/`,
-`tutorials/` (learning paths), `guides/` (one task per file), `reference/`
-(dry contracts: CLI, config, APIs), `explanation/` (architecture, design
-decisions, the TDD, plans), `contributing/` (dev setup, testing, gates).
-`docs/index.md` is the landing page — add new pages to it. Behavior changes
-update the matching quadrant in the same PR. The JSON topology artifacts at
-`docs/` root are data consumed by code — do not move them.
+`docs/` is Diátaxis, four quadrants and nothing else: `tutorials/`
+(learning by doing), `guides/` (one task per file), `reference/` (dry
+contracts: CLI, config, HTTP, APIs, gates), `explanation/` (architecture,
+security model, design reasoning). `docs/index.md` is the landing page —
+add new pages to it. Behavior changes update the matching quadrant in the
+same PR. Prose follows the stop-slop rules: active voice, no adverb
+padding, no em dashes, specifics over vague declaratives. The JSON topology
+artifacts at `docs/` root are data consumed by code — do not move them.
 
 ## Delegation completion contract
 

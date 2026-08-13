@@ -76,7 +76,7 @@ export interface ServiceBinding {
 // (infrastructure other skills can consume); a consumer *acquires* a grant
 // from it during its own register(). list/describe/acquire deliberately
 // mirror MCP's tools/list + tools/call so the same records can later back
-// ComponentDiscovery cards. See docs/explanation/skill-facilities.md.
+// ComponentDiscovery cards. See docs/explanation/facilities.md.
 
 export interface FacilityDescriptor {
   readonly id: string;

@@ -10,7 +10,7 @@ import {
 // a cassette (see fixtures.stubFetch) so these are deterministic and offline,
 // while still driving the real requestPublicUrl() helper (SSRF guard,
 // DNS-pinned connection, ok-check) and the tool's own request-building and
-// response-parsing. See docs/contributing/skill-e2e-smoke-strategy.md.
+// response-parsing. See docs/explanation/testing-strategy.md.
 
 afterEach(() => {
   mock.restore();

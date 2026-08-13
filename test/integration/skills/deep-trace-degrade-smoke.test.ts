@@ -5,7 +5,8 @@ import { loadSkills, makeGatewayEvents, makeSmokeContext } from "./fixtures";
 // only. The proxy.route (traefik) and dns.local (pihole) providers now live in
 // the nficano/skills registry, not in skills/. deep-trace stays built-in and its
 // manifest still declares facility.use for both — so this asserts the documented
-// degrade (docs/explanation/skills-registry.md section 2): loading deep-trace alone, with a
+// degrade (docs/explanation/skills-registry.md#fatal-versus-degraded): loading
+// deep-trace alone, with a
 // public hostname configured, must NOT throw at register(); the observability
 // map keeps serving locally and the absent facility is reported, not crashed.
 

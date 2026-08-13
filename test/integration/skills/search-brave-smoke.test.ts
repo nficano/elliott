@@ -7,7 +7,7 @@ import {
 } from "./fixtures";
 
 // Tier-1 skill-logic smoke for search-brave. See
-// docs/contributing/skill-e2e-smoke-strategy.md.
+// docs/explanation/testing-strategy.md.
 
 afterEach(() => {
   mock.restore();

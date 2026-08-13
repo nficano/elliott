@@ -7,7 +7,7 @@ export type WebhookProfileId = "hmac-sha256" | "token-query" | "slack-v2";
 // state directory is already trusted. Sender-defined profiles (slack-v2)
 // store only the settings reference, so endpoint storage never duplicates
 // Vault-held material; the raw secret is resolved from settings at verify
-// time. See docs/explanation/skill-facilities.md.
+// time. See docs/explanation/facilities.md.
 export interface EndpointRecord {
   readonly slug: string;
   readonly consumer: string;

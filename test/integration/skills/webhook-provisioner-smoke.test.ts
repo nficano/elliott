@@ -13,7 +13,7 @@ import {
 // Tier-1 skill-logic smoke for webhook-provisioner: the ingress.webhook
 // facility mints an endpoint, mounts a verification route, and forwards
 // verified payloads over the loopback with the internal signature hop. See
-// docs/contributing/skill-e2e-smoke-strategy.md.
+// docs/explanation/testing-strategy.md.
 
 afterEach(() => {
   mock.restore();

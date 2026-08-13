@@ -1,50 +1,68 @@
 # How to consume a facility from another skill
 
-Facilities are the fifth binding kind: one skill *provides* infrastructure
-(a Traefik route, a Pi-hole DNS record, a webhook ingress) and other skills
-*acquire* grants from it during their own `register()`. Background:
-[Skill facilities](../explanation/skill-facilities.md).
+A facility is infrastructure one skill offers to others: a proxy route, a local
+DNS record, a verified webhook endpoint. You acquire a grant during your own
+`register()`.
+
+Background: [Facilities](../explanation/facilities.md).
+
+## Find out what is available
+
+```typescript
+context.facilities.list();            // every descriptor
+context.facilities.describe(id);      // one, or undefined
+```
+
+Each descriptor carries a `requestSchema` for what `acquire` accepts and a
+`grantSchema` for what comes back.
 
 ## Acquire a grant
-
-Inside `register(context)`, use the facility directory:
 
 ```typescript
 export const register = async (
   context: SkillContext,
 ): Promise<SkillRegistration> => {
   const grant = await context.facilities.acquire(
-    "core/proxy.route",         // facility id
-    "my-skill-public-route",    // grant name, unique per consumer
+    "core/proxy.route",           // facility id
+    "my-skill-public-route",      // grant name, unique within your skill
     { hostname: "map.example.com", serviceUrl: "http://10.0.0.5:8080" },
   );
-  // grant.values holds what the provider provisioned for you
-  return { /* bindings that use grant.values */ };
+
+  return {
+    routes: [routeUsing(grant.values)],
+  };
 };
 ```
 
-Notes:
+Providers register before consumers, so a facility another skill declares in its
+manifest `spec.provides` is ready by the time your `register()` runs.
 
-- The `consumer` identity on the request is stamped by the loader from
-  your package's `metadata.name` — it is never caller-supplied, so one
-  skill cannot impersonate another.
-- Discover what a facility accepts with `context.facilities.list()` /
-  `describe(id)`; each descriptor carries a `requestSchema` and
-  `grantSchema`.
-- Providers register before consumers (two-pass loader), so a facility
-  declared in another skill's manifest `spec.provides` is available by the
-  time your `register()` runs. If the provider is not installed, `acquire`
-  fails and your skill degrades — boot continues.
-- Grants are stored; a re-registering consumer gets its stored grant back
-  without re-provisioning.
+## What the loader does for you
 
-## Release
+Your consumer identity comes from your package's `metadata.name` and is stamped
+by the loader. You cannot set it, and no other skill can claim it.
 
-`context.facilities.release(grantId)` tears down the provisioned resource.
-It is destructive and never called implicitly by the runtime — only
-release a grant you mean to destroy.
+Grants persist. Re-acquiring with the same name returns the stored grant instead
+of provisioning a second resource, so a public URL you registered with Slack
+survives a reboot.
+
+## If the provider is not installed
+
+`acquire` throws, your `register()` fails, and the runtime reports it and boots
+without your skill. That is the designed degrade path. Cover it with a smoke
+test so the failure is loud in CI instead of silent in production. See
+[Write a skill smoke test](write-a-skill-smoke-test.md).
+
+## Releasing
+
+```typescript
+await context.facilities.release(grantId);
+```
+
+This tears down the provisioned resource. The runtime never calls it for you.
+Release a grant only when you mean to destroy what it provisioned.
 
 ## Exact contracts
 
 Descriptor, request, and grant shapes are in the
-[`register()` seam reference](../reference/api/skill-context.md).
+[SkillContext reference](../reference/api/skill-context.md).

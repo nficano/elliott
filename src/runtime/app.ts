@@ -64,7 +64,7 @@ import type {
 // The settings a skill's register() may see. Control-plane secrets — the
 // governance kill-switch bearer and the evolution control tokens — are stripped
 // so installed (arbitrary) code cannot read them at import time. See
-// docs/explanation/skills-registry.md §6/§13.
+// docs/explanation/skills-registry.md#how-installed-skills-see-configuration.
 const skillFacingSettings = (settings: RuntimeSettings): RuntimeSettings => {
   // `rest` drops both control-plane blocks; governance is re-added with only its
   // deny list (never the kill-switch token). evolutionRuntime stays dropped.
@@ -462,7 +462,8 @@ export class ElliottRuntime {
   // Soft delivery: with no primary gateway (e.g. every gateway now lives in the
   // registry and none is installed), record one report and return rather than
   // throwing — callers like the scheduler fire on a loop and a throw here would
-  // re-report forever. See docs/explanation/skills-registry.md §2.
+  // re-report forever. See
+  // docs/explanation/skills-registry.md#fatal-versus-degraded.
   async #deliver(text: string): Promise<void> {
     const primary = this.#primaryGateway();
     if (primary?.send === undefined) {

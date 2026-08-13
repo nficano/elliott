@@ -1,161 +1,182 @@
-# Configuration reference
+# Configuration
 
-The production runtime reads two files at the config boundary. No other
-module reads `process.env` — that is a lint-enforced rule.
+The runtime reads two files at the config boundary. No other module reads
+`process.env`; a lint rule enforces that.
 
-- `config/elliott.yaml` — runtime configuration
-- `config/secrets.yaml` — a flat map of secret names to opaque references
+| File | Contents |
+| :--- | :--- |
+| `config/elliott.yaml` | runtime configuration |
+| `config/secrets.yaml` | flat map of secret name to opaque reference |
 
-Values in either file may be literals or opaque references:
-`${ENV:VAR}` (process environment, including the `ELLIOTT_SECRETS_FILE`
-mount) or `${VAULT:<mount/path>#<field>}` (HashiCorp Vault KV). In
-`config/elliott.yaml` an unresolvable reference is **fatal at boot**, naming
-the missing variable or field. In `config/secrets.yaml` it is omitted, not
-fatal (see below).
+## Reference syntax
 
-## Required configuration
+Values in either file are literals or opaque references.
 
-The repo ships no LLM endpoint, model, or API key. These fields are required
-and env-backed by default; a missing one fails the boot with an error naming
-it (`Environment is missing ELLIOTT_LLM_BASE_URL`, `Missing configuration:
-llm.models.default.model`, …):
+| Form | Resolves against |
+| :--- | :--- |
+| `${ENV:VAR}` | process environment, including the `ELLIOTT_SECRETS_FILE` overlay |
+| `${VAULT:<mount/path>#<field>}` | HashiCorp Vault KV |
 
-| Field | Default source | Meaning |
-| :---- | :------------- | :------ |
-| `llm.base_url` | `${ENV:ELLIOTT_LLM_BASE_URL}` | any OpenAI-compatible endpoint (`…/v1`) |
+An unresolvable reference in `config/elliott.yaml` is fatal at boot and names
+the missing variable or field. In `config/secrets.yaml` it is omitted, and the
+skills depending on it stay unregistered.
+
+## Required fields
+
+No LLM endpoint, model, or key ships as a default.
+
+| Field | Shipped default | Meaning |
+| :--- | :--- | :--- |
+| `llm.base_url` | `${ENV:ELLIOTT_LLM_BASE_URL}` | OpenAI-compatible endpoint, ending at `/v1` |
 | `llm.api_key` | `${ENV:ELLIOTT_LLM_API_KEY}` | bearer for that endpoint |
 | `llm.models.<tier>.model` | `${ENV:ELLIOTT_LLM_MODEL}` | model id for the tier the agent selects |
-| `runtime.timezone` | literal (`UTC`) | runtime timezone |
-| agent `spec.persona` | literal path | persona prompt file |
-| agent `spec.modelProfile` | literal (`default`) | which `llm.models` tier this agent uses |
+| `runtime.timezone` | `UTC` | runtime timezone |
+| agent `spec.persona` | path | persona prompt file |
+| agent `spec.modelProfile` | `default` | which `llm.models` tier this agent uses |
 
-Everything else is optional; absent blocks disable their feature.
+A missing one fails the boot naming it, as
+`Environment is missing ELLIOTT_LLM_BASE_URL` or
+`Missing configuration: llm.models.default.model`.
+
+Every other block is optional. An absent block disables its feature, with one
+exception noted under `observability`.
 
 ## `config/elliott.yaml`
 
-Top-level sections:
-
-| Section         | Purpose                                                       |
-| :-------------- | :------------------------------------------------------------ |
-| `runtime`       | `timezone`, `http.port`                                       |
-| `store`         | optional external Postgres (`dsn`), `pool.max`, `vectors`; absent `dsn` ⇒ embedded SQLite |
-| `llm`           | `base_url`, `api_key`, `max_parallel`, model tiers, profiles  |
-| `budgets`       | `cold_tokens_max`, `monthly_usd_max`, `per_turn_usd_max`      |
-| `observability` | Sentry-compatible error reporting via `glitchtip`, **on by default** (see below); `enabled: false` ⇒ console-only |
-| `notify`        | `webhook_url`, `default_channels`                             |
-| `tools`         | per-tool enablement + allowlists (below)                      |
-| `channels`      | gateway enablement (email, bluebubbles, home_assistant, …)    |
-| `gateways`      | gateway-specific settings (e.g. `cloudflared.ready_url`)      |
-| `skills`        | per-skill settings (e.g. `deep_trace.public_hostname`)        |
-| `install`       | registry skills to install (see the [registry guide](../guides/install-registry-skills.md)) |
+| Section | Purpose |
+| :--- | :--- |
+| `runtime` | `timezone`, `http.port` |
+| `store` | external Postgres `dsn`, `pool.max`, `vectors`; absent `dsn` selects embedded SQLite |
+| `llm` | `base_url`, `api_key`, `max_parallel`, model tiers, profiles |
+| `budgets` | `cold_tokens_max`, `monthly_usd_max`, `per_turn_usd_max` |
+| `observability` | Sentry-compatible error reporting |
+| `notify` | `webhook_url`, `default_channels` |
+| `tools` | per-tool enablement and allowlists |
+| `channels` | gateway enablement |
+| `gateways` | gateway-specific settings |
+| `governance` | `deny: [toolName, …]` |
+| `skills` | per-skill settings |
+| `install` | registry skills to install |
 
 ### `llm`
 
-Model selection is by tier, never by hardcoded provider model name in agent
-code. Agents select a tier via `spec.modelProfile`; add tiers as your
-deployment needs:
+Agents select a tier by name through `spec.modelProfile`, never a provider model
+id.
 
 ```yaml
 llm:
-  base_url: ${ENV:ELLIOTT_LLM_BASE_URL} # e.g. https://api.example.com/v1
+  base_url: ${ENV:ELLIOTT_LLM_BASE_URL}
   api_key: ${ENV:ELLIOTT_LLM_API_KEY}
   max_parallel: 12
   models:
     default:
       model: ${ENV:ELLIOTT_LLM_MODEL}
       context_window: 128000
-    # fast:     { model: provider/small-model,  context_window: 200000 }
-    # standard: { model: provider/medium-model, context_window: 200000 }
-    # deep:     { model: provider/large-model,  context_window: 200000 }
   profiles:
     default: { max_tokens: 4096, temperature: 0.4 }
 ```
 
-### `observability` (error reporting, on by default)
+### `observability`
 
-The `glitchtip` skill (core) is **enabled by default** and needs no setup:
-errors always log to the console, and with the bundled collector companion
-(`deploy/compose.glitchtip.yml`) they also ship to a Sentry-compatible
-collector — the one exception to "absent block ⇒ feature off", since an absent
-`observability` block leaves reporting on.
+The `glitchtip` skill is enabled by default. An absent `observability` block
+leaves error reporting on, which is the one exception to absent-block-disables.
 
 ```yaml
 observability:
   glitchtip:
-    enabled: true                      # default; `false` ⇒ console-only, nothing loads
-    # dsn: ${ENV:ELLIOTT_GLITCHTIP_DSN} # your own Sentry/GlitchTip (see below)
+    enabled: true
+    # dsn: ${ENV:ELLIOTT_GLITCHTIP_DSN}
 ```
 
-DSN precedence: an explicit `glitchtip.dsn` wins, else the
-`ELLIOTT_GLITCHTIP_DSN` environment variable (read directly at the config
-boundary — unlike a `${ENV:…}` reference it is **not** fatal when unset), else
-the bundled loopback collector. So a stock boot reports to the companion; set
-either to point at your own instance. What ships off-box is a message-free error
-skeleton — the error class, its stack frames, and the mechanism — never the error
-message. The message (the one field that can carry an interpolated secret) stays
-in the local console and never crosses the process boundary, so no DSN, token, or
-Vault path can appear in a transmitted payload by construction. A present but
-non-string/empty `dsn` is rejected at boot rather than silently ignored.
+DSN precedence: an explicit `glitchtip.dsn`, then the `ELLIOTT_GLITCHTIP_DSN`
+environment variable, then the bundled loopback collector. Unlike a `${ENV:…}`
+reference, an unset `ELLIOTT_GLITCHTIP_DSN` is not fatal. A present but empty or
+non-string `dsn` is rejected at boot.
 
-### `tools` (fail-closed allowlists)
+Transmitted payloads carry the error class, its stack frames, and the mechanism.
+The error message stays in the local console and never crosses the process
+boundary, so no interpolated secret can appear in a transmitted payload.
+
+### `tools`
 
 ```yaml
 tools:
   files:
     enabled: true
-    root: .elliott-runtime/workspace   # symlink-escape checked on every read/write
+    root: .elliott-runtime/workspace
   terminal:
     enabled: false
     root: .elliott-runtime/workspace
-    allowed_commands: []               # empty ⇒ tool does not register
+    allowed_commands: []
   ssh:
     enabled: false
     user: elliott
-    hosts: []                          # empty ⇒ tool does not register
+    hosts: []
   vault:
-    enabled: false                     # HashiCorp Vault KV v2 reads, off by default
-    address: ""                        # e.g. https://vault.internal:8200
-    paths: []                          # empty ⇒ tool does not register (fail-closed)
+    enabled: false
+    address: ""
+    paths: []
 ```
 
-A tool with `enabled: true` but an empty allowlist still registers
-nothing. See [Enable terminal and SSH](../guides/enable-terminal-and-ssh.md).
-The `vault` tool additionally needs a `vault_token` secret (below) and reads
-only the allowlisted `paths` (full KV v2 API paths, e.g. `secret/data/myapp`).
+`allowed_commands`, `hosts`, and `paths` fail closed. An empty list leaves the
+tool unregistered even with `enabled: true`. The `files` tool checks for symlink
+escape on every read and write. The `vault` tool additionally requires a
+`vault_token` secret and reads only its allowlisted paths, given as full KV v2
+API paths such as `secret/data/myapp`.
 
 ## `config/secrets.yaml`
-
-A flat map from secret name to an opaque reference:
 
 ```yaml
 ssh_private_key: ${ENV:ELLIOTT_SSH_PRIVATE_KEY}
 brave_api_key: ${VAULT:secret/data/example#brave_api_key}
 ```
 
-Rules:
-
-- Secrets are resolved **only** at the config boundary, at boot.
-- A reference that does not resolve is **omitted, not fatal**: the skills
-  that need it stay unregistered while the rest of the runtime starts.
-  Current dormant-by-provisioning components are listed in
-  [activation status](blockers.md).
-- Never hardcode a secret value, log one, or interpolate one into an error
-  message that leaves the process.
+Secrets resolve only at the config boundary, only at boot. An unresolvable
+reference is omitted rather than fatal. Which skills that leaves dormant is
+listed in [Activation gates](activation-gates.md).
 
 ## Environment
 
-| Variable      | Effect                                    |
-| :------------ | :---------------------------------------- |
-| `ELLIOTT_LLM_BASE_URL` / `_API_KEY` / `_MODEL` | fill the required `llm` fields above (referenced from the shipped config) |
-| `ELLIOTT_ENV` | `dev` selects development behavior (`bun run dev`) |
-| `ELLIOTT_HTTP_PORT` | overrides `runtime.http.port` for local runs |
-| `ELLIOTT_CONTROL_PLANE_URL` / `_TOKEN` | evolution CLI only — see [CLI](cli.md) |
-| `ELLIOTT_SECRETS_FILE` | path to a mounted JSON object whose entries join the boundary's environment view; `${VAULT:…}` references resolve against it before the process environment. Keeps secrets out of the container env (`docker inspect`, `/proc/1/environ`, the terminal tool's `env`). Set but unreadable is **fatal at boot** — a secretless boot would silently skip every skill that needs one. |
+| Variable | Required | Default |
+| :--- | :--- | :--- |
+| `ELLIOTT_LLM_BASE_URL` / `_API_KEY` / `_MODEL` | as shipped, yes | none |
+| `ELLIOTT_HTTP_PORT` | no | `runtime.http.port`, else `8080` |
+| `ELLIOTT_ENV` | no | `prod` |
+| `ELLIOTT_RELEASE` | no | `dev` |
+| `ELLIOTT_SECRETS_FILE` | no | none |
+| `ELLIOTT_GLITCHTIP_DSN` | no | bundled loopback collector |
+| `ELLIOTT_GOVERNANCE_TOKEN` | no | none; opens `/v1/control/governance` |
+| `ELLIOTT_EVOLUTION_CONTROL_TOKEN` | no | none |
+| `ELLIOTT_EVOLUTION_OPERATOR_PRINCIPAL` | no | none |
+| `ELLIOTT_EVOLUTION_OPERATOR_CAPABILITIES` | no | none |
+| `ELLIOTT_TELEMETRY_PROMPTS` | no | on; `"0"` withholds prompt text from the live feed |
+| `ELLIOTT_CONTROL_PLANE_URL` / `_TOKEN` | CLI only | none |
+| `GITHUB_TOKEN` | no | none; used when installing registry skills |
+
+All three `ELLIOTT_EVOLUTION_*` variables are required together to open
+`/v1/control/evolution`.
+
+`ELLIOTT_SECRETS_FILE` names a mounted JSON object whose entries join the
+boundary's environment view; `${ENV:…}` references resolve against it before the
+process environment. Set but unreadable, or holding anything other than a JSON
+object, is fatal at boot.
+
+`ELLIOTT_ENV` and `ELLIOTT_RELEASE` are read from the ambient environment only,
+never from the secrets-file overlay, because both ride in every outbound error
+envelope.
 
 ## Postures
 
-Security enforcement activates by posture (`standard` → `hardened` →
-`regulated`) with no semantic change or data migration; bookkeeping is
-always on. The posture model and what each level enables are specified in
-the [TDD](../explanation/elliott-tdd.md); CI runs the test suite across
-all three postures.
+`standard`, `hardened`, and `regulated`. Bookkeeping runs at every level;
+enforcement widens as the posture rises, with no semantic change and no data
+migration.
+
+Posture is a constructor argument, not configuration. `AgentKernel` takes
+`options.posture` and defaults to `standard`
+([`src/kernel.ts:72`](../../src/kernel.ts#L72)). There is no key for it in
+`config/elliott.yaml`.
+
+`ELLIOTT_POSTURE` is set by the CI matrix
+([`ci.yml:26`](../../.github/workflows/ci.yml#L26)) and no code reads it, so the
+three matrix jobs currently execute identical paths. Treat the variable as
+reserved rather than functional.

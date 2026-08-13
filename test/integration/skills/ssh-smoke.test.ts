@@ -4,7 +4,7 @@ import { loadOneSkill, makeSmokeContext, toolByName } from "./fixtures";
 
 // Tier-1 skill-logic smoke for ssh. Allowlist rejection is free; the happy path
 // stubs Bun.spawn so we never open a real SSH session. See
-// docs/contributing/skill-e2e-smoke-strategy.md.
+// docs/explanation/testing-strategy.md.
 
 afterEach(() => {
   mock.restore();

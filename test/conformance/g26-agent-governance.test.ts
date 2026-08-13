@@ -12,7 +12,7 @@ import {
 // Agentic Top-10 control set to elliott's live tool path: every model-issued
 // tool call is intercepted in deterministic code, attributed to a principal,
 // audited to the tamper-evident log, and subject to a runtime kill switch. This
-// is the executable checklist for that adoption (docs/explanation/agent-governance.md).
+// is the executable checklist for that adoption (docs/explanation/governance.md).
 
 const HTTP_OK = 200;
 const HTTP_UNAUTHORIZED = 401;

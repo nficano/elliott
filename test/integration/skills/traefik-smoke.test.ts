@@ -9,7 +9,7 @@ import {
 
 // Tier-1 skill-logic smoke for traefik. Covers the route lifecycle (set/list/
 // remove), the dynamic-config route Traefik itself polls, and the proxy.route
-// facility it provides. See docs/contributing/skill-e2e-smoke-strategy.md.
+// facility it provides. See docs/explanation/testing-strategy.md.
 
 afterEach(() => {
   mock.restore();

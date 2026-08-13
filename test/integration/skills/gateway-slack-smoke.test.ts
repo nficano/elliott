@@ -9,7 +9,7 @@ import {
 // Tier-1 skill-logic smoke for gateway-slack: the message tool posts through
 // the real client (stubbed HTTP), and the gateway registers. Gateway
 // connection/socket behavior is unit-tested directly against SlackGateway in
-// skills/gateway-slack/evals/. See docs/contributing/skill-e2e-smoke-strategy.md.
+// skills/gateway-slack/evals/. See docs/explanation/testing-strategy.md.
 
 afterEach(() => {
   mock.restore();

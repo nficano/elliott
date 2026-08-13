@@ -44,7 +44,7 @@ export const mapAliasRoute = (): RouteBinding => ({
 // grows a directory-level migration hook (e.g. release-as / rename-consumer),
 // the attempt below fails for grants owned by the old consumer and we can only
 // warn. Retiring the stale router then still needs one manual grants.json edit
-// or a `traefik_route_remove` call. See docs/explanation/skills-registry.md section 10.
+// or a `traefik_route_remove` call. See docs/explanation/facilities.md#releasing.
 const migrateLegacyPublish = async (context: SkillContext): Promise<void> => {
   let legacy: readonly {
     readonly grantId: string;
