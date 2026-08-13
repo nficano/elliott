@@ -44,11 +44,27 @@ describe("optionalSlack", () => {
 });
 
 describe("optionalGmail / optionalGoogle", () => {
+  it("stays off until enabled, even with all three secrets present", () => {
+    // Bundling gateway-gmail into core means secrets alone can no longer be
+    // the opt-in signal (they may predate this skill being bundled by
+    // default) — matches optionalSlack's "stays off until enabled" gate.
+    const secrets = {
+      gmail_client_id: "id",
+      gmail_client_secret: "sec",
+      gmail_refresh_token: "rt",
+    };
+    expect(optionalGmail({}, secrets)).toEqual({});
+    expect(optionalGmail({ gmail: { enabled: false } }, secrets)).toEqual({});
+  });
+
   it("optionalGmail requires all three secrets", () => {
-    expect(optionalGmail({}, { gmail_client_id: "id" })).toEqual({});
+    expect(
+      optionalGmail({ gmail: { enabled: true } }, { gmail_client_id: "id" }),
+    )
+      .toEqual({});
     expect(
       optionalGmail(
-        { gmail: { pubsub_topic: "t" } },
+        { gmail: { enabled: true, pubsub_topic: "t" } },
         {
           gmail_client_id: "id",
           gmail_client_secret: "sec",

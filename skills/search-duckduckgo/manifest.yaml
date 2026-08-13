@@ -6,8 +6,8 @@ spec:
   document: SKILL.md
   protocols: [search.provider]
   capabilities:
-    - { capability: network.connect, resources: [duckduckgo.com] }
-  egress: { class: declared, hosts: [duckduckgo.com] }
+    - { capability: network.connect, resources: [html.duckduckgo.com] }
+  egress: { class: declared, hosts: [html.duckduckgo.com] }
   isolation: container
   outputTrust: untrusted
   topology:

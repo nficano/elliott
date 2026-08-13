@@ -10,8 +10,13 @@ spec:
   capabilities:
     - { capability: network.connect, resources: [loopback://runtime-http] }
     - { capability: secret.use, resources: [secret://facilities/webhook] }
-    - { capability: fs.read, resources: [state://webhook-provisioner/endpoints.json] }
-    - { capability: fs.write, resources: [state://webhook-provisioner/endpoints.json] }
+    # The store (src/store.ts) creates this directory (mkdir recursive) and
+    # writes atomically — endpoints.json.tmp, then rename() onto
+    # endpoints.json — so the grant is the directory, not the one filename:
+    # an exact-file resource covers neither the mkdir nor the .tmp sibling
+    # the rename's source argument names.
+    - { capability: fs.read, resources: [state://webhook-provisioner/] }
+    - { capability: fs.write, resources: [state://webhook-provisioner/] }
   # Forwards verified payloads to the consumer's internal route over the
   # runtime's own loopback interface (src/*/routes.ts `forward()`) — real
   # network egress, just confined to the local process's own HTTP port, not

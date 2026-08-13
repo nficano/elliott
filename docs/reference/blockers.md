@@ -29,7 +29,7 @@ the operator's own runbook).
 | `deep-trace` publish | `proxy.route` + `dns.local` facility providers installed, plus `public_hostname`/`service_url` |
 | `gateway-slack` | `channels.slack.enabled: true` plus `app_token`/`bot_token`/`owner_id`/`default_channel` config (its optional HTTP interactivity route additionally needs `slack_signing_secret`) |
 | `gateway-email` | `channels.email.enabled: true` plus `smtp_password`, `smtp_host`/`username`/`from` config, and a non-empty `allowed_recipients` list — send-only, no inbound path |
-| `gateway-gmail` | `gmail_client_id`/`gmail_client_secret`/`gmail_refresh_token` secrets — no `enabled` flag, unlike the other channel gateways |
+| `gateway-gmail` | `gmail.enabled: true` plus `gmail_client_id`/`gmail_client_secret`/`gmail_refresh_token` secrets |
 | `gateway-bluebubbles` | `channels.bluebubbles.enabled: true` plus `bluebubbles_password` and `server_url`; its tools additionally need `allowed_recipients` or a `default_recipient` |
 | `gateway-webhook` | its own `webhook_gateway_secret` — deliberately independent of webhook-provisioner's `webhook_signing_secret` below, so provisioning one never activates the other |
 | `gateway-home-assistant`, `pihole` (registry) | their channel secrets, installed per agent repo |

@@ -9,8 +9,12 @@ spec:
     - { facility: proxy.route, version: 1 }
   capabilities:
     - { capability: network.connect, resources: [declared://traefik] }
-    - { capability: fs.read, resources: [state://traefik/routes.json] }
-    - { capability: fs.write, resources: [state://traefik/routes.json] }
+    # The store (src/index.ts routeStore) creates this directory (mkdir
+    # recursive) before writing routes.json, so the grant is the directory,
+    # not the one filename — an exact-file resource covers the write but not
+    # the mkdir.
+    - { capability: fs.read, resources: [state://traefik/] }
+    - { capability: fs.write, resources: [state://traefik/] }
   egress: { class: lan, hosts: [] }
   isolation: container
   outputTrust: untrusted

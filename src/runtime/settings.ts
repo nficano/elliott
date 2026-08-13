@@ -141,10 +141,18 @@ const legacyGmailAccount = (
   return { name: "default", clientId, clientSecret, refreshToken };
 };
 
+// Gated on an explicit gmail.enabled: true, same as the other channel
+// gateways (optionalSlack, optionalBlueBubbles, optionalSmtp) — bundling
+// gateway-gmail into core means the secrets alone can no longer be the
+// opt-in signal: they may already be seeded from before this skill was
+// bundled by default (e.g. left over from a registry install, or shared
+// with optionalGoogle's legacy account), and merely having them present is
+// not a deliberate act of activating the newly-bundled gateway.
 export const optionalGmail = (
   value: unknown,
   secrets: Readonly<Record<string, string>>,
 ): { readonly gmail?: GmailSettings; } => {
+  if (valueAt(value, ["gmail", "enabled"]) !== true) return {};
   const clientId = secrets["gmail_client_id"];
   const clientSecret = secrets["gmail_client_secret"];
   const refreshToken = secrets["gmail_refresh_token"];
