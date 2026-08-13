@@ -74,15 +74,25 @@ export const readMountedSecrets = (
 ): Readonly<Record<string, string>> => {
   const file = env[SECRETS_FILE_VARIABLE];
   if (file === undefined || file.length === 0) return {};
+  // Distinguish "could not read the file" (missing, permissions) from "read it
+  // and it was not valid JSON" — the two failures need different fixes. Neither
+  // message echoes the file's bytes: it holds secrets, and a JSON parse error
+  // would quote the offending source. The cause is kept for local debugging.
+  let raw: string;
+  try {
+    raw = read(file);
+  } catch (error) {
+    throw new Error(
+      `${SECRETS_FILE_VARIABLE} ${file} could not be read`,
+      { cause: error },
+    );
+  }
   let parsed: unknown;
   try {
-    parsed = JSON.parse(read(file));
+    parsed = JSON.parse(raw);
   } catch (error) {
-    // The file holds secrets, so its bytes must never reach an error message:
-    // a JSON parse error would quote the offending source. Name the file and the
-    // failure, keep the cause for local debugging, echo none of the content.
     throw new Error(
-      `${SECRETS_FILE_VARIABLE} ${file} is unreadable (not a valid JSON object)`,
+      `${SECRETS_FILE_VARIABLE} ${file} is not valid JSON`,
       { cause: error },
     );
   }
@@ -190,6 +200,11 @@ export const loadRuntimeSettings = async (
   return {
     ...coreSettings(root, resolved, agent),
     ...optionalSettings(root, resolved, secrets),
+    // Read the GlitchTip DSN through the resolver (not the ambient environment
+    // directly) so it, like every secret, passes through SecretResolver and is
+    // captured by a recording resolver. Value-preserving: the default resolver
+    // reads the same overlay-aware environment.
+    ...optionalGlitchTip(resolved, resolver.env("ELLIOTT_GLITCHTIP_DSN")),
     mcp: mcpSettings(agent, secrets),
     ...(evolution !== undefined && { evolution }),
     ...runtimeEvolutionSettings(),
@@ -382,7 +397,6 @@ const optionalSettings = (
   ...optionalWebhookProvisioner(resolved),
   ...optionalDeepTrace(resolved),
   ...optionalSubscriptionUsage(resolved, secrets),
-  ...optionalGlitchTip(resolved, environment["ELLIOTT_GLITCHTIP_DSN"]),
   ...optionalStringProperty("postgresDsn", resolved, ["store", "dsn"]),
   ...optionalNewsBrief(resolved, secrets),
   ...optionalSkillConfig(resolved),
@@ -474,37 +488,38 @@ const resolveExpression = async (
   return value;
 };
 
-// Every secret VALUE the config boundary resolves for a deployment: the declared
-// secrets in config/secrets.yaml (which is, by doctrine, the enumeration of an
-// agent's secrets — a new skill credential lands here named anything, and a
-// nested consumer like an MCP endpoint's authorization resolves its value from
-// this same map) plus the one credential declared in config/elliott.yaml, the
-// LLM api_key. This is the authoritative redaction set the doctor scrubs from
-// operator-facing output — derived from the config boundary's own secret
-// declaration, not from guessing which settings fields look secret. Non-secret
-// config (provider, model, host) is never in it.
-export const resolveSecretValues = async (
-  root: string,
-  resolver: SecretResolver,
-): Promise<readonly string[]> => {
+// A resolver that records every value it returns. Because nothing reaches
+// settings via `${ENV:…}`/`${VAULT:…}` — nor through the config boundary's own
+// secret env reads, which now go through the resolver too — without passing
+// through here, loading settings through this wrapper yields the COMPLETE set of
+// resolved secret values BY CONSTRUCTION: no maintained list of where secrets
+// live, so a new secret-bearing field, skill, or config file is covered the day
+// it is added. The doctor uses `recorded()` as its redaction set. (A non-secret
+// value that is itself a resolved reference — provider, model — is recorded too;
+// redacting it from a message is fail-safe, never a leak.)
+export const recordingResolver = (
+  inner: SecretResolver,
+): {
+  readonly resolver: SecretResolver;
+  readonly recorded: () => readonly string[];
+} => {
   const values = new Set<string>();
-  try {
-    for (const value of Object.values(await loadSecrets(root, resolver))) {
-      if (value.length > 0) values.add(value);
-    }
-  } catch {
-    // A missing/invalid secrets.yaml surfaces through loadRuntimeSettings; here
-    // it simply contributes no secrets to redact.
-  }
-  try {
-    const config = await resolveTree(
-      await loadYaml(path.join(root, "config/elliott.yaml")),
-      resolver,
-    );
-    const apiKey = optionalStringAt(config, ["llm", "api_key"]);
-    if (apiKey !== undefined && apiKey.length > 0) values.add(apiKey);
-  } catch {
-    // Likewise for elliott.yaml.
-  }
-  return [...values];
+  const keep = (value: string | undefined): void => {
+    if (value !== undefined && value.length > 0) values.add(value);
+  };
+  return {
+    resolver: {
+      env: (name) => {
+        const value = inner.env(name);
+        keep(value);
+        return value;
+      },
+      vault: async (secretPath, field) => {
+        const value = await inner.vault(secretPath, field);
+        keep(value);
+        return value;
+      },
+    },
+    recorded: () => [...values],
+  };
 };

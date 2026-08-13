@@ -3,6 +3,7 @@ export {
   doctorEnvOverlay,
   doctorRoots,
   runDoctorCli,
+  withoutControlPlaneSecrets,
 } from "./cli";
 export { originOf, withEgressAllowlist } from "./egress";
 export { formatReport } from "./format";

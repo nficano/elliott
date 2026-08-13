@@ -6,12 +6,12 @@ import type { BundledPackage } from "../../catalog/types";
 import {
   envBackedSecretResolver,
   loadRuntimeSettings,
-  resolveSecretValues,
+  recordingResolver,
   runtimeEnvironment,
 } from "../config";
 import { RuntimeModelClient } from "../model/client";
 import { loadSkillRegistrations } from "../skills/loader";
-import type { SecretResolver } from "../types";
+import type { RuntimeSettings, SecretResolver } from "../types";
 import { formatReport } from "./format";
 import { defaultDoctorDependencies, runDoctor } from "./harness";
 import { cleanMessage, firstLine, sanitizeForDisplay } from "./message";
@@ -102,6 +102,22 @@ const overlayResolver = (
   vault: (path, field) => envBackedSecretResolver.vault(path, field),
 });
 
+// Drop the control-plane secrets the real runtime also withholds from skills
+// (the governance kill-switch token and the evolution control block) before the
+// doctor hands settings to any skill or the probe. These enter through the
+// ambient environment rather than the resolver, so this — not the recording
+// resolver — is what keeps them out of operator-facing output, matching how the
+// runtime scopes skill-facing settings.
+export const withoutControlPlaneSecrets = (
+  settings: RuntimeSettings,
+): RuntimeSettings => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { governance, evolutionRuntime, ...rest } = settings;
+  return governance === undefined
+    ? rest
+    : { ...rest, governance: { deny: governance.deny } };
+};
+
 // A config-load failure is operator-facing but untrusted: a YAML parser echoes
 // the offending source line (which may hold a hardcoded secret) as a multi-line
 // code frame. Reduce it to its first line — the description, never the frame —
@@ -143,14 +159,19 @@ const configErrorHint = (overlay: Readonly<Record<string, string>>): string =>
 export const runDoctorCli = async (
   argv: readonly string[],
   roots: DoctorRoots,
-  env: DoctorEnv = Bun.env,
+  // The overlay-aware environment (process env plus the ELLIOTT_SECRETS_FILE
+  // mount), NOT Bun.env — so a vendor key supplied through the mounted secrets
+  // file is seen, not reported missing.
+  env: DoctorEnv = runtimeEnvironment,
 ): Promise<boolean> => {
   if (argv[0] !== DOCTOR_COMMAND) return false;
   const { overlay, modelDefaulted } = doctorEnvOverlay(env);
-  const resolver = overlayResolver(overlay);
-  let settings;
+  // Load settings through a RECORDING resolver: every value it returns is the
+  // complete, by-construction set of secrets to redact (see recordingResolver).
+  const { resolver, recorded } = recordingResolver(overlayResolver(overlay));
+  let loaded;
   try {
-    settings = await loadRuntimeSettings(
+    loaded = await loadRuntimeSettings(
       roots.agentRoot,
       roots.agentName,
       resolver,
@@ -169,18 +190,19 @@ export const runDoctorCli = async (
   }
   if (modelDefaulted) {
     console.log(
-      `Using default model ${settings.model} `
+      `Using default model ${loaded.model} `
         + `(override with ${LLM_MODEL_VAR}).`,
     );
   }
-  // The authoritative secret set for redaction, from the config boundary.
-  const secretValues = await resolveSecretValues(roots.agentRoot, resolver);
-  const deps = defaultDoctorDependencies(
-    loadDoctorPackages,
-    (packages, seed) => loadSkillRegistrations(packages, seed),
-    (resolved) => new RuntimeModelClient(resolved),
+  const settings = withoutControlPlaneSecrets(loaded);
+  const report = await runDoctor(
+    { roots, settings, secretValues: recorded() },
+    defaultDoctorDependencies(
+      loadDoctorPackages,
+      (packages, seed) => loadSkillRegistrations(packages, seed),
+      (resolved) => new RuntimeModelClient(resolved),
+    ),
   );
-  const report = await runDoctor({ roots, settings, secretValues }, deps);
   console.log(formatReport(report));
   process.exitCode = report.ok ? 0 : 1;
   return true;
@@ -191,7 +213,7 @@ export const runDoctorCli = async (
 export const doctorRoots = (
   frameworkRoot: string,
   agentRoot: string,
-  env: DoctorEnv = Bun.env,
+  env: DoctorEnv = runtimeEnvironment,
 ): DoctorRoots => ({
   frameworkRoot,
   agentRoot,

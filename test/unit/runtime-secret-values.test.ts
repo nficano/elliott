@@ -2,18 +2,30 @@ import { describe, expect, it } from "bun:test";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { resolveSecretValues } from "../../src/runtime/config";
+import {
+  loadRuntimeSettings,
+  recordingResolver,
+} from "../../src/runtime/config";
+import type { SecretResolver } from "../../src/runtime/types";
 
-const resolver = { env: () => undefined, vault: async () => "" };
+const envResolver = (
+  env: Readonly<Record<string, string | undefined>>,
+): SecretResolver => ({
+  env: (name) => env[name],
+  vault: async () => "",
+});
 
 const withRoot = async (
   files: Readonly<Record<string, string>>,
   run: (root: string) => Promise<void>,
 ): Promise<void> => {
-  const root = mkdtempSync(path.join(tmpdir(), "elliott-secret-values-"));
+  const root = mkdtempSync(path.join(tmpdir(), "elliott-recording-"));
   mkdirSync(path.join(root, "config"), { recursive: true });
+  mkdirSync(path.join(root, "agents"), { recursive: true });
   for (const [name, body] of Object.entries(files)) {
-    writeFileSync(path.join(root, "config", name), body);
+    const target = path.join(root, name);
+    mkdirSync(path.dirname(target), { recursive: true });
+    writeFileSync(target, body);
   }
   try {
     await run(root);
@@ -22,28 +34,51 @@ const withRoot = async (
   }
 };
 
-describe("resolveSecretValues", () => {
-  it("collects every secrets.yaml value plus the elliott.yaml api_key", async () => {
+const ELLIOTT_YAML = [
+  "runtime: { timezone: UTC }",
+  "llm:",
+  "  provider: anthropic",
+  "  api_key: \"${ENV:LLM_KEY}\"",
+  "  models: { default: { model: test-model } }",
+  "  profiles: { default: {} }",
+  "observability: { glitchtip: { enabled: true } }",
+  "",
+].join("\n");
+
+const AGENT_YAML =
+  "spec: { persona: p.md, modelProfile: default, mcp: [ { id: x, url: https://x, transport: sse, authorizationSecret: mcp_token } ] }\n";
+
+describe("recordingResolver", () => {
+  it("records every resolved secret a settings load touches, by construction", async () => {
     await withRoot({
-      "secrets.yaml": "brave_api_key: brave-secret\nha_token: mcp-secret\n",
-      "elliott.yaml":
-        "llm:\n  provider: anthropic\n  api_key: literal-key\n  models: { default: { model: m } }\n",
+      "config/elliott.yaml": ELLIOTT_YAML,
+      "config/secrets.yaml":
+        "brave_api_key: \"${ENV:BRAVE}\"\nmcp_token: \"${ENV:MCP}\"\n",
+      "agents/elliott.yaml": AGENT_YAML,
+      "p.md": "persona",
     }, async (root) => {
-      const values = await resolveSecretValues(root, resolver);
-      expect(values).toContain("brave-secret");
-      expect(values).toContain("mcp-secret");
-      expect(values).toContain("literal-key");
-      // Non-secret config is never in the redaction set.
-      expect(values).not.toContain("anthropic");
-      expect(values).not.toContain("m");
+      const env = {
+        LLM_KEY: "llm-secret",
+        BRAVE: "brave-secret",
+        MCP: "mcp-secret",
+        ELLIOTT_GLITCHTIP_DSN: "https://dsn-secret@errors.example/1",
+      };
+      const { resolver, recorded } = recordingResolver(envResolver(env));
+      await loadRuntimeSettings(root, "elliott", resolver);
+      const secrets = recorded();
+      // The LLM key, a nested skill secret, an MCP authorization resolved from
+      // secrets.yaml, and the GlitchTip DSN (read through the resolver) are all
+      // captured — none of them named in any list the doctor maintains.
+      expect(secrets).toContain("llm-secret");
+      expect(secrets).toContain("brave-secret");
+      expect(secrets).toContain("mcp-secret");
+      expect(secrets).toContain("https://dsn-secret@errors.example/1");
     });
   });
 
-  it("tolerates a missing secrets.yaml, returning only the api_key", async () => {
-    await withRoot({
-      "elliott.yaml": "llm:\n  api_key: only-key\n",
-    }, async (root) => {
-      expect(await resolveSecretValues(root, resolver)).toEqual(["only-key"]);
-    });
+  it("returns undefined for an unset env var and records nothing for it", () => {
+    const { resolver, recorded } = recordingResolver(envResolver({}));
+    expect(resolver.env("NOPE")).toBeUndefined();
+    expect(recorded()).toEqual([]);
   });
 });

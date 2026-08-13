@@ -6,7 +6,29 @@ import {
   configErrorLine,
   doctorEnvOverlay,
   runDoctorCli,
+  withoutControlPlaneSecrets,
 } from "../../src/runtime/doctor/cli";
+import type { RuntimeSettings } from "../../src/runtime/types";
+
+describe("withoutControlPlaneSecrets", () => {
+  it("drops the governance kill-switch token and the evolution block", () => {
+    const settings = {
+      model: "m",
+      governance: { deny: ["danger"], controlToken: "kill-switch-secret" },
+      evolutionRuntime: { controlToken: "evo-secret" },
+    } as unknown as RuntimeSettings;
+    const stripped = withoutControlPlaneSecrets(settings);
+    expect(stripped.governance).toEqual({ deny: ["danger"] });
+    expect(stripped.evolutionRuntime).toBeUndefined();
+    expect(JSON.stringify(stripped)).not.toContain("kill-switch-secret");
+    expect(JSON.stringify(stripped)).not.toContain("evo-secret");
+  });
+
+  it("leaves settings without a governance block untouched", () => {
+    const settings = { model: "m" } as unknown as RuntimeSettings;
+    expect(withoutControlPlaneSecrets(settings)).toEqual(settings);
+  });
+});
 
 describe("configErrorLine", () => {
   it("reduces a multi-line parser error to its first line, dropping the code frame", () => {

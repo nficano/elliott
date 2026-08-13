@@ -22,12 +22,14 @@ describe("readMountedSecrets", () => {
     expect(secrets).toEqual({ api_key: "k1" });
   });
 
-  it("fails the boot loudly when the file cannot be read", () => {
+  it("distinguishes a file that cannot be read from invalid JSON", () => {
+    // A read failure (missing, permission-denied) is a different problem from a
+    // file that was read but held invalid JSON, and names itself accordingly.
     expect(() =>
       readMountedSecrets({ ELLIOTT_SECRETS_FILE: "/run/missing.json" }, () => {
         throw new Error("ENOENT");
       })
-    ).toThrow(/ELLIOTT_SECRETS_FILE \/run\/missing\.json is unreadable/);
+    ).toThrow(/ELLIOTT_SECRETS_FILE \/run\/missing\.json could not be read/);
   });
 
   it("rejects malformed JSON instead of booting secretless", () => {
@@ -36,13 +38,31 @@ describe("readMountedSecrets", () => {
         { ELLIOTT_SECRETS_FILE: "/run/secrets.json" },
         () => "api_key=k1",
       )
-    ).toThrow(/is unreadable/);
+    ).toThrow(/is not valid JSON/);
     expect(() =>
       readMountedSecrets(
         { ELLIOTT_SECRETS_FILE: "/run/secrets.json" },
         () => "[\"k1\"]",
       )
     ).toThrow(/must hold a JSON object/);
+  });
+
+  it("never echoes the file's bytes in a parse error", () => {
+    // The file holds secrets; a parse error must not quote its content.
+    expect(() =>
+      readMountedSecrets(
+        { ELLIOTT_SECRETS_FILE: "/run/secrets.json" },
+        () => "sk-super-secret-token-not-json",
+      )
+    ).toThrow(/is not valid JSON/);
+    try {
+      readMountedSecrets(
+        { ELLIOTT_SECRETS_FILE: "/run/secrets.json" },
+        () => "sk-super-secret-token-not-json",
+      );
+    } catch (error) {
+      expect((error as Error).message).not.toContain("sk-super-secret");
+    }
   });
 });
 
