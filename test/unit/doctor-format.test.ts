@@ -47,7 +47,6 @@ const baseReport = (
     wire: "anthropic",
     baseUrl: "https://api.anthropic.com/v1",
     model: "claude-haiku-4-5-20251001",
-    reply: "ready",
   },
   contactedHosts: ["api.anthropic.com"],
   egressViolations: [],
@@ -59,6 +58,7 @@ describe("formatReport", () => {
   it("renders a passing report with ran, skipped, and vendor-key sections", () => {
     const text = formatReport(baseReport({}));
     expect(text).toContain("LLM probe   OK");
+    expect(text).toContain("completion received");
     expect(text).toContain("+ fetch");
     expect(text).toContain(
       "- search-brave — dormant (gate secret:braveApiKey)",
@@ -71,7 +71,7 @@ describe("formatReport", () => {
     expect(text.trimEnd().endsWith("VERDICT: PASS")).toBe(true);
   });
 
-  it("names the LLM failure and ends on FAIL", () => {
+  it("names the LLM failure classification and ends on FAIL", () => {
     const text = formatReport(
       baseReport({
         ok: false,
@@ -80,12 +80,12 @@ describe("formatReport", () => {
           wire: "anthropic",
           baseUrl: "https://api.anthropic.com/v1",
           model: "claude-haiku-4-5-20251001",
-          error: "anthropic 401: invalid x-api-key",
+          error: "authentication rejected (HTTP 401)",
         },
       }),
     );
     expect(text).toContain("LLM probe   FAILED");
-    expect(text).toContain("error: anthropic 401: invalid x-api-key");
+    expect(text).toContain("error: authentication rejected (HTTP 401)");
     expect(text.trimEnd().endsWith("VERDICT: FAIL")).toBe(true);
   });
 

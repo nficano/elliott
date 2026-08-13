@@ -129,14 +129,14 @@ describe("runDoctor", () => {
       deps({
         makeCompleter: () => ({
           complete: async () => {
-            throw new Error("anthropic 401: invalid x-api-key");
+            throw Object.assign(new Error("openai 401: body"), { status: 401 });
           },
         }),
       }),
     );
     expect(report.ok).toBe(false);
     expect(report.llm.ok).toBe(false);
-    expect(report.llm.error).toContain("401");
+    expect(report.llm.error).toBe("authentication rejected (HTTP 401)");
   });
 
   it("fails and records a violation when a probe reaches a non-LLM host", async () => {
@@ -152,8 +152,11 @@ describe("runDoctor", () => {
       }),
     );
     expect(report.ok).toBe(false);
+    // The off-box hop is recorded as an egress violation; the probe reports a
+    // generic classification rather than echoing the blocked-host error text.
     expect(report.egressViolations).toEqual(["telemetry.example.com"]);
-    expect(report.llm.error).toContain("egress blocked");
+    expect(report.llm.ok).toBe(false);
+    expect(report.llm.error).toBe("endpoint unreachable or did not respond");
   });
 
   it("treats a thrown register as a skill error that fails the run", async () => {

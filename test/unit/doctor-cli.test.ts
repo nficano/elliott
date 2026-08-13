@@ -149,7 +149,7 @@ describe("runDoctorCli", () => {
     }
   });
 
-  it("names an invalid provider in full and omits the hint when credentials are present", async () => {
+  it("guides on an invalid provider without echoing a recorded value or the hint", async () => {
     const errors: string[] = [];
     const original = console.error;
     console.error = (message: unknown) => errors.push(String(message));
@@ -162,9 +162,12 @@ describe("runDoctorCli", () => {
       expect(handled).toBe(true);
       expect(process.exitCode).toBe(1);
       const printed = errors.join("\n");
-      // Provider is not a secret: its real value is named, not redacted.
-      expect(printed).toContain("bogus-provider");
-      expect(printed).not.toContain("‹redacted›");
+      // Every printed message redacts the config-boundary's recorded set — the
+      // env-resolved provider value is in it, so it is scrubbed, but the
+      // self-derived guidance the config produced still names the fix.
+      expect(printed).toContain("Unknown llm.provider");
+      expect(printed).toContain("expected one of: anthropic, openai");
+      expect(printed).not.toContain("bogus-provider");
       // Credentials are present, so no "set your keys" footer.
       expect(printed).not.toContain("ANTHROPIC_API_KEY");
     } finally {

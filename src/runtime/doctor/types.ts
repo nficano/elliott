@@ -45,11 +45,12 @@ export interface DoctorSkillOutcome {
 export interface DoctorLlmProbe {
   readonly ok: boolean;
   readonly wire: string;
+  // The endpoint and model the doctor derived — userinfo-stripped and
+  // sanitized. The endpoint-controlled reply is deliberately NOT carried.
   readonly baseUrl: string;
   readonly model: string;
-  // The model's reply on success (bounded).
-  readonly reply?: string;
-  // A clean, named failure message on failure — no raw stack trace.
+  // A fixed, self-derived failure classification on failure (a closed set of
+  // phrases this repo owns) — never the provider's response body.
   readonly error?: string;
 }
 

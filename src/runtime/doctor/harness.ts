@@ -119,11 +119,11 @@ export const runDoctor = async (
     const secretRefs = await secretRefsFor(packages, deps.manifestSecrets);
     const views = collectPackageViews(packages, skills);
     const outcomes = classifyAll(views, reports, secretRefs);
-    const llm = await probeLlm(
-      input.settings,
-      deps.makeCompleter,
-      input.secretValues,
-    );
+    // The probe reports only facts it derives (endpoint origin, model id, a
+    // fixed failure classification); it echoes nothing the endpoint controls,
+    // so it needs no secret set. `input.secretValues` still scrubs skill-report
+    // messages in doctorSeed, where a skill could interpolate a settings secret.
+    const llm = await probeLlm(input.settings, deps.makeCompleter);
     return { outcomes, llm };
   });
   const { outcomes, llm } = trace.result;

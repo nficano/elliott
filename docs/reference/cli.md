@@ -65,10 +65,12 @@ config.
 
 The output has four parts:
 
-- **LLM probe** — `OK` or `FAILED`, with the wire, model, and endpoint. A
-  failure prints the provider's own message (e.g. `Anthropic 401: …`), never a
-  stack trace; the API key is scrubbed and the message is flattened to one line
-  so a hostile endpoint cannot leak the key or forge a verdict line.
+- **LLM probe** — `OK` or `FAILED`, with the wire, model, and endpoint origin. A
+  failure prints a classification the doctor derives from the HTTP status
+  (e.g. `authentication rejected (HTTP 401)`), from a closed set of phrases this
+  repo owns — never the provider's response body, and never a stack trace. Every
+  printed value is also secret-scrubbed and flattened to one line as defense in
+  depth, so a hostile endpoint cannot leak a key or forge a verdict line.
 - **Ran / Skipped** — every bundled skill and why a skipped one is dormant. A
   skill needing a vendor key beyond the LLM provider is named with the secret
   reference to supply and its manifest gate; some (a composite gate such as

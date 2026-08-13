@@ -46,8 +46,8 @@ is missing and exits non-zero.
 ## Read the report
 
 ```
-LLM probe   OK  (anthropic wire, model claude-haiku-4-5-20251001, https://api.anthropic.com/v1)
-  reply: "ready"
+LLM probe   OK  (anthropic wire, model claude-haiku-4-5-20251001, https://api.anthropic.com)
+  completion received
 
 Ran (5):
   + deep-trace
@@ -84,21 +84,24 @@ VERDICT: PASS
 
 ## What a failure looks like
 
-A wrong key does not dump a stack trace — it prints the provider's own message
-and exits non-zero:
+A wrong key does not dump a stack trace, and it does not echo the provider's
+error body either — it prints a classification the doctor derived from the HTTP
+status, and exits non-zero:
 
 ```
-LLM probe   FAILED  (anthropic wire, model claude-haiku-4-5-20251001, https://api.anthropic.com/v1)
-  error: Anthropic 401: {"type":"error","error":{"type":"authentication_error","message":"API key is invalid."}}
+LLM probe   FAILED  (anthropic wire, model claude-haiku-4-5-20251001, https://api.anthropic.com)
+  error: authentication rejected (HTTP 401)
 …
 VERDICT: FAIL
 ```
 
-The message is scrubbed of every secret the config boundary resolved and
-flattened to a single line, so a hostile or misconfigured endpoint cannot echo a
-key — a vendor key, an MCP authorization, any credential — or forge a verdict
-line into the output. A malformed `ELLIOTT_SECRETS_FILE` fails the same way: one
-sanitized line, never a stack trace or the file's contents.
+The report prints only facts the doctor derives itself — the HTTP status, the
+wire, the endpoint origin, a fixed classification from a closed set. A provider's
+response body (which a hostile endpoint could stuff with a forged verdict line or
+an echoed credential) never reaches the output. As defense in depth, everything
+printed is also scrubbed of every secret the config boundary resolved and
+flattened to a single line. A malformed `ELLIOTT_SECRETS_FILE` fails the same
+way: one derived line, never a stack trace or the file's contents.
 
 The command talks to the LLM endpoint and nothing else. The allowlist is the
 endpoint's exact origin — scheme, host, and port — and every hop, redirect

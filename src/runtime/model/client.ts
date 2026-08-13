@@ -13,6 +13,21 @@ import { openaiWire } from "./wire/openai";
 const RESPONSE_DETAIL_MAX_CHARACTERS = 500;
 const MILLISECONDS_PER_SECOND = 1000;
 
+// A non-2xx model response. Carries the HTTP `status` as structured data so a
+// caller (e.g. the doctor) can classify the failure from a fact it derived —
+// the status code — without parsing or echoing the provider's response body,
+// which is endpoint-controlled and may quote credentials. The message keeps the
+// body for LOCAL debugging (the runtime's error reporter transmits only the
+// class name and stack frames, never the message).
+export class ModelHttpError extends Error {
+  readonly status: number;
+  constructor(wireName: string, status: number, detail: string) {
+    super(`${wireName} ${status}: ${detail}`);
+    this.name = "ModelHttpError";
+    this.status = status;
+  }
+}
+
 // A hung upstream used to fail only at Bun's opaque default fetch deadline
 // (~300s, surfacing as a bare TimeoutError in the turn). The watchdog bounds
 // *inactivity* instead of total time: the initial window covers
@@ -86,9 +101,7 @@ export class RuntimeModelClient {
         0,
         RESPONSE_DETAIL_MAX_CHARACTERS,
       );
-      throw new Error(
-        `${this.#wire.name} ${response.status}: ${detail}`,
-      );
+      throw new ModelHttpError(this.#wire.name, response.status, detail);
     }
     const result = onTextDelta === undefined
       ? this.#wire.decode(await response.json())

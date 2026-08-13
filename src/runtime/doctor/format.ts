@@ -19,11 +19,12 @@ const llmLines = (llm: DoctorLlmProbe): readonly string[] => {
     + `(${llm.wire} wire, model ${oneLine(llm.model)}, ${
       oneLine(llm.baseUrl)
     })`;
-  // Both reply and error are already sanitized at the probe boundary; oneLine
-  // here is the renderer's own guarantee that no dynamic value it interpolates
-  // can span lines, independent of who produced it.
+  // On success there is nothing endpoint-controlled to show — a completion came
+  // back, which is the signal. On failure the classification is a fixed phrase
+  // the probe derived; oneLine is the renderer's own guarantee that no
+  // interpolated value can span lines, independent of who produced it.
   const detail = llm.ok
-    ? `  reply: ${JSON.stringify(oneLine(llm.reply ?? ""))}`
+    ? "  completion received"
     : `  error: ${oneLine(llm.error ?? "unknown failure")}`;
   return [head, detail];
 };

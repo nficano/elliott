@@ -5,6 +5,7 @@ import {
   oneLine,
   redactSecrets,
   sanitizeForDisplay,
+  stripUrlUserinfo,
 } from "../../src/runtime/doctor/message";
 
 describe("cleanMessage", () => {
@@ -39,6 +40,15 @@ describe("redactSecrets", () => {
   it("ignores only undefined and empty secrets", () => {
     expect(redactSecrets("unchanged", [undefined, ""])).toBe("unchanged");
   });
+
+  it("redacts the longest secret first so a prefix cannot leave a tail exposed", () => {
+    const out = redactSecrets("provider echoed sk-supersecret", [
+      "sk-",
+      "sk-supersecret",
+    ]);
+    expect(out).toBe("provider echoed ‹redacted›");
+    expect(out).not.toContain("supersecret");
+  });
 });
 
 describe("firstLine", () => {
@@ -69,6 +79,32 @@ describe("oneLine", () => {
     expect(out).not.toContain(del);
     expect(out).toContain("VERDICT: PASS");
     expect(out.startsWith("401 error VERDICT: PASS")).toBe(true);
+  });
+
+  it("flattens Unicode line and format separators, not only C0 and DEL", () => {
+    const lineSep = String.fromCodePoint(0x20_28);
+    const paraSep = String.fromCodePoint(0x20_29);
+    const nextLine = String.fromCodePoint(0x85);
+    const zeroWidth = String.fromCodePoint(0x20_0B);
+    const out = oneLine(
+      `failure${lineSep}VERDICT: PASS${paraSep}b${nextLine}c${zeroWidth}d`,
+    );
+    for (const forbidden of [lineSep, paraSep, nextLine, zeroWidth]) {
+      expect(out).not.toContain(forbidden);
+    }
+    expect(out).toBe("failure VERDICT: PASS b c d");
+  });
+});
+
+describe("stripUrlUserinfo", () => {
+  it("removes user:password from a URL", () => {
+    expect(stripUrlUserinfo("https://user:password@example.com/v1")).toBe(
+      "https://example.com/v1",
+    );
+  });
+
+  it("returns a non-URL string unchanged", () => {
+    expect(stripUrlUserinfo("not a url")).toBe("not a url");
   });
 });
 

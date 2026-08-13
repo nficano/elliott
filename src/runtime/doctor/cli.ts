@@ -177,12 +177,13 @@ export const runDoctorCli = async (
       resolver,
     );
   } catch (error) {
-    // Pre-load, the only secret the doctor holds is the LLM key it injected
-    // into the overlay (never provider/model — those are not secrets).
-    const overlayKey = overlay[LLM_API_KEY_VAR];
-    const secrets = overlayKey === undefined ? [] : [overlayKey];
+    // Redact everything the recorder captured BEFORE the failure — not just the
+    // overlay key. A reference resolved during the load (say a provider that
+    // interpolates ${ENV:DB_PASSWORD}) is already in recorded() and would
+    // otherwise surface in the validation error. Every printing path uses the
+    // same set.
     console.error(
-      `elliott doctor: ${configErrorLine(error, secrets)}`
+      `elliott doctor: ${configErrorLine(error, recorded())}`
         + configErrorHint(overlay),
     );
     process.exitCode = 1;
