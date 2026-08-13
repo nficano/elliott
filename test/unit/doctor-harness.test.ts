@@ -15,7 +15,11 @@ import type { RuntimeSettings } from "../../src/runtime/types";
 const MINUTE_MS = 60_000;
 
 const input: DoctorInput = {
-  frameworkRoot: "/repo",
+  roots: {
+    frameworkRoot: "/repo",
+    agentRoot: "/repo",
+    agentName: "elliott",
+  },
   settings: {
     llmWire: "anthropic",
     llmBaseUrl: "https://api.anthropic.com/v1",
@@ -166,6 +170,32 @@ describe("runDoctor", () => {
     expect(broken?.status).toBe("error");
     expect(broken?.error).toBe("register exploded");
     expect(report.ok).toBe(false);
+  });
+
+  it("redacts every settings secret a skill echoes, not just the LLM key", async () => {
+    const withSecret = {
+      ...input,
+      settings: {
+        ...input.settings,
+        braveApiKey: "brave-secret-value",
+      } as unknown as RuntimeSettings,
+    };
+    const report = await runDoctor(
+      withSecret,
+      deps({
+        loadPackages: async () => [pkg("broken", "always")],
+        register: async (_packages, seed: SkillContextSeed) => {
+          const echoed =
+            (seed.settings as { braveApiKey?: string; }).braveApiKey;
+          seed.report(new Error(`setup rejected ${echoed}`), "skill:broken");
+          return [];
+        },
+      }),
+    );
+    const broken = report.skills.find((s) => s.name === "broken");
+    expect(broken?.status).toBe("error");
+    expect(broken?.error).not.toContain("brave-secret-value");
+    expect(broken?.error).toContain("‹redacted›");
   });
 
   it("surfaces a soft register report as a non-fatal notice", async () => {

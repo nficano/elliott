@@ -1,4 +1,8 @@
-import { loadBundledPackages } from "../../catalog/bundled";
+import {
+  loadAgentSkillPackages,
+  loadBundledPackages,
+} from "../../catalog/bundled";
+import type { BundledPackage } from "../../catalog/types";
 import {
   envBackedSecretResolver,
   loadRuntimeSettings,
@@ -10,10 +14,14 @@ import type { SecretResolver } from "../types";
 import { formatReport } from "./format";
 import { defaultDoctorDependencies, runDoctor } from "./harness";
 import { cleanMessage, firstLine, sanitizeForDisplay } from "./message";
-import type { DoctorEnv, DoctorEnvOverlay } from "./types";
+import { secretValuesOf } from "./secrets";
+import type { DoctorEnv, DoctorEnvOverlay, DoctorRoots } from "./types";
 
 const DOCTOR_COMMAND = "doctor";
-const AGENT_NAME = "elliott";
+const DEFAULT_AGENT_NAME = "elliott";
+// A consumer repo whose agent is not named "elliott" points the doctor at it
+// with this — the same name its own runtime boots under.
+const AGENT_NAME_VAR = "ELLIOTT_AGENT_NAME";
 
 // Cheap, current first-party models used when the operator supplies only a
 // vendor key and no explicit ELLIOTT_LLM_MODEL. Deliberately the smallest tier
@@ -97,22 +105,44 @@ const overlayResolver = (
 // A config-load failure is operator-facing but untrusted: a YAML parser echoes
 // the offending source line (which may hold a hardcoded secret) as a multi-line
 // code frame. Reduce it to its first line — the description, never the frame —
-// then scrub any injected secret and flatten it, so neither a credential nor a
-// forged line can reach the terminal. `secrets` are the doctor's own overlay
-// values (a vendor key it injected), the only secret values it holds here.
+// then scrub any secret and flatten it, so neither a credential nor a forged
+// line can reach the terminal. `secrets` are only the actual secret values
+// (derived, not the whole overlay), so a plain invalid-config error — an
+// unknown provider, a bad model — still prints its real value.
 export const configErrorLine = (
   error: unknown,
   secrets: readonly string[],
 ): string => sanitizeForDisplay(firstLine(cleanMessage(error)), secrets);
 
+// Load the packages the doctor checks: the framework's bundled skills from the
+// framework package, plus the deployment's agent-local skills from the consumer
+// root — the same set the runtime assembles (minus registry-installed skills,
+// which need the installer and a network the doctor deliberately does not use).
+const loadDoctorPackages = async (
+  roots: DoctorRoots,
+): Promise<readonly BundledPackage[]> => [
+  ...await loadBundledPackages(roots.frameworkRoot),
+  ...await loadAgentSkillPackages(roots.agentRoot, roots.agentName),
+];
+
+// The credentials hint helps only when the doctor had no credentials to supply
+// (an empty overlay: no vendor key, no explicit provider). When credentials ARE
+// present, a config failure is about the config itself — an unknown provider, a
+// malformed file — so the error names that on its own, without a misleading
+// "set your keys" footer.
+const configErrorHint = (overlay: Readonly<Record<string, string>>): string =>
+  Object.keys(overlay).length === 0 ? `\n\n${MISSING_CONFIG_HINT}` : "";
+
 // Handle `elliott doctor`. Returns true once it owns the argv (so other CLI
 // handlers stand down), setting a nonzero exit code on any failure — a missing
 // config, a configuration error, a failed probe, an egress breach, or a skill
-// that failed to load. Prints the full report before exiting so a failure is
-// diagnosed, not just signalled.
+// that failed to load. Settings, the agent definition, secrets, and agent-local
+// skills come from the deployment root (the consumer's working directory);
+// bundled skills come from the framework package. Prints the full report before
+// exiting so a failure is diagnosed, not just signalled.
 export const runDoctorCli = async (
   argv: readonly string[],
-  root: string,
+  roots: DoctorRoots,
   env: DoctorEnv = Bun.env,
 ): Promise<boolean> => {
   if (argv[0] !== DOCTOR_COMMAND) return false;
@@ -120,11 +150,15 @@ export const runDoctorCli = async (
   const resolver = overlayResolver(overlay);
   let settings;
   try {
-    settings = await loadRuntimeSettings(root, AGENT_NAME, resolver);
+    settings = await loadRuntimeSettings(
+      roots.agentRoot,
+      roots.agentName,
+      resolver,
+    );
   } catch (error) {
     console.error(
-      `elliott doctor: ${configErrorLine(error, Object.values(overlay))}`
-        + `\n\n${MISSING_CONFIG_HINT}`,
+      `elliott doctor: ${configErrorLine(error, secretValuesOf(overlay))}`
+        + configErrorHint(overlay),
     );
     process.exitCode = 1;
     return true;
@@ -136,12 +170,24 @@ export const runDoctorCli = async (
     );
   }
   const deps = defaultDoctorDependencies(
-    (packageRoot) => loadBundledPackages(packageRoot),
+    loadDoctorPackages,
     (packages, seed) => loadSkillRegistrations(packages, seed),
     (resolved) => new RuntimeModelClient(resolved),
   );
-  const report = await runDoctor({ frameworkRoot: root, settings }, deps);
+  const report = await runDoctor({ roots, settings }, deps);
   console.log(formatReport(report));
   process.exitCode = report.ok ? 0 : 1;
   return true;
 };
+
+// Resolve the deployment root (the consumer's working directory) and agent
+// name from the environment, pairing them with the framework package root.
+export const doctorRoots = (
+  frameworkRoot: string,
+  agentRoot: string,
+  env: DoctorEnv = Bun.env,
+): DoctorRoots => ({
+  frameworkRoot,
+  agentRoot,
+  agentName: env[AGENT_NAME_VAR] ?? DEFAULT_AGENT_NAME,
+});

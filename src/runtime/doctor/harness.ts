@@ -6,6 +6,7 @@ import { classifyOutcome } from "./gate";
 import { readManifestSecretRefs } from "./manifest";
 import { cleanMessage, sanitizeForDisplay } from "./message";
 import { probeLlm } from "./probe";
+import { secretValuesOf } from "./secrets";
 import type {
   CapturedReport,
   DoctorDependencies,
@@ -31,23 +32,25 @@ const SKILL_MECHANISM_PREFIX = "skill:";
 const doctorSeed = (
   input: DoctorInput,
   reports: CapturedReport[],
-): SkillContextSeed => ({
-  settings: input.settings,
-  stateDirectory: input.settings.stateDirectory,
-  packages: () => [],
-  report: (error, mechanism) => {
-    // A captured message is operator-facing: scrub the key and flatten it so a
-    // skill (or anything it wraps) cannot leak a secret or forge report lines.
-    reports.push({
-      mechanism,
-      message: sanitizeForDisplay(cleanMessage(error), [
-        input.settings.llmApiKey,
-      ]),
-    });
-  },
-  installErrorSink: () => {},
-  deliver: async () => {},
-});
+): SkillContextSeed => {
+  // Every secret the settings carry, derived from the settings shape — so a
+  // skill echoing ANY credential (a vendor key, a token, a password, a DSN),
+  // not just the LLM key, is scrubbed. See secretValuesOf.
+  const secrets = secretValuesOf(input.settings);
+  return {
+    settings: input.settings,
+    stateDirectory: input.settings.stateDirectory,
+    packages: () => [],
+    report: (error, mechanism) => {
+      reports.push({
+        mechanism,
+        message: sanitizeForDisplay(cleanMessage(error), secrets),
+      });
+    },
+    installErrorSink: () => {},
+    deliver: async () => {},
+  };
+};
 
 const errorFor = (
   name: string,
@@ -115,7 +118,7 @@ export const runDoctor = async (
   const seed = doctorSeed(input, reports);
   const allowedHost = hostOf(input.settings.llmBaseUrl);
   const trace = await withEgressAllowlist([allowedHost], async () => {
-    const packages = await deps.loadPackages(input.frameworkRoot);
+    const packages = await deps.loadPackages(input.roots);
     const skills = await deps.register(packages, seed);
     const secretRefs = await secretRefsFor(packages, deps.manifestSecrets);
     const views = collectPackageViews(packages, skills);

@@ -1,10 +1,15 @@
 # How to check your setup end-to-end
 
-`elliott doctor` is the out-of-box check for a fresh clone: it boots the bundled
-framework skills, reports which ran and which stayed dormant, and runs one live
-model round-trip against the provider you configured. Run it before wiring
-anything else — it answers "is my LLM config right, and what else do I need to
-set" in one command.
+`elliott doctor` is the out-of-box check for a fresh clone: it boots the skills,
+reports which ran and which stayed dormant, and runs one live model round-trip
+against the provider you configured. Run it before wiring anything else — it
+answers "is my LLM config right, and what else do I need to set" in one command.
+
+It checks the deployment in your current working directory. Inside this repo that
+is the repo itself; from a consumer repo that boots elliott as a package (`bunx
+elliott doctor`), it reads that repo's config, agent definition, secrets, and
+agent-local skills, while the bundled framework skills come from the package. Set
+`ELLIOTT_AGENT_NAME` if your agent is not named `elliott`.
 
 Contract and exit codes: [CLI reference](../reference/cli.md#elliott-doctor).
 

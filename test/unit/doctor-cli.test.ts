@@ -91,6 +91,12 @@ describe("doctorEnvOverlay", () => {
 
 describe("runDoctorCli", () => {
   const savedExitCode = process.exitCode ?? 0;
+  // Tests run from the repo root, so "." is a valid framework root.
+  const rootsFor = (agentRoot: string) => ({
+    frameworkRoot: ".",
+    agentRoot,
+    agentName: "elliott",
+  });
 
   afterEach(() => {
     // Reset to a concrete number: the doctor command sets process.exitCode on
@@ -99,21 +105,46 @@ describe("runDoctorCli", () => {
   });
 
   it("declines argv that is not the doctor command", async () => {
-    const handled = await runDoctorCli(["new", "skill", "x"], "/repo", {});
+    const handled = await runDoctorCli(
+      ["new", "skill", "x"],
+      rootsFor("."),
+      {},
+    );
     expect(handled).toBe(false);
   });
 
-  it("handles the doctor command with a clean error when config is missing", async () => {
+  it("names the missing variable and offers the credentials hint when none are set", async () => {
     const errors: string[] = [];
     const original = console.error;
     console.error = (message: unknown) => errors.push(String(message));
     try {
-      // Real repo root so settings loading reaches the LLM config boundary,
-      // which names the missing variable; an empty env supplies no credential.
-      const handled = await runDoctorCli(["doctor"], ".", {});
+      const handled = await runDoctorCli(["doctor"], rootsFor("."), {});
       expect(handled).toBe(true);
       expect(process.exitCode).toBe(1);
       expect(errors.join("\n")).toContain("ANTHROPIC_API_KEY");
+    } finally {
+      console.error = original;
+    }
+  });
+
+  it("names an invalid provider in full and omits the hint when credentials are present", async () => {
+    const errors: string[] = [];
+    const original = console.error;
+    console.error = (message: unknown) => errors.push(String(message));
+    try {
+      const handled = await runDoctorCli(["doctor"], rootsFor("."), {
+        ELLIOTT_LLM_PROVIDER: "bogus-provider",
+        ELLIOTT_LLM_API_KEY: "sk-not-real",
+        ELLIOTT_LLM_MODEL: "model-x",
+      });
+      expect(handled).toBe(true);
+      expect(process.exitCode).toBe(1);
+      const printed = errors.join("\n");
+      // Provider is not a secret: its real value is named, not redacted.
+      expect(printed).toContain("bogus-provider");
+      expect(printed).not.toContain("‹redacted›");
+      // Credentials are present, so no "set your keys" footer.
+      expect(printed).not.toContain("ANTHROPIC_API_KEY");
     } finally {
       console.error = original;
     }
@@ -133,7 +164,7 @@ describe("runDoctorCli", () => {
     const original = console.error;
     console.error = (message: unknown) => errors.push(String(message));
     try {
-      const handled = await runDoctorCli(["doctor"], root, {
+      const handled = await runDoctorCli(["doctor"], rootsFor(root), {
         ANTHROPIC_API_KEY: "sk-ant-unused",
       });
       expect(handled).toBe(true);
@@ -144,6 +175,40 @@ describe("runDoctorCli", () => {
       expect(printed).not.toContain("^");
     } finally {
       console.error = original;
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("validates the consumer's config, not the framework's", async () => {
+    // A consumer repo boots elliott as a package: its working directory holds
+    // the config to check. A malformed consumer config must be the thing that
+    // fails — proving the doctor read the deployment root, not the framework.
+    const root = mkdtempSync(path.join(tmpdir(), "elliott-doctor-consumer-"));
+    mkdirSync(path.join(root, "config"), { recursive: true });
+    writeFileSync(path.join(root, "config", "elliott.yaml"), "not: [valid\n");
+    const errors: string[] = [];
+    const logs: string[] = [];
+    const originalError = console.error;
+    const originalLog = console.log;
+    console.error = (message: unknown) => errors.push(String(message));
+    console.log = (message: unknown) => logs.push(String(message));
+    try {
+      // Valid credentials: had the doctor read the framework's config instead,
+      // it would parse fine and reach the probe — printing a report, not a
+      // config error. The config-error path proves it read the consumer config.
+      const handled = await runDoctorCli(["doctor"], rootsFor(root), {
+        ELLIOTT_LLM_PROVIDER: "anthropic",
+        ELLIOTT_LLM_API_KEY: "sk-ant-unused",
+        ELLIOTT_LLM_MODEL: "model-x",
+      });
+      expect(handled).toBe(true);
+      expect(process.exitCode).toBe(1);
+      expect(errors.join("\n")).toContain("elliott doctor:");
+      // No report was printed, so the probe was never reached (no network).
+      expect(logs.join("\n")).not.toContain("out-of-box end-to-end check");
+    } finally {
+      console.error = originalError;
+      console.log = originalLog;
       rmSync(root, { recursive: true, force: true });
     }
   });

@@ -151,6 +151,8 @@ listed in [Activation gates](activation-gates.md).
 | `ELLIOTT_EVOLUTION_OPERATOR_CAPABILITIES` | no | none |
 | `ELLIOTT_TELEMETRY_PROMPTS` | no | on; `"0"` withholds prompt text from the live feed |
 | `ELLIOTT_CONTROL_PLANE_URL` / `_TOKEN` | CLI only | none |
+| `ELLIOTT_AGENT_NAME` | `doctor` only | `elliott`; the agent `doctor` validates |
+| `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` | `doctor` only | none; a vendor-key shortcut for `elliott doctor` |
 | `GITHUB_TOKEN` | no | none; used when installing registry skills |
 
 All three `ELLIOTT_EVOLUTION_*` variables are required together to open

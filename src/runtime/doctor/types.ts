@@ -91,7 +91,12 @@ export interface DoctorHop {
 // Injectable seams so the harness can be exercised offline. Production callers
 // get the real loaders, the real model client, and a wall clock.
 export interface DoctorDependencies {
-  readonly loadPackages: (root: string) => Promise<readonly BundledPackage[]>;
+  // Loads the packages the doctor checks: the framework's bundled skills from
+  // `frameworkRoot`, plus the deployment's agent-local skills from `agentRoot`
+  // — the same two-root split the runtime boots from.
+  readonly loadPackages: (
+    roots: DoctorRoots,
+  ) => Promise<readonly BundledPackage[]>;
   readonly register: (
     packages: readonly BundledPackage[],
     seed: SkillContextSeed,
@@ -101,8 +106,19 @@ export interface DoctorDependencies {
   readonly now: () => number;
 }
 
-export interface DoctorInput {
+// The two roots a doctor run spans. `frameworkRoot` is the elliott package
+// (bundled skills); `agentRoot` is the deployment being checked — the
+// consumer's working directory, which holds its config, agent definition,
+// secrets mapping, and agent-local skills. They coincide only when the doctor
+// runs from inside the framework repo itself.
+export interface DoctorRoots {
   readonly frameworkRoot: string;
+  readonly agentRoot: string;
+  readonly agentName: string;
+}
+
+export interface DoctorInput {
+  readonly roots: DoctorRoots;
   readonly settings: RuntimeSettings;
 }
 

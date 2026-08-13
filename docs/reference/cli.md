@@ -35,10 +35,17 @@ Prints the created directory on success.
 elliott doctor
 ```
 
-An out-of-box end-to-end check: boots the bundled framework skills, reports
-which registered and which stayed dormant, then runs one live model round-trip
-against the configured provider. Meant for a fresh clone — set the LLM keys and
-watch it work.
+An out-of-box end-to-end check: boots the skills, reports which registered and
+which stayed dormant, then runs one live model round-trip against the configured
+provider. Meant for a fresh clone — set the LLM keys and watch it work.
+
+It checks the deployment in your **current working directory**: the config,
+agent definition, secrets mapping, and agent-local skills all load from there,
+while the bundled framework skills load from the elliott package. Running it
+inside this repo, the two coincide; running `bunx elliott doctor` from a consumer
+repo that boots elliott as a package, it validates the consumer's config, not the
+framework's. The agent name defaults to `elliott`; set `ELLIOTT_AGENT_NAME` when
+the deployment's agent is named otherwise.
 
 Minimal config. The command needs only an LLM credential, resolved in this
 order:

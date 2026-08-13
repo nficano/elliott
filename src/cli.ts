@@ -8,7 +8,7 @@ import {
   makeHttpEvolutionCliBackend,
 } from "./learning/evolution/cli/index";
 import { scaffoldComponent } from "./manifest/scaffold";
-import { runDoctorCli } from "./runtime/doctor/index";
+import { doctorRoots, runDoctorCli } from "./runtime/doctor/index";
 
 const scaffold = async (arguments_: readonly string[]): Promise<boolean> => {
   const [command, kind, name, parentDirectory = "."] = arguments_;
@@ -27,13 +27,16 @@ const scaffold = async (arguments_: readonly string[]): Promise<boolean> => {
   return true;
 };
 
-// The framework checkout root: cli.ts lives at <root>/src/cli.ts, so one level
-// up from src/ is the root that holds config/, skills/, and agents/.
+// The framework package root: cli.ts lives at <root>/src/cli.ts, so one level
+// up from src/ holds the bundled skills/. The deployment being checked is the
+// consumer's working directory (process.cwd()) — for a consumer repo that boots
+// elliott as a package these differ; inside this repo they coincide.
 const frameworkRoot = fileURLToPath(new URL("..", import.meta.url));
 
 const main = async (arguments_: readonly string[]): Promise<void> => {
   if (await scaffold(arguments_)) return;
-  if (await runDoctorCli(arguments_, frameworkRoot)) return;
+  const roots = doctorRoots(frameworkRoot, process.cwd());
+  if (await runDoctorCli(arguments_, roots)) return;
   if (await runSkillsCli(arguments_, process.cwd())) return;
   const endpoint = Bun.env["ELLIOTT_CONTROL_PLANE_URL"];
   if (endpoint === undefined) {

@@ -4,6 +4,7 @@ import type {
   RuntimeSettings,
 } from "../types";
 import { cleanMessage, sanitizeForDisplay } from "./message";
+import { secretValuesOf } from "./secrets";
 import type { DoctorLlmProbe } from "./types";
 
 const PROBE_REPLY_MAX_CHARACTERS = 200;
@@ -35,10 +36,11 @@ export const probeLlm = async (
     tools: [],
     allowTools: false,
   };
-  // The API key must never surface in operator-facing output, and neither the
-  // reply nor a provider error body (both endpoint-controlled) may inject
-  // report lines or terminal escapes. Scrub the key and flatten both.
-  const secrets = [settings.llmApiKey];
+  // No secret may surface in operator-facing output, and neither the reply nor
+  // a provider error body (both endpoint-controlled) may inject report lines or
+  // terminal escapes. Scrub every secret the settings carry — derived from the
+  // settings shape, not a hand-picked field — and flatten both.
+  const secrets = secretValuesOf(settings);
   try {
     const result = await makeCompleter(settings).complete(request);
     return {
