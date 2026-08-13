@@ -4,7 +4,7 @@ import { loadOneSkill, makeSmokeContext, toolByName } from "./fixtures";
 
 // Tier-1 skill-logic smoke for mcp-client. A JSON-RPC cassette over
 // streamable-http drives initialize → tools/list → tools/call through the real
-// wire + register path. See docs/contributing/skill-e2e-smoke-strategy.md.
+// wire + register path. See docs/explanation/testing-strategy.md.
 
 afterEach(() => {
   mock.restore();

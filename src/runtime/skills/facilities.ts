@@ -18,7 +18,7 @@ import type {
 // <stateDirectory>/facilities/grants.json so the public URL a consumer
 // registered with an external sender survives reboots: acquire is idempotent
 // on (consumer, name) and a repeat call with unchanged config returns the
-// stored grant without re-invoking the provider. See docs/explanation/skill-facilities.md.
+// stored grant without re-invoking the provider. See docs/explanation/facilities.md.
 
 const GRANTS_FILE = "grants.json";
 const JSON_INDENT = 2;

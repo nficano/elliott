@@ -4,7 +4,7 @@ import { loadOneSkill, makeSmokeContext, toolByName } from "./fixtures";
 // Tier-1 skill-logic smoke for gateway-email. The allowlist check is free
 // (rejects before any SMTP connection); the wire protocol itself needs a real
 // TLS socket and is exercised indirectly through this contract. See
-// docs/contributing/skill-e2e-smoke-strategy.md.
+// docs/explanation/testing-strategy.md.
 
 describe("gateway-email skill logic (Tier 1)", () => {
   it("stays dormant without smtp settings", async () => {

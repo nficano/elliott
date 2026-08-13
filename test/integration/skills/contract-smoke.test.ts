@@ -16,7 +16,7 @@ import { makeSmokeContext, repoRoot } from "./fixtures";
 // counts below are a deliberate snapshot: adding or removing a tool/gateway/
 // route/service is expected to update this test, which surfaces the change in
 // review rather than letting it drift silently. See
-// docs/contributing/skill-e2e-smoke-strategy.md.
+// docs/explanation/testing-strategy.md.
 
 // Framework built-ins (fetch, evaluator/*, files, mcp-client, scheduler, ssh,
 // terminal, deep-trace, glitchtip, vault) plus the gateway/search/proxy/ingress

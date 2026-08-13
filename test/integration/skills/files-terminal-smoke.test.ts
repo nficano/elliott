@@ -4,7 +4,7 @@ import { loadOneSkill, makeSmokeContext, toolByName } from "./fixtures";
 // Tier-1 skill-logic smoke for the filesystem-backed tools. These need no stub:
 // the fixture points files/terminal at a fresh mkdtemp root, so we run them for
 // real and assert both a happy path and the path/allowlist containment that is
-// the whole point of these tools. See docs/contributing/skill-e2e-smoke-strategy.md.
+// the whole point of these tools. See docs/explanation/testing-strategy.md.
 
 describe("files skill logic (Tier 1)", () => {
   it("writes, reads back, and lists a workspace file", async () => {

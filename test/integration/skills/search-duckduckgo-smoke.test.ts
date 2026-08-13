@@ -11,7 +11,7 @@ import {
 // (the registry only ran it for agents that explicitly installed it) — this
 // is the dormant-by-default proof the tool's own evals/ can't provide, since
 // that suite calls searchTool() directly rather than through register()'s
-// settings gate. See docs/contributing/skill-e2e-smoke-strategy.md.
+// settings gate. See docs/explanation/testing-strategy.md.
 
 afterEach(() => {
   mock.restore();

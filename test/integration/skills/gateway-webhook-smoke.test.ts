@@ -4,7 +4,7 @@ import { loadOneSkill, makeGatewayEvents, makeSmokeContext } from "./fixtures";
 
 // Tier-1 skill-logic smoke for gateway-webhook: HMAC verification and the
 // accepted/rejected route paths. See
-// docs/contributing/skill-e2e-smoke-strategy.md.
+// docs/explanation/testing-strategy.md.
 
 afterEach(() => {
   mock.restore();

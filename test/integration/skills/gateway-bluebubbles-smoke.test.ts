@@ -9,7 +9,7 @@ import {
 
 // Tier-1 skill-logic smoke for gateway-bluebubbles: read/send tools and the
 // inbound webhook's token verification + sender allowlist. See
-// docs/contributing/skill-e2e-smoke-strategy.md.
+// docs/explanation/testing-strategy.md.
 
 afterEach(() => {
   mock.restore();

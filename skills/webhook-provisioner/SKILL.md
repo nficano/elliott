@@ -9,7 +9,7 @@ Provides the `ingress.webhook@1` facility: zero-config provisioning of a
 verified public webhook endpoint. A consumer skill acquires a grant during its
 own `register()` and receives the public URL to hand to the sender plus the
 internal runtime route it must serve; the provisioner owns everything in
-between. Design: `docs/explanation/skill-facilities.md`.
+between. Design: `docs/explanation/facilities.md`.
 
 ## Contract
 

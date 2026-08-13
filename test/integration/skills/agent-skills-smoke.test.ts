@@ -6,7 +6,7 @@ import { loadAgentSkillPackages } from "../../../src/catalog/bundled";
 import { loadSkillRegistrations } from "../../../src/runtime/skills/loader";
 import { makeSmokeContext, repoRoot } from "./fixtures";
 
-// Agent-layer custom skills (docs/explanation/agent-skills.md): agents/<name>/skills/
+// Agent-layer custom skills (docs/explanation/framework-vs-agent-repos.md): agents/<name>/skills/
 // under ANY root loads through the same package seam as the framework's
 // skills/. The elliott repo itself ships no agent skills — the canonical
 // agent root is the elliott-agents repo — so the positive path is driven

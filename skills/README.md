@@ -55,10 +55,10 @@ still gate on the same settings block or secret they needed in the registry;
 so it now carries an explicit `tools.search_duckduckgo.enabled` config gate
 it didn't have before — bundling it in core makes it reachable by every
 agent unless an operator opts in, which installing-from-registry used to
-handle instead. See the table in `docs/reference/blockers.md`.
+handle instead. See the table in `docs/reference/activation-gates.md`.
 
 Executable entries ship a registration module. Several executable entries stay
 dormant until the operator provisions a secret or flips an enable flag (e.g.
 `terminal` and `ssh` require an explicit allowlist). See
-[`docs/reference/blockers.md`](../docs/reference/blockers.md) for the current activation state of
+[`docs/reference/activation-gates.md`](../docs/reference/activation-gates.md) for the current activation state of
 each.
