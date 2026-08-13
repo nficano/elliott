@@ -27,7 +27,7 @@ describe("probeLlm", () => {
         received = request;
         return { text: "ready", toolCalls: [] };
       },
-    }));
+    }), []);
     expect(probe.ok).toBe(true);
     expect(probe.reply).toBe("ready");
     expect(probe.wire).toBe("anthropic");
@@ -41,16 +41,27 @@ describe("probeLlm", () => {
       complete: async () => {
         throw new Error("anthropic 401: invalid x-api-key");
       },
-    }));
+    }), []);
     expect(probe.ok).toBe(false);
     expect(probe.error).toBe("anthropic 401: invalid x-api-key");
     expect(probe.reply).toBeUndefined();
+  });
+
+  it("scrubs a resolved secret the endpoint echoes back", async () => {
+    const probe = await probeLlm(settings, () => ({
+      complete: async () => {
+        throw new Error("401: echoed Bearer sk-endpoint-echo");
+      },
+    }), ["sk-endpoint-echo"]);
+    expect(probe.error).not.toContain("sk-endpoint-echo");
+    expect(probe.error).toContain("‹redacted›");
   });
 
   it("bounds an overlong reply", async () => {
     const probe = await probeLlm(
       settings,
       () => completerReturning({ text: "x".repeat(1000), toolCalls: [] }),
+      [],
     );
     expect(probe.reply?.length).toBe(200);
   });

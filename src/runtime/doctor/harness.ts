@@ -1,12 +1,11 @@
 import type { BundledPackage } from "../../catalog/types";
 import { collectPackageViews } from "../skills/loader";
 import type { SkillContextSeed, SkillPackageView } from "../skills/types";
-import { hostOf, withEgressAllowlist } from "./egress";
+import { originOf, withEgressAllowlist } from "./egress";
 import { classifyOutcome } from "./gate";
 import { readManifestSecretRefs } from "./manifest";
 import { cleanMessage, sanitizeForDisplay } from "./message";
 import { probeLlm } from "./probe";
-import { secretValuesOf } from "./secrets";
 import type {
   CapturedReport,
   DoctorDependencies,
@@ -32,25 +31,22 @@ const SKILL_MECHANISM_PREFIX = "skill:";
 const doctorSeed = (
   input: DoctorInput,
   reports: CapturedReport[],
-): SkillContextSeed => {
-  // Every secret the settings carry, derived from the settings shape — so a
-  // skill echoing ANY credential (a vendor key, a token, a password, a DSN),
-  // not just the LLM key, is scrubbed. See secretValuesOf.
-  const secrets = secretValuesOf(input.settings);
-  return {
-    settings: input.settings,
-    stateDirectory: input.settings.stateDirectory,
-    packages: () => [],
-    report: (error, mechanism) => {
-      reports.push({
-        mechanism,
-        message: sanitizeForDisplay(cleanMessage(error), secrets),
-      });
-    },
-    installErrorSink: () => {},
-    deliver: async () => {},
-  };
-};
+): SkillContextSeed => ({
+  settings: input.settings,
+  stateDirectory: input.settings.stateDirectory,
+  packages: () => [],
+  report: (error, mechanism) => {
+    // Scrub every secret the config boundary resolved (input.secretValues), so
+    // a skill echoing ANY credential — a vendor key, a token, a password, a
+    // DSN, an MCP authorization — is redacted, not just the LLM key.
+    reports.push({
+      mechanism,
+      message: sanitizeForDisplay(cleanMessage(error), input.secretValues),
+    });
+  },
+  installErrorSink: () => {},
+  deliver: async () => {},
+});
 
 const errorFor = (
   name: string,
@@ -116,14 +112,18 @@ export const runDoctor = async (
   const start = deps.now();
   const reports: CapturedReport[] = [];
   const seed = doctorSeed(input, reports);
-  const allowedHost = hostOf(input.settings.llmBaseUrl);
-  const trace = await withEgressAllowlist([allowedHost], async () => {
+  const allowedOrigin = originOf(input.settings.llmBaseUrl);
+  const trace = await withEgressAllowlist([allowedOrigin], async () => {
     const packages = await deps.loadPackages(input.roots);
     const skills = await deps.register(packages, seed);
     const secretRefs = await secretRefsFor(packages, deps.manifestSecrets);
     const views = collectPackageViews(packages, skills);
     const outcomes = classifyAll(views, reports, secretRefs);
-    const llm = await probeLlm(input.settings, deps.makeCompleter);
+    const llm = await probeLlm(
+      input.settings,
+      deps.makeCompleter,
+      input.secretValues,
+    );
     return { outcomes, llm };
   });
   const { outcomes, llm } = trace.result;

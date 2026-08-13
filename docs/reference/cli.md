@@ -77,8 +77,9 @@ The output has four parts:
   registration at all is an error, not a skip. Skipped skills never abort the run.
 - **Egress** — every host contacted during the run, redirect targets included:
   the command follows redirects manually and permits network only to the LLM
-  endpoint, so a request (or redirect) anywhere else is blocked, recorded, and
-  fails the run.
+  endpoint's exact origin (scheme, host, and port), so a request or redirect to
+  any other host — or a plaintext `http` downgrade of an `https` endpoint — is
+  blocked, recorded, and fails the run.
 - **Timing** — elapsed wall time, with a notice when a cold run exceeds five
   minutes.
 

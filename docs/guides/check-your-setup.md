@@ -94,13 +94,16 @@ LLM probe   FAILED  (anthropic wire, model claude-haiku-4-5-20251001, https://ap
 VERDICT: FAIL
 ```
 
-The message is scrubbed of the API key and flattened to a single line, so a
-hostile or misconfigured endpoint cannot echo your key or forge a verdict line
-into the output.
+The message is scrubbed of every secret the config boundary resolved and
+flattened to a single line, so a hostile or misconfigured endpoint cannot echo a
+key — a vendor key, an MCP authorization, any credential — or forge a verdict
+line into the output. A malformed `ELLIOTT_SECRETS_FILE` fails the same way: one
+sanitized line, never a stack trace or the file's contents.
 
-The command talks to the LLM endpoint and nothing else. It follows redirects
-manually and checks every hop, so an allowlisted endpoint cannot bounce a
-request to a third host: any host outside the allowlist — including a redirect
-target — is blocked, listed under the egress section, and fails the run. A skill
-that reaches off-box surfaces here rather than in production. A cold run that
-takes longer than five minutes says so in its output.
+The command talks to the LLM endpoint and nothing else. The allowlist is the
+endpoint's exact origin — scheme, host, and port — and every hop, redirect
+targets included, is checked against it. So a bounce to a third host, and a
+plaintext `http` downgrade of an `https` endpoint, are both blocked, listed
+under the egress section, and fail the run. A skill that reaches off-box
+surfaces here rather than in production. A cold run that takes longer than five
+minutes says so in its output.

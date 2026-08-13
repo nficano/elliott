@@ -8,7 +8,9 @@ import {
   makeHttpEvolutionCliBackend,
 } from "./learning/evolution/cli/index";
 import { scaffoldComponent } from "./manifest/scaffold";
-import { doctorRoots, runDoctorCli } from "./runtime/doctor/index";
+// message.ts is dependency-free (no config import), so it is safe to load
+// eagerly even when a config-evaluation failure is what we are trying to render.
+import { firstLine, oneLine } from "./runtime/doctor/message";
 
 const scaffold = async (arguments_: readonly string[]): Promise<boolean> => {
   const [command, kind, name, parentDirectory = "."] = arguments_;
@@ -33,10 +35,33 @@ const scaffold = async (arguments_: readonly string[]): Promise<boolean> => {
 // elliott as a package these differ; inside this repo they coincide.
 const frameworkRoot = fileURLToPath(new URL("..", import.meta.url));
 
+// `doctor` is dispatched through a DYNAMIC import so the runtime config module
+// (which reads ELLIOTT_SECRETS_FILE at load) is evaluated inside this try/catch,
+// not at the top of the file before any handler runs. A malformed secrets file
+// then surfaces as a sanitized one-line error, never an uncaught stack trace.
+const runDoctorCommand = async (
+  arguments_: readonly string[],
+): Promise<void> => {
+  try {
+    const { doctorRoots, runDoctorCli } = await import(
+      "./runtime/doctor/index"
+    );
+    await runDoctorCli(arguments_, doctorRoots(frameworkRoot, process.cwd()));
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(`elliott doctor: ${oneLine(firstLine(message))}`);
+    process.exitCode = 1;
+  }
+};
+
+const DOCTOR_COMMAND = "doctor";
+
 const main = async (arguments_: readonly string[]): Promise<void> => {
   if (await scaffold(arguments_)) return;
-  const roots = doctorRoots(frameworkRoot, process.cwd());
-  if (await runDoctorCli(arguments_, roots)) return;
+  if (arguments_[0] === DOCTOR_COMMAND) {
+    await runDoctorCommand(arguments_);
+    return;
+  }
   if (await runSkillsCli(arguments_, process.cwd())) return;
   const endpoint = Bun.env["ELLIOTT_CONTROL_PLANE_URL"];
   if (endpoint === undefined) {

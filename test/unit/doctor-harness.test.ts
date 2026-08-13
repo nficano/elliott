@@ -26,6 +26,7 @@ const input: DoctorInput = {
     model: "claude-haiku-4-5-20251001",
     stateDirectory: "/repo/.elliott-runtime",
   } as unknown as RuntimeSettings,
+  secretValues: [],
 };
 
 const pkg = (name: string, gate: string): BundledPackage => ({
@@ -172,29 +173,27 @@ describe("runDoctor", () => {
     expect(report.ok).toBe(false);
   });
 
-  it("redacts every settings secret a skill echoes, not just the LLM key", async () => {
-    const withSecret = {
-      ...input,
-      settings: {
-        ...input.settings,
-        braveApiKey: "brave-secret-value",
-      } as unknown as RuntimeSettings,
-    };
+  it("redacts every resolved secret a skill echoes, whatever its name", async () => {
+    // secretValues comes from the config boundary (resolveSecretValues), so it
+    // covers any credential regardless of the settings field it landed in — a
+    // vendor key, an mcp authorization, a password.
+    const withSecret = { ...input, secretValues: ["mcp-authorization-value"] };
     const report = await runDoctor(
       withSecret,
       deps({
         loadPackages: async () => [pkg("broken", "always")],
         register: async (_packages, seed: SkillContextSeed) => {
-          const echoed =
-            (seed.settings as { braveApiKey?: string; }).braveApiKey;
-          seed.report(new Error(`setup rejected ${echoed}`), "skill:broken");
+          seed.report(
+            new Error("setup rejected mcp-authorization-value"),
+            "skill:broken",
+          );
           return [];
         },
       }),
     );
     const broken = report.skills.find((s) => s.name === "broken");
     expect(broken?.status).toBe("error");
-    expect(broken?.error).not.toContain("brave-secret-value");
+    expect(broken?.error).not.toContain("mcp-authorization-value");
     expect(broken?.error).toContain("‹redacted›");
   });
 

@@ -83,21 +83,21 @@ const advance = (
 };
 
 // Issue one request, following redirects by hand so every hop passes the
-// caller's `checkHop` before it is fetched. checkHop records the host, enforces
-// the allowlist, and — for a redirect — rejects any change of origin
-// (scheme/host/port). That closes two gaps fetch's automatic following leaves:
-// a bounce to a third host, and a same-host downgrade from https to http that
-// would carry the Authorization header over plaintext.
+// caller's `checkHop` before it is fetched. checkHop enforces the ORIGIN
+// allowlist (scheme + host + port), so — for the initial request and every
+// redirect target alike — a plaintext http hop to an https LLM host, a bounce
+// to a third host, and a same-host scheme/port downgrade are all rejected
+// before any request (and the Authorization header it carries) leaves.
 const followGuarded = async (
   guard: {
     readonly original: typeof fetch;
-    readonly checkHop: (url: string, fromUrl?: string) => void;
+    readonly checkHop: (url: string) => void;
   },
   input: Parameters<typeof fetch>[0],
   init: Parameters<typeof fetch>[1],
 ): Promise<Response> => {
   const href = hrefOf(input);
-  // An input we cannot parse as a URL has no host to check; refuse to follow
+  // An input we cannot parse as a URL has no origin to check; refuse to follow
   // any redirect for it rather than risk a silent off-box hop.
   if (href === undefined) {
     return guard.original(input, { ...init, redirect: "error" });
@@ -121,44 +121,37 @@ const followGuarded = async (
         `egress blocked: too many redirects (> ${MAX_REDIRECTS}) from ${href}`,
       );
     }
-    const next = advance(hop, response.status, location);
-    guard.checkHop(next.url, hop.url);
-    hop = next;
+    hop = advance(hop, response.status, location);
+    guard.checkHop(hop.url);
   }
 };
 
 // Run `fn` with globalThis.fetch replaced by a guard that permits requests only
-// to the allowlisted hosts (the LLM endpoint). Every contacted host — including
-// every redirect target — is recorded; a request to any other host is recorded
-// as a violation AND thrown, so the offending path fails loudly instead of
-// reaching off-box. The original fetch is always restored.
+// to the allowlisted ORIGINS (the LLM endpoint's scheme://host:port). Every
+// contacted host — including every redirect target — is recorded; a request to
+// any other origin is recorded as a violation AND thrown, so the offending path
+// fails loudly instead of reaching off-box. The original fetch is always
+// restored.
 export const withEgressAllowlist = async <T>(
-  allowedHosts: readonly string[],
+  allowedOrigins: readonly string[],
   fn: () => Promise<T>,
 ): Promise<DoctorEgressTrace<T>> => {
   const contacted = new Set<string>();
   const violations = new Set<string>();
   const original = globalThis.fetch;
-  // Validate one hop. Records the host, enforces the host allowlist, and — when
-  // `fromUrl` is set (a redirect) — refuses any change of origin, so a redirect
-  // can never downgrade the scheme, change the port, or leave the host.
-  const checkHop = (url: string, fromUrl?: string): void => {
+  // Validate one hop by ORIGIN, not host: an https LLM endpoint's origin does
+  // not admit http://<same-host> (different scheme, and default port 80 vs 443),
+  // a different host, or a different port. Records the host for the report; a
+  // mismatch is recorded as a violation and thrown.
+  const checkHop = (url: string): void => {
     const target = safeUrl(url);
     if (target === undefined) return;
     contacted.add(target.host);
-    if (!allowedHosts.includes(target.host)) {
+    if (!allowedOrigins.includes(target.origin)) {
       violations.add(target.host);
       throw new Error(
-        `egress blocked: ${target.host} is outside the LLM-only allowlist `
-          + `(permitted: ${allowedHosts.join(", ")})`,
-      );
-    }
-    const from = fromUrl === undefined ? undefined : safeUrl(fromUrl);
-    if (from !== undefined && from.origin !== target.origin) {
-      violations.add(target.host);
-      throw new Error(
-        `egress blocked: redirect ${from.origin} -> ${target.origin} changes `
-          + "origin (scheme/host/port); refusing to carry credentials across it",
+        `egress blocked: ${target.origin} is outside the LLM-only allowlist `
+          + `(permitted: ${allowedOrigins.join(", ")})`,
       );
     }
   };
@@ -187,5 +180,6 @@ export const withEgressAllowlist = async <T>(
   }
 };
 
-// The host portion of a base URL, used to seed the allowlist from settings.
-export const hostOf = (baseUrl: string): string => new URL(baseUrl).host;
+// The origin (scheme://host:port) of a base URL, used to seed the allowlist
+// from settings so egress is pinned to the exact LLM endpoint, scheme included.
+export const originOf = (baseUrl: string): string => new URL(baseUrl).origin;

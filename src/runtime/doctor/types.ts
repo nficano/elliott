@@ -120,6 +120,12 @@ export interface DoctorRoots {
 export interface DoctorInput {
   readonly roots: DoctorRoots;
   readonly settings: RuntimeSettings;
+  // Every secret VALUE the config boundary resolved for this deployment, from
+  // resolveSecretValues. The doctor scrubs these from every operator-facing
+  // message. Derived from the secret DECLARATION (secrets.yaml + the LLM key),
+  // so it covers every credential — named anything, nested anywhere — without
+  // the doctor classifying settings fields.
+  readonly secretValues: readonly string[];
 }
 
 // One report a skill's register() emitted through SkillContext.report: the

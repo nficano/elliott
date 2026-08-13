@@ -4,7 +4,7 @@ export {
   doctorRoots,
   runDoctorCli,
 } from "./cli";
-export { hostOf, withEgressAllowlist } from "./egress";
+export { originOf, withEgressAllowlist } from "./egress";
 export { formatReport } from "./format";
 export { classifyOutcome, gateTextOf, parseGate } from "./gate";
 export {
@@ -15,4 +15,3 @@ export {
 export { readManifestSecretRefs } from "./manifest";
 export { cleanMessage } from "./message";
 export { probeLlm } from "./probe";
-export { secretValuesOf } from "./secrets";

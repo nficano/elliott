@@ -6,6 +6,7 @@ import type { BundledPackage } from "../../catalog/types";
 import {
   envBackedSecretResolver,
   loadRuntimeSettings,
+  resolveSecretValues,
   runtimeEnvironment,
 } from "../config";
 import { RuntimeModelClient } from "../model/client";
@@ -14,7 +15,6 @@ import type { SecretResolver } from "../types";
 import { formatReport } from "./format";
 import { defaultDoctorDependencies, runDoctor } from "./harness";
 import { cleanMessage, firstLine, sanitizeForDisplay } from "./message";
-import { secretValuesOf } from "./secrets";
 import type { DoctorEnv, DoctorEnvOverlay, DoctorRoots } from "./types";
 
 const DOCTOR_COMMAND = "doctor";
@@ -156,8 +156,12 @@ export const runDoctorCli = async (
       resolver,
     );
   } catch (error) {
+    // Pre-load, the only secret the doctor holds is the LLM key it injected
+    // into the overlay (never provider/model — those are not secrets).
+    const overlayKey = overlay[LLM_API_KEY_VAR];
+    const secrets = overlayKey === undefined ? [] : [overlayKey];
     console.error(
-      `elliott doctor: ${configErrorLine(error, secretValuesOf(overlay))}`
+      `elliott doctor: ${configErrorLine(error, secrets)}`
         + configErrorHint(overlay),
     );
     process.exitCode = 1;
@@ -169,12 +173,14 @@ export const runDoctorCli = async (
         + `(override with ${LLM_MODEL_VAR}).`,
     );
   }
+  // The authoritative secret set for redaction, from the config boundary.
+  const secretValues = await resolveSecretValues(roots.agentRoot, resolver);
   const deps = defaultDoctorDependencies(
     loadDoctorPackages,
     (packages, seed) => loadSkillRegistrations(packages, seed),
     (resolved) => new RuntimeModelClient(resolved),
   );
-  const report = await runDoctor({ roots, settings }, deps);
+  const report = await runDoctor({ roots, settings, secretValues }, deps);
   console.log(formatReport(report));
   process.exitCode = report.ok ? 0 : 1;
   return true;
