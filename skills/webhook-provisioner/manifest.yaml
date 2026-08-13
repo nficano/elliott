@@ -9,6 +9,8 @@ spec:
     - { facility: ingress.webhook, version: 1 }
   capabilities:
     - { capability: secret.use, resources: [secret://facilities/webhook] }
+    - { capability: fs.read, resources: [state://webhook-provisioner/endpoints.json] }
+    - { capability: fs.write, resources: [state://webhook-provisioner/endpoints.json] }
   egress: { class: none }
   isolation: container
   outputTrust: untrusted

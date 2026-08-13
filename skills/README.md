@@ -48,9 +48,13 @@ The built-in set is:
 
 `gateway-home-assistant` and `pihole` stay in the registry — everything else
 that used to live under `gateway-*`, `search-*`/`web-*`, or `traefik` moved
-into this built-in set. None of the moved skills are enabled by default: each
-still gates on its own settings block or secret exactly as it did in the
-registry (see the table in `docs/reference/blockers.md`).
+into this built-in set. None of the moved skills are enabled by default. Most
+still gate on the same settings block or secret they needed in the registry;
+`search-duckduckgo` needed no secret there (opt-in was just installing it),
+so it now carries an explicit `tools.search_duckduckgo.enabled` config gate
+it didn't have before — bundling it in core makes it reachable by every
+agent unless an operator opts in, which installing-from-registry used to
+handle instead. See the table in `docs/reference/blockers.md`.
 
 Executable entries ship a registration module. Several executable entries stay
 dormant until the operator provisions a secret or flips an enable flag (e.g.

@@ -55,7 +55,3 @@ Give every control a text label (never color alone), always set the `text`
 fallback (mobile notifications use only it), and inside block text use Slack
 mrkdwn (`*bold*`, `<url|label>`) — standard markdown renders only inside a
 `markdown` block. Prefer plain text when a control would add nothing.
-
-The full agent lifecycle, setup, search, interactivity/response rules, file
-handling, retention policy, and mrkdwn-vs-markdown reference live in
-`docs/slack-llms.txt`; consult it before building an unfamiliar block.

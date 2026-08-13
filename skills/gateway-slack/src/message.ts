@@ -23,9 +23,7 @@ export const slackMessageTool = (
     + "markdown block. Every interactive control needs a text label, not color "
     + "alone. Defaults to the owner's primary channel; pass channel/thread to "
     + "target elsewhere. Displayed text may use only Elliott's approved custom "
-    + "emoji aliases; every other shortcode or Unicode emoji is removed. See "
-    + "docs/slack-llms.txt for the block catalog, interactivity, and formatting "
-    + "rules.",
+    + "emoji aliases; every other shortcode or Unicode emoji is removed.",
   inputSchema: objectSchema({
     text: { type: "string", minLength: 1 },
     blocks: { type: "array", items: { type: "object" }, minItems: 1 },

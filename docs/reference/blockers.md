@@ -30,6 +30,7 @@ the operator's own runbook).
 | `gateway-slack`, `gateway-email`, `gateway-gmail`, `gateway-bluebubbles`, `gateway-webhook` | their channel secrets (tokens, signing secrets) — same gates as before their move into core |
 | `gateway-home-assistant`, `pihole` (registry) | their channel secrets, installed per agent repo |
 | `search-brave`, `web-firecrawl`, `web-parallel` | the provider's API key secret |
+| `search-duckduckgo` | `tools.search_duckduckgo.enabled: true` — no secret needed, but bundling it in core means every agent can reach it unless an operator opts in |
 | `traefik` | a `traefik:` config block (provides `proxy.route`) |
 | `webhook-provisioner` | `webhookProvisioner.hooksBaseUrl` plus the internal `webhook_signing_secret` (provides `ingress.webhook`) |
 | `store` vectors | a reachable Postgres with `pgvector` at `store.dsn` |

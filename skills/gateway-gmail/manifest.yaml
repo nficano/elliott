@@ -8,6 +8,8 @@ spec:
   capabilities:
     - { capability: network.connect, resources: [googleapis.com, oauth2.googleapis.com] }
     - { capability: secret.use, resources: [secret://gateways/gmail] }
+    - { capability: fs.read, resources: [state://gmail-webhook-anchors.json] }
+    - { capability: fs.write, resources: [state://gmail-webhook-anchors.json] }
   egress: { class: declared, hosts: [googleapis.com, oauth2.googleapis.com] }
   isolation: container
   senderAllowlist: required

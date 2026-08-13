@@ -45,6 +45,7 @@ export const smokeSettings = (stateDirectory: string): RuntimeSettings => ({
   braveApiKey: "x",
   firecrawlApiKey: "x",
   parallelApiKey: "x",
+  searchDuckduckgo: { enabled: true },
   slack: {
     appToken: "xapp-x",
     botToken: "xoxb-x",

@@ -1,4 +1,5 @@
 import { isJsonRecord, recordArray } from "../../../src/providers/http";
+import { publicUrl } from "../../../src/runtime/skills/http";
 import type {
   GmailClient,
   HistoryAddedMessage,
@@ -156,13 +157,19 @@ const unsubscribeOneClick = async (url: string): Promise<WriteOutcome> => {
   if (!/^https:\/\//i.test(url)) {
     return { ok: false, status: 0, method: "skipped-non-https" };
   }
-  const post = await fetch(url, {
+  // The manifest declares only Google API egress; List-Unsubscribe is a
+  // sender-controlled header on untrusted mail, so the destination must be
+  // rejected unless it's a genuinely public host (publicUrl rejects
+  // loopback/private/link-local ranges and embedded credentials, not just
+  // non-https schemes).
+  const target = publicUrl(url);
+  const post = await fetch(target, {
     method: "POST",
     headers: { "content-type": "application/x-www-form-urlencoded" },
     body: "List-Unsubscribe=One-Click",
   });
   if (post.ok) return { ok: true, status: post.status, method: "POST" };
-  const get = await fetch(url);
+  const get = await fetch(target);
   return { ok: get.ok, status: get.status, method: "GET" };
 };
 

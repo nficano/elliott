@@ -9,6 +9,7 @@ spec:
     - { facility: proxy.route, version: 1 }
   capabilities:
     - { capability: network.connect, resources: [declared://traefik] }
+    - { capability: fs.read, resources: [state://traefik/routes.json] }
     - { capability: fs.write, resources: [state://traefik/routes.json] }
   egress: { class: lan, hosts: [] }
   isolation: container

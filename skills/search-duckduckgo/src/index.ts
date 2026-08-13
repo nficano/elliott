@@ -3,7 +3,10 @@ import {
   request,
   requiredString,
 } from "../../../src/runtime/skills/http";
-import type { SkillRegistration } from "../../../src/runtime/skills/types";
+import type {
+  SkillContext,
+  SkillRegistration,
+} from "../../../src/runtime/skills/types";
 import type { ToolDefinition } from "../../../src/runtime/types";
 import { parseDuckDuckGoResults } from "./parser";
 
@@ -11,11 +14,15 @@ const USER_AGENT = "Mozilla/5.0 (compatible; Elliott/1.0)";
 
 export { parseDuckDuckGoResults } from "./parser";
 
-export const register = (): SkillRegistration => ({
-  tools: [searchTool()],
-});
+// Needs no secret, but bundling it in core makes it reachable by every agent
+// unless an operator opts in — the registry only ran it for agents that
+// explicitly installed it. tools.search_duckduckgo.enabled is that opt-in.
+export const register = (context: SkillContext): SkillRegistration => {
+  if (context.settings.searchDuckduckgo === undefined) return {};
+  return { tools: [searchTool()] };
+};
 
-const searchTool = (): ToolDefinition => ({
+export const searchTool = (): ToolDefinition => ({
   name: "duckduckgo_search",
   description: "Search the public web without an API key.",
   inputSchema: objectSchema({ query: { type: "string" } }, ["query"]),

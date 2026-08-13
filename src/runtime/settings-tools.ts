@@ -13,6 +13,7 @@ import type {
   HomeAssistantSettings,
   LitellmSpendSettings,
   PiholeSettings,
+  SearchDuckDuckGoSettings,
   SmtpSettings,
   SshSettings,
   SubscriptionAccountSettings,
@@ -151,6 +152,18 @@ export const optionalTraefik = (
       ...(lanAddress !== undefined && { lanAddress }),
     },
   };
+};
+
+// No secret needed, but bundling it in core makes it reachable by every
+// agent unless an operator opts in — unlike the registry, where it only ran
+// for agents that explicitly installed it.
+export const optionalSearchDuckDuckGo = (
+  value: unknown,
+): { readonly searchDuckduckgo?: SearchDuckDuckGoSettings; } => {
+  if (valueAt(value, ["tools", "search_duckduckgo", "enabled"]) !== true) {
+    return {};
+  }
+  return { searchDuckduckgo: { enabled: true } };
 };
 
 export const optionalWebhookProvisioner = (

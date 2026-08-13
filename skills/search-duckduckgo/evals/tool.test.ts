@@ -1,6 +1,10 @@
 import { describe, expect, it, spyOn } from "bun:test";
-import { register } from "../src/index";
+import { searchTool } from "../src/index";
 
+// Exercises the tool contract directly (register()'s settings gate — off by
+// default, opt-in via tools.search_duckduckgo.enabled — is covered by
+// test/integration/skills/search-duckduckgo-smoke.test.ts through the real
+// loader).
 describe("DuckDuckGo tool evolution target", () => {
   it("preserves the public search contract and brokered destination", async () => {
     const requests: URL[] = [];
@@ -20,8 +24,7 @@ describe("DuckDuckGo tool evolution target", () => {
     );
     const fetchSpy = spyOn(globalThis, "fetch").mockImplementation(fetcher);
     try {
-      const tool = register().tools?.[0];
-      if (tool === undefined) throw new Error("search tool is unavailable");
+      const tool = searchTool();
       expect(tool?.name).toBe("duckduckgo_search");
       expect(tool?.inputSchema).toEqual({
         type: "object",
@@ -43,8 +46,7 @@ describe("DuckDuckGo tool evolution target", () => {
   });
 
   it("rejects malformed arguments before network access", () => {
-    const tool = register().tools?.[0];
-    if (tool === undefined) throw new Error("search tool is unavailable");
+    const tool = searchTool();
     expect(tool.execute({ query: 7 })).rejects.toThrow(
       "Tool argument query must be a string",
     );

@@ -128,6 +128,14 @@ export interface TraefikSettings {
   readonly lanAddress?: string;
 }
 
+// No secret and no fields: needs no credential, but bundling it in core
+// means it is reachable by every agent unless an operator opts in, so
+// presence of this settings object (not a bare boolean) is the gate — same
+// shape as FilesSettings/TerminalSettings.
+export interface SearchDuckDuckGoSettings {
+  readonly enabled: true;
+}
+
 export interface WebhookProvisionerSettings {
   // Public base of the hooks hostname the cloudflared tunnel routes to the
   // runtime, e.g. https://hooks.example.com. Endpoint URLs are <base>/w/<slug>.
@@ -302,6 +310,7 @@ export interface RuntimeSettings {
   readonly braveApiKey?: string;
   readonly firecrawlApiKey?: string;
   readonly parallelApiKey?: string;
+  readonly searchDuckduckgo?: SearchDuckDuckGoSettings;
   readonly slack?: SlackSettings;
   readonly gmail?: GmailSettings;
   readonly google?: GoogleSettings;
