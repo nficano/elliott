@@ -2,8 +2,8 @@
 # the app's App Manifest page (api.slack.com/apps -> App Manifest). Slack
 # applies it VERBATIM: dropping an event subscription here disconnects that
 # surface in production the moment the manifest is saved, while the Socket
-# Mode connection keeps reporting healthy. scripts/validate_registry.py pins
-# this file to the events and scopes the gateway source requires.
+# Mode connection keeps reporting healthy. evals/slack-app-manifest.test.ts
+# pins this file to the events and scopes the gateway source requires.
 _metadata:
   major_version: 2
   minor_version: 1

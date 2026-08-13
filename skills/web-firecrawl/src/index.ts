@@ -47,8 +47,8 @@ const scrapeTool = (apiKey: string): ToolDefinition => ({
   inputSchema: objectSchema({ url: { type: "string", format: "uri" } }, [
     "url",
   ]),
-  execute: (input) => {
-    const url = publicUrl(requiredString(input, "url"));
+  execute: async (input) => {
+    const url = await publicUrl(requiredString(input, "url"));
     return firecrawl(apiKey, "scrape", {
       url: url.href,
       formats: ["markdown"],

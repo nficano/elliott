@@ -8,6 +8,13 @@ import type {
 
 export type JsonRecord = Readonly<Record<string, unknown>>;
 
+// Resolves a hostname to every address it answers to, so publicUrl() can
+// reject a DNS name whose resolved address is private even when the name
+// itself doesn't look like one (nip.io, sslip.io, DNS rebinding). Injectable
+// so tests validate the classification logic without a live DNS lookup —
+// production callers get the real resolver by default.
+export type AddressResolver = (hostname: string) => Promise<readonly string[]>;
+
 export interface GatewayFeedback {
   readonly gateway: string;
   readonly channel: string;

@@ -21,7 +21,7 @@ const fetchTool = (): ToolDefinition => ({
     "url",
   ]),
   execute: async (input) => {
-    const url = publicUrl(requiredString(input, "url"));
+    const url = await publicUrl(requiredString(input, "url"));
     const response = await request(url);
     const text = await response.text();
     return JSON.stringify({

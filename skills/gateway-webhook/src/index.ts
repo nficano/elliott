@@ -18,7 +18,7 @@ const HTTP_BAD_REQUEST = 400;
 const HTTP_PAYLOAD_TOO_LARGE = 413;
 
 export const register = (context: SkillContext): SkillRegistration => {
-  const secret = context.settings.webhookSecret;
+  const secret = context.settings.webhookGatewaySecret;
   return secret === undefined
     ? {}
     : { routes: [inboundRoute(secret, context)] };

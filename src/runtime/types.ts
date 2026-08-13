@@ -326,7 +326,16 @@ export interface RuntimeSettings {
   readonly webhookProvisioner?: WebhookProvisionerSettings;
   readonly deepTrace?: DeepTraceSettings;
   readonly subscriptionUsage?: SubscriptionUsageSettings;
+  // The internal loopback-hop signing secret: webhook-provisioner signs
+  // verified deliveries with it before forwarding to a consumer's internal
+  // route, and consumers (e.g. gateway-slack's interactivity route) verify
+  // it back. Not gateway-webhook's secret — see webhookGatewaySecret below;
+  // the two must stay independent so provisioning one never activates the
+  // other's unrelated public route.
   readonly webhookSecret?: string;
+  // gateway-webhook's own HMAC secret for its standalone public
+  // /v1/gateways/webhook route. Deliberately distinct from webhookSecret.
+  readonly webhookGatewaySecret?: string;
   readonly mcp: readonly McpEndpointSettings[];
   readonly glitchtip?: GlitchTipSettings;
   readonly vault?: VaultSettings;

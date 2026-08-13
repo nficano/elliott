@@ -20,15 +20,29 @@ const post = (body: string, signature?: string): Request =>
   });
 
 describe("gateway-webhook skill logic (Tier 1)", () => {
-  it("stays dormant without a webhook secret", async () => {
-    const { context } = await makeSmokeContext({ webhookSecret: undefined });
+  it("stays dormant without its own gateway secret", async () => {
+    const { context } = await makeSmokeContext({
+      webhookGatewaySecret: undefined,
+    });
+    const registration = await loadOneSkill("gateway-webhook", context);
+    expect(registration.routes ?? []).toHaveLength(0);
+  });
+
+  // Regression for the shared-secret bug: webhook-provisioner's internal
+  // loopback-hop secret (webhookSecret) must never be sufficient on its own
+  // to activate this unrelated public route — only webhookGatewaySecret may.
+  it("stays dormant when only the internal webhook-provisioner secret is set", async () => {
+    const { context } = await makeSmokeContext({
+      webhookSecret: "internal-hop-only",
+      webhookGatewaySecret: undefined,
+    });
     const registration = await loadOneSkill("gateway-webhook", context);
     expect(registration.routes ?? []).toHaveLength(0);
   });
 
   it("rejects a payload with a bad or missing signature", async () => {
     const { context, reported } = await makeSmokeContext({
-      webhookSecret: "topsecret",
+      webhookGatewaySecret: "topsecret",
     });
     const registration = await loadOneSkill("gateway-webhook", context);
     const route = registration.routes?.[0];
@@ -44,7 +58,9 @@ describe("gateway-webhook skill logic (Tier 1)", () => {
 
   it("accepts a correctly-signed payload and dispatches it", async () => {
     const secret = "topsecret";
-    const { context } = await makeSmokeContext({ webhookSecret: secret });
+    const { context } = await makeSmokeContext({
+      webhookGatewaySecret: secret,
+    });
     const registration = await loadOneSkill("gateway-webhook", context);
     const route = registration.routes?.[0];
     if (route === undefined) throw new Error("webhook route missing");

@@ -159,10 +159,11 @@ const unsubscribeOneClick = async (url: string): Promise<WriteOutcome> => {
   }
   // The manifest declares only Google API egress; List-Unsubscribe is a
   // sender-controlled header on untrusted mail, so the destination must be
-  // rejected unless it's a genuinely public host (publicUrl rejects
-  // loopback/private/link-local ranges and embedded credentials, not just
-  // non-https schemes).
-  const target = publicUrl(url);
+  // rejected unless it resolves to a genuinely public address (publicUrl
+  // resolves DNS and checks the resolved address, not just the hostname
+  // text, so an attacker-controlled name that answers with a private
+  // address — nip.io, sslip.io, rebinding — is rejected too).
+  const target = await publicUrl(url);
   const post = await fetch(target, {
     method: "POST",
     headers: { "content-type": "application/x-www-form-urlencoded" },

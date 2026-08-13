@@ -27,12 +27,13 @@ the operator's own runbook).
 | `terminal` | `tools.terminal.enabled: true` plus a non-empty `allowed_commands` |
 | `ssh` | `tools.ssh.enabled: true`, a non-empty `hosts` allowlist, and `ssh_private_key` |
 | `deep-trace` publish | `proxy.route` + `dns.local` facility providers installed, plus `public_hostname`/`service_url` |
-| `gateway-slack`, `gateway-email`, `gateway-gmail`, `gateway-bluebubbles`, `gateway-webhook` | their channel secrets (tokens, signing secrets) — same gates as before their move into core |
+| `gateway-slack`, `gateway-email`, `gateway-gmail`, `gateway-bluebubbles` | their channel secrets (tokens, signing secrets) — same gates as before their move into core |
+| `gateway-webhook` | its own `webhook_gateway_secret` — deliberately independent of webhook-provisioner's `webhook_signing_secret` below, so provisioning one never activates the other |
 | `gateway-home-assistant`, `pihole` (registry) | their channel secrets, installed per agent repo |
 | `search-brave`, `web-firecrawl`, `web-parallel` | the provider's API key secret |
 | `search-duckduckgo` | `tools.search_duckduckgo.enabled: true` — no secret needed, but bundling it in core means every agent can reach it unless an operator opts in |
-| `traefik` | a `traefik:` config block (provides `proxy.route`) |
-| `webhook-provisioner` | `webhookProvisioner.hooksBaseUrl` plus the internal `webhook_signing_secret` (provides `ingress.webhook`) |
+| `traefik` | `tools.traefik.enabled: true` plus `tools.traefik.api_url` (provides `proxy.route`) |
+| `webhook-provisioner` | `gateways.webhook_provisioner.enabled: true` plus `gateways.webhook_provisioner.hooks_base_url`, and the internal `webhook_signing_secret` (provides `ingress.webhook`) |
 | `store` vectors | a reachable Postgres with `pgvector` at `store.dsn` |
 
 The general rule: provide the secret or flip the flag, restart, and the

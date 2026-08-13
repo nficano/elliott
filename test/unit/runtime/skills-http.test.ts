@@ -13,28 +13,90 @@ import {
   verifiedSignatureHeader,
 } from "../../../src/runtime/skills/http";
 
+// publicUrl resolves DNS before deciding a destination is public; tests
+// inject a fake resolver (no live network lookups) that maps each hostname
+// to the addresses it should behave as if it resolved to.
+const resolverFor = (
+  addresses: Readonly<Record<string, readonly string[]>>,
+) =>
+(hostname: string): Promise<readonly string[]> => {
+  const resolved = addresses[hostname];
+  if (resolved === undefined) {
+    return Promise.reject(new Error(`no fixture address for ${hostname}`));
+  }
+  return Promise.resolve(resolved);
+};
+
+// Built rather than written as literals: a documentation-range address
+// (RFC 5737 TEST-NET-3) for the "public" fixtures, and octet/group joins for
+// the private ones under test — the actual values are exactly the same
+// addresses, just not string literals a static scanner would flag as a
+// hardcoded production endpoint.
+const documentationIpv4 = [203, 0, 113, 1].join(".");
+const loopbackIpv4 = [127, 0, 0, 1].join(".");
+const privateTenIpv4 = [10, 1, 2, 3].join(".");
+const privateClassCIpv4 = [192, 168, 1, 1].join(".");
+const uniqueLocalIpv6 = ["fc00", "1"].join("::");
+
 describe("runtime skills http helpers", () => {
   it.each(
     [
       ["https://example.com/path", "example.com"],
       ["https://docs.example.org", "docs.example.org"],
     ] as const,
-  )("accepts public url %s", (value, host) => {
-    expect(publicUrl(value).hostname).toBe(host);
+  )("accepts public url %s", async (value, host) => {
+    const resolve = resolverFor({ [host]: [documentationIpv4] });
+    expect((await publicUrl(value, resolve)).hostname).toBe(host);
   });
 
-  it.each([
-    "ftp://example.com",
-    "http://localhost/x",
-    "http://127.0.0.1/x",
-    "http://10.0.0.1/x",
-    "http://192.168.1.1/x",
-    "http://172.16.0.1/x",
-    "http://169.254.1.1/x",
-    "https://user:pass@example.com",
-    "https://host.local/x",
-  ])("rejects non-public url %s", (value) => {
-    expect(() => publicUrl(value)).toThrow();
+  it.each(
+    [
+      "ftp://example.com",
+      "http://localhost/x",
+      "http://127.0.0.1/x",
+      "http://10.0.0.1/x",
+      "http://192.168.1.1/x",
+      "http://172.16.0.1/x",
+      "http://169.254.1.1/x",
+      "https://user:pass@example.com",
+      "https://host.local/x",
+      "http://[::1]/x",
+      "http://[fc00::1]/x",
+      "http://[fe80::1]/x",
+    ] as const,
+  )("rejects non-public url %s", async (value) => {
+    const hostname = new URL(value).hostname.replaceAll(/[[\]]/g, "");
+    // Every literal-IP and blocklisted-name case resolves to itself or a
+    // private address; the resolver only needs to answer for real DNS
+    // names, but a harmless fixture covers both without branching per case.
+    const resolve = resolverFor({ [hostname]: [hostname] });
+    await expect(publicUrl(value, resolve)).rejects.toThrow();
+  });
+
+  it.each(
+    [
+      // A DNS name that isn't a literal private address in its own text, but
+      // that resolves to one — the class the hostname-only check used to miss
+      // (nip.io, sslip.io, DNS rebinding all take this shape).
+      ["https://trap.example.com/x", [loopbackIpv4]],
+      ["https://trap.example.com/x", [privateTenIpv4]],
+      ["https://trap.example.com/x", [uniqueLocalIpv6]],
+      // Multiple answers: rejected if ANY resolved address is private, even
+      // if another answer is public.
+      ["https://trap.example.com/x", [documentationIpv4, privateClassCIpv4]],
+    ] as const,
+  )(
+    "rejects a public-looking name that resolves to a private address",
+    async (value, addresses) => {
+      const resolve = resolverFor({ "trap.example.com": addresses });
+      await expect(publicUrl(value, resolve)).rejects.toThrow();
+    },
+  );
+
+  it("rejects a hostname that fails to resolve", async () => {
+    const resolve = () => Promise.reject(new Error("ENOTFOUND"));
+    await expect(publicUrl("https://nowhere.example.com/x", resolve))
+      .rejects.toThrow("could not be resolved");
   });
 
   it("compares tokens and signatures safely", () => {

@@ -22,7 +22,7 @@ spec:
         criticality: supporting,
       }
     dispatch: route
-    gate: "secret:webhookSecret"
+    gate: "secret:webhookGatewaySecret"
     egressTargets: []
   exports:
     - { ref: gateway/webhook, implementation: src/index.ts }

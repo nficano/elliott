@@ -345,6 +345,7 @@ const optionalSettings = (
   ...optionalValue("parallelApiKey", secrets["parallel_api_key"]),
   ...optionalSearchDuckDuckGo(resolved),
   ...optionalValue("webhookSecret", secrets["webhook_signing_secret"]),
+  ...optionalValue("webhookGatewaySecret", secrets["webhook_gateway_secret"]),
   ...optionalSlack(resolved, secrets),
   ...optionalGmail(resolved, secrets),
   ...optionalGoogle(resolved, secrets),

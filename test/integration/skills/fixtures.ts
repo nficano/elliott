@@ -117,6 +117,7 @@ export const smokeSettings = (stateDirectory: string): RuntimeSettings => ({
   },
   webhookProvisioner: { hooksBaseUrl: "https://hooks.smoke.test" },
   webhookSecret: "x",
+  webhookGatewaySecret: "y",
   mcp: [],
   newsBrief: { keywords: ["ai"], threshold: 1, briefSize: 3, alerts: false },
 });
