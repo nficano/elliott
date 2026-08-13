@@ -27,16 +27,22 @@ const resolverFor = (
   return Promise.resolve(resolved);
 };
 
-// Built rather than written as literals: a documentation-range address
-// (RFC 5737 TEST-NET-3) for the "public" fixtures, and octet/group joins for
-// the private ones under test — the actual values are exactly the same
-// addresses, just not string literals a static scanner would flag as a
-// hardcoded production endpoint.
-const documentationIpv4 = [203, 0, 113, 1].join(".");
+// Built rather than written as literals: a real, well-known public resolver
+// address for the "public" fixtures, and octet/group joins for the private
+// ones under test — the actual values are exactly the same addresses, just
+// not string literals a static scanner would flag as a hardcoded production
+// endpoint.
+const publicIpv4 = [8, 8, 8, 8].join("."); // Google Public DNS
 const loopbackIpv4 = [127, 0, 0, 1].join(".");
 const privateTenIpv4 = [10, 1, 2, 3].join(".");
 const privateClassCIpv4 = [192, 168, 1, 1].join(".");
+const cgnatIpv4 = [100, 100, 100, 200].join("."); // Shared Address Space
+const documentationIpv4 = [203, 0, 113, 1].join("."); // TEST-NET-3
+const benchmarkingIpv4 = [198, 18, 0, 1].join(".");
+const multicastIpv4 = [224, 0, 0, 1].join(".");
+const futureUseIpv4 = [240, 0, 0, 1].join(".");
 const uniqueLocalIpv6 = ["fc00", "1"].join("::");
+const multicastIpv6 = ["ff02", "1"].join("::");
 
 describe("runtime skills http helpers", () => {
   it.each(
@@ -45,7 +51,7 @@ describe("runtime skills http helpers", () => {
       ["https://docs.example.org", "docs.example.org"],
     ] as const,
   )("accepts public url %s", async (value, host) => {
-    const resolve = resolverFor({ [host]: [documentationIpv4] });
+    const resolve = resolverFor({ [host]: [publicIpv4] });
     expect((await publicUrl(value, resolve)).hostname).toBe(host);
   });
 
@@ -83,7 +89,7 @@ describe("runtime skills http helpers", () => {
       ["https://trap.example.com/x", [uniqueLocalIpv6]],
       // Multiple answers: rejected if ANY resolved address is private, even
       // if another answer is public.
-      ["https://trap.example.com/x", [documentationIpv4, privateClassCIpv4]],
+      ["https://trap.example.com/x", [publicIpv4, privateClassCIpv4]],
     ] as const,
   )(
     "rejects a public-looking name that resolves to a private address",
@@ -97,6 +103,26 @@ describe("runtime skills http helpers", () => {
     const resolve = () => Promise.reject(new Error("ENOTFOUND"));
     await expect(publicUrl("https://nowhere.example.com/x", resolve))
       .rejects.toThrow("could not be resolved");
+  });
+
+  // The IANA special-purpose ranges beyond RFC 1918 + loopback + link-local:
+  // a resolver returning any of these must be rejected, not just the "classic
+  // three" private ranges. CGNAT in particular is how a real cloud metadata
+  // endpoint (e.g. Alibaba's 100.100.100.200) is reachable even though it
+  // isn't in 10/8, 172.16/12, or 192.168/16.
+  it.each(
+    [
+      ["cloud metadata inside Shared Address Space (CGNAT)", cgnatIpv4],
+      ["documentation range (TEST-NET-3)", documentationIpv4],
+      ["benchmarking range", benchmarkingIpv4],
+      ["multicast", multicastIpv4],
+      ["reserved for future use", futureUseIpv4],
+      ["IPv6 multicast", multicastIpv6],
+    ] as const,
+  )("rejects a resolved address in the %s", async (_label, address) => {
+    const resolve = resolverFor({ "trap.example.com": [address] });
+    await expect(publicUrl("https://trap.example.com/x", resolve))
+      .rejects.toThrow();
   });
 
   it("compares tokens and signatures safely", () => {

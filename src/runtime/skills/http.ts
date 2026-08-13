@@ -2,28 +2,12 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import dns from "node:dns/promises";
 import { isIP } from "node:net";
 import { isJsonRecord } from "../../providers/http";
+import { isPrivateAddress } from "./ip-guard";
 import type { AddressResolver } from "./types";
 
 export const MAX_TOOL_OUTPUT_CHARACTERS = 12_000;
 
 const REQUEST_TIMEOUT_MILLISECONDS = 30_000;
-const IPV4_SEGMENTS = 4;
-const LINK_LOCAL_FIRST_OCTET = 169;
-const LINK_LOCAL_SECOND_OCTET = 254;
-const PRIVATE_172_LOW = 16;
-const PRIVATE_172_HIGH = 31;
-const PRIVATE_192_SECOND_OCTET = 168;
-const LOOPBACK_FIRST_OCTET = 127;
-const PRIVATE_10_FIRST_OCTET = 10;
-const PRIVATE_172_FIRST_OCTET = 172;
-const PRIVATE_192_FIRST_OCTET = 192;
-const IPV6_UNIQUE_LOCAL_LOW = 0xFC_00;
-const IPV6_UNIQUE_LOCAL_HIGH = 0xFD_FF;
-const IPV6_LINK_LOCAL_LOW = 0xFE_80;
-const IPV6_LINK_LOCAL_HIGH = 0xFE_BF;
-const IPV4_MAPPED_IPV6 = /^::ffff:(\d+\.\d+\.\d+\.\d+)$/;
-const IP_FAMILY_V4 = 4;
-const IP_FAMILY_V6 = 6;
 
 export const request = async (
   url: string | URL,
@@ -102,53 +86,6 @@ const resolvedAddresses = async (
       { cause: error },
     );
   }
-};
-
-const isPrivateAddress = (address: string): boolean => {
-  const family = isIP(address);
-  if (family === IP_FAMILY_V4) return privateIpv4(address);
-  if (family === IP_FAMILY_V6) return privateIpv6(address);
-  return true; // not a recognizable IP literal from a resolver — fail closed
-};
-
-const privateIpv4 = (address: string): boolean => {
-  const parts = address.split(".").map(Number);
-  if (
-    parts.length !== IPV4_SEGMENTS
-    || parts.some((part) => !Number.isSafeInteger(part))
-  ) {
-    return true; // unparseable — fail closed
-  }
-  const [first = -1, second = -1] = parts;
-  return isSimplePrivateOctet(first) || isPrivateLinkLocalIpv4(first, second)
-    || isPrivate172Ipv4(first, second) || isPrivate192Ipv4(first, second);
-};
-
-const isSimplePrivateOctet = (first: number): boolean =>
-  first === PRIVATE_10_FIRST_OCTET || first === LOOPBACK_FIRST_OCTET
-  || first === 0;
-
-const isPrivateLinkLocalIpv4 = (first: number, second: number): boolean =>
-  first === LINK_LOCAL_FIRST_OCTET && second === LINK_LOCAL_SECOND_OCTET;
-
-const isPrivate172Ipv4 = (first: number, second: number): boolean =>
-  first === PRIVATE_172_FIRST_OCTET && second >= PRIVATE_172_LOW
-  && second <= PRIVATE_172_HIGH;
-
-const isPrivate192Ipv4 = (first: number, second: number): boolean =>
-  first === PRIVATE_192_FIRST_OCTET && second === PRIVATE_192_SECOND_OCTET;
-
-const privateIpv6 = (address: string): boolean => {
-  const normalized = address.toLowerCase();
-  if (normalized === "::1" || normalized === "::") return true;
-  const mapped = IPV4_MAPPED_IPV6.exec(normalized);
-  if (mapped?.[1] !== undefined) return privateIpv4(mapped[1]);
-  const firstHextet = Number.parseInt(normalized.split(":", 1)[0] ?? "", 16);
-  if (Number.isNaN(firstHextet)) return true; // unparseable — fail closed
-  return (firstHextet >= IPV6_UNIQUE_LOCAL_LOW
-    && firstHextet <= IPV6_UNIQUE_LOCAL_HIGH)
-    || (firstHextet >= IPV6_LINK_LOCAL_LOW
-      && firstHextet <= IPV6_LINK_LOCAL_HIGH);
 };
 
 // Constant-time string comparison for webhook tokens and signatures, so a

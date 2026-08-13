@@ -8,10 +8,16 @@ spec:
   provides:
     - { facility: ingress.webhook, version: 1 }
   capabilities:
+    - { capability: network.connect, resources: [loopback://runtime-http] }
     - { capability: secret.use, resources: [secret://facilities/webhook] }
     - { capability: fs.read, resources: [state://webhook-provisioner/endpoints.json] }
     - { capability: fs.write, resources: [state://webhook-provisioner/endpoints.json] }
-  egress: { class: none }
+  # Forwards verified payloads to the consumer's internal route over the
+  # runtime's own loopback interface (src/*/routes.ts `forward()`) — real
+  # network egress, just confined to the local process's own HTTP port, not
+  # "none". `loopback` is the class this repo's placement/egress model
+  # defines specifically for that case.
+  egress: { class: loopback }
   isolation: container
   outputTrust: untrusted
   topology:

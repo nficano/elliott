@@ -39,8 +39,9 @@ The built-in set is:
 - Evolution: `evaluator-dspy`, `evaluator-darwinian`, `evaluator-agent-benchmarks`
 - Observability: `deep-trace`, `glitchtip`
 - Secrets: `vault`
-- Chat gateways: `gateway-slack`, `gateway-email`, `gateway-gmail`,
-  `gateway-bluebubbles`, `gateway-webhook`
+- Chat gateways: `gateway-slack`, `gateway-gmail`, `gateway-bluebubbles`,
+  `gateway-webhook`
+- Outbound email: `gateway-email` (SMTP send only — no inbound IMAP path)
 - Search and web extraction: `search-brave`, `search-duckduckgo`,
   `web-firecrawl`, `web-parallel`
 - Local network: `traefik` (provides the `proxy.route` facility)
