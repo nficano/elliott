@@ -1,8 +1,7 @@
 import {
   MAX_TOOL_OUTPUT_CHARACTERS,
   objectSchema,
-  publicUrl,
-  request,
+  requestPublicUrl,
   requiredString,
   stripActiveHtml,
 } from "../../../src/runtime/skills/http";
@@ -21,8 +20,11 @@ const fetchTool = (): ToolDefinition => ({
     "url",
   ]),
   execute: async (input) => {
-    const url = await publicUrl(requiredString(input, "url"));
-    const response = await request(url);
+    // requestPublicUrl validates the destination and connects to it in one
+    // step, pinned to the exact address it validated — see its doc comment
+    // in http.ts for why a separate publicUrl()-then-fetch() would be
+    // vulnerable to DNS rebinding.
+    const response = await requestPublicUrl(requiredString(input, "url"));
     const text = await response.text();
     return JSON.stringify({
       status: response.status,

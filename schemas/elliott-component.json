@@ -60,8 +60,8 @@
       "required": ["class"],
       "properties": {
         "class": {
-          "enum": ["none", "lan", "declared"],
-          "description": "Egress posture. `declared` requires an explicit `hosts` allowlist."
+          "enum": ["none", "loopback", "lan", "declared", "any"],
+          "description": "Egress posture. Mirrors src/placement/types.ts EgressClassName exactly — every class the runtime can realize must be declarable here. `declared` requires an explicit `hosts` allowlist; `loopback` is real network egress confined to the runtime's own HTTP port (e.g. a facility provider that forwards to an internal route)."
         },
         "hosts": {
           "type": "array",
@@ -122,6 +122,22 @@
         }
       }
     },
+    "facilityProvision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["facility", "version"],
+      "properties": {
+        "facility": {
+          "type": "string",
+          "description": "Facility id this component provides to other components, e.g. proxy.route, ingress.webhook, dns.local. See src/runtime/skills/facilities.ts."
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Facility contract version. A consumer's cached binding is invalidated when this changes."
+        }
+      }
+    },
     "spec": {
       "type": "object",
       "additionalProperties": false,
@@ -141,6 +157,11 @@
         "protocols": {
           "type": "array",
           "items": { "type": "string" }
+        },
+        "provides": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/facilityProvision" },
+          "description": "Facilities this component provides to other components. The two-pass loader registers every provider before any consumer."
         },
         "capabilities": {
           "type": "array",
@@ -205,9 +226,10 @@
                 "database",
                 "learning",
                 "container",
-                "secret-source"
+                "secret-source",
+                "extension"
               ],
-              "description": "Graph node kind (the authoritative role, which may differ from the manifest `kind`: e.g. gateway-gmail declares kind:gateway but contributes a tool node)."
+              "description": "Graph node kind (the authoritative role, which may differ from the manifest `kind`: e.g. gateway-gmail declares kind:gateway but contributes a tool node). Mirrors NODE_KINDS in scripts/gen-topology.mjs exactly — that script is the actual consumer of this field."
             },
             "domain": {
               "type": "string",

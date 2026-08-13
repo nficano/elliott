@@ -1,3 +1,4 @@
+import Ajv from "ajv";
 import { describe, expect, it } from "bun:test";
 import { access, readFile } from "node:fs/promises";
 import path from "node:path";
@@ -57,6 +58,32 @@ describe("Elliott bundled component packages", () => {
       expect(item.protocols.length).toBeGreaterThan(0);
       await access(path.join(item.directory, "manifest.yaml"));
       await access(path.join(item.directory, item.document));
+    }
+  });
+
+  it("ships a manifest.yaml valid against schemas/elliott-component.json for every package", async () => {
+    // Nothing in the runtime boot path exercises this schema (bundled.ts
+    // reads only document/protocols/exports — see the module comment on
+    // ComponentSchemaRegistry), so a manifest can drift out of sync with the
+    // canonical schema without any other test catching it. This is the one
+    // place that actually compiles the schema and validates every real
+    // manifest.yaml against it, not a synthetic fixture.
+    const schema: object = JSON.parse(
+      await readFile(path.join(root, "schemas/elliott-component.json"), "utf8"),
+    );
+    const ajv = new Ajv({ allErrors: true, strict: false });
+    const validate = ajv.compile(schema);
+    const packages = await loadBundledPackages(root);
+    for (const item of packages) {
+      const manifest: unknown = parse(
+        await readFile(path.join(item.directory, "manifest.yaml"), "utf8"),
+      );
+      const valid = validate(manifest);
+      expect([item.name, valid, validate.errors]).toEqual([
+        item.name,
+        true,
+        null,
+      ]);
     }
   });
 

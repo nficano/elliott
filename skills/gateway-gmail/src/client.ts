@@ -1,5 +1,5 @@
 import { isJsonRecord, recordArray } from "../../../src/providers/http";
-import { publicUrl } from "../../../src/runtime/skills/http";
+import { fetchPublicUrl } from "../../../src/runtime/skills/http";
 import type {
   GmailClient,
   HistoryAddedMessage,
@@ -159,18 +159,19 @@ const unsubscribeOneClick = async (url: string): Promise<WriteOutcome> => {
   }
   // The manifest declares only Google API egress; List-Unsubscribe is a
   // sender-controlled header on untrusted mail, so the destination must be
-  // rejected unless it resolves to a genuinely public address (publicUrl
-  // resolves DNS and checks the resolved address, not just the hostname
-  // text, so an attacker-controlled name that answers with a private
-  // address — nip.io, sslip.io, rebinding — is rejected too).
-  const target = await publicUrl(url);
-  const post = await fetch(target, {
+  // rejected unless it resolves to a genuinely public address. fetchPublicUrl
+  // resolves DNS, checks the resolved address (not just the hostname text,
+  // so an attacker-controlled name that answers with a private address —
+  // nip.io, sslip.io, rebinding — is rejected too), and connects to that
+  // exact validated address rather than letting a later, separate fetch()
+  // re-resolve DNS and land on a different (private/metadata) answer.
+  const post = await fetchPublicUrl(url, {
     method: "POST",
     headers: { "content-type": "application/x-www-form-urlencoded" },
     body: "List-Unsubscribe=One-Click",
   });
   if (post.ok) return { ok: true, status: post.status, method: "POST" };
-  const get = await fetch(target);
+  const get = await fetchPublicUrl(url);
   return { ok: get.ok, status: get.status, method: "GET" };
 };
 

@@ -15,6 +15,18 @@ export type JsonRecord = Readonly<Record<string, unknown>>;
 // production callers get the real resolver by default.
 export type AddressResolver = (hostname: string) => Promise<readonly string[]>;
 
+// The outcome of validating a caller-supplied destination against the
+// public-egress guard: the parsed URL, its bare (bracket-stripped) hostname,
+// and the exact resolved address that was checked. fetchPublicUrl() pins its
+// connection to `address` rather than letting the eventual fetch() resolve
+// the hostname again, which would reopen the DNS-rebinding gap the check
+// exists to close.
+export interface ValidatedDestination {
+  readonly url: URL;
+  readonly hostname: string;
+  readonly address: string;
+}
+
 export interface GatewayFeedback {
   readonly gateway: string;
   readonly channel: string;

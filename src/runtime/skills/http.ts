@@ -3,7 +3,7 @@ import dns from "node:dns/promises";
 import { isIP } from "node:net";
 import { isJsonRecord } from "../../providers/http";
 import { isPrivateAddress } from "./ip-guard";
-import type { AddressResolver } from "./types";
+import type { AddressResolver, ValidatedDestination } from "./types";
 
 export const MAX_TOOL_OUTPUT_CHARACTERS = 12_000;
 
@@ -30,17 +30,20 @@ export const request = async (
 const defaultResolver: AddressResolver = async (hostname) =>
   (await dns.lookup(hostname, { all: true })).map((record) => record.address);
 
+const IP_FAMILY_V6 = 6;
+
 // A hostname string can never prove a destination is public — an attacker
 // picks the name, and DNS is what decides where it actually goes (nip.io,
 // sslip.io, and plain DNS rebinding all resolve an innocuous-looking name to
 // a private address). So this resolves the name and validates every address
 // it answers to, not just the text of the name itself. `resolve` defaults to
 // a real DNS lookup; tests inject a fake one to stay offline and
-// deterministic.
-export const publicUrl = async (
+// deterministic. Shared by publicUrl (validate only) and fetchPublicUrl
+// (validate, then connect to the exact address just validated).
+const validatedDestination = async (
   value: string,
-  resolve: AddressResolver = defaultResolver,
-): Promise<URL> => {
+  resolve: AddressResolver,
+): Promise<ValidatedDestination> => {
   const url = new URL(value);
   if (url.protocol !== "http:" && url.protocol !== "https:") {
     throw new Error("Only HTTP and HTTPS destinations are allowed");
@@ -61,12 +64,78 @@ export const publicUrl = async (
     );
   }
   const addresses = await resolvedAddresses(hostname, resolve);
-  if (addresses.some(isPrivateAddress)) {
+  // Reject if ANY resolved answer is private, not just the one we go on to
+  // pin below — a multi-answer response mixing a public and a private
+  // address is exactly the shape a rebinding attempt with a decoy public
+  // answer would take.
+  if (addresses.some(isPrivateAddress) || addresses[0] === undefined) {
     throw new Error(
       `Destination ${url.hostname} is outside the public egress grant`,
     );
   }
-  return url;
+  return { url, hostname, address: addresses[0] };
+};
+
+export const publicUrl = async (
+  value: string,
+  resolve: AddressResolver = defaultResolver,
+): Promise<URL> => (await validatedDestination(value, resolve)).url;
+
+// Performs the actual network request pinned to the exact address that was
+// just validated. publicUrl() followed by a separate, later fetch() would
+// resolve DNS a second time — with a TTL-0 answer under attacker control,
+// that second lookup can return a different (private or metadata) address
+// than the one that was checked, defeating the check entirely. Pinning the
+// connection to the validated address in the same step closes that gap:
+// the address that gets checked is the address that gets connected to.
+// The original hostname is preserved as the Host header and, for HTTPS, the
+// TLS SNI name, so a virtual-hosted or CDN-fronted destination still routes
+// to the right site and its certificate still validates against the name
+// the caller actually asked for, not the pinned IP literal. Returns the raw
+// Response — does not throw on a non-2xx status, so callers that need to
+// inspect status or retry (gateway-gmail's POST-then-GET unsubscribe flow)
+// can do so; requestPublicUrl below adds the throw-on-!ok convenience.
+export const fetchPublicUrl = async (
+  value: string,
+  init: Readonly<{
+    readonly method?: string;
+    readonly headers?: Readonly<Record<string, string>>;
+    readonly body?: Bun.BodyInit;
+  }> = {},
+  resolve: AddressResolver = defaultResolver,
+): Promise<Response> => {
+  const { url, hostname, address } = await validatedDestination(
+    value,
+    resolve,
+  );
+  const pinned = new URL(url);
+  pinned.hostname = isIP(address) === IP_FAMILY_V6 ? `[${address}]` : address;
+  const headers = new Headers(init.headers);
+  if (!headers.has("host")) headers.set("host", url.host);
+  return fetch(pinned, {
+    method: init.method ?? (init.body === undefined ? "GET" : "POST"),
+    headers,
+    ...(init.body !== undefined && { body: init.body }),
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MILLISECONDS),
+    redirect: "error",
+    ...(url.protocol === "https:" && { tls: { servername: hostname } }),
+  });
+};
+
+export const requestPublicUrl = async (
+  value: string,
+  init: Readonly<{
+    readonly method?: string;
+    readonly headers?: Readonly<Record<string, string>>;
+    readonly body?: Bun.BodyInit;
+  }> = {},
+  resolve: AddressResolver = defaultResolver,
+): Promise<Response> => {
+  const response = await fetchPublicUrl(value, init, resolve);
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status} from ${new URL(value).host}`);
+  }
+  return response;
 };
 
 const stripBrackets = (value: string): string =>

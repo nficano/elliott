@@ -170,7 +170,7 @@ export const BUNDLED_CATALOG: readonly BundledComponentDescriptor[] = Object
       protocols: ["message.source", "message.sink", "identity.resolver"],
       egress: egressClass("declared"),
       isolation: "container",
-      secretRefs: ["secret://gateways/slack"],
+      secretRefs: ["secret://gateways/slack", "secret://facilities/webhook"],
       senderAllowlistRequired: true,
       untrustedOutput: true,
     }),

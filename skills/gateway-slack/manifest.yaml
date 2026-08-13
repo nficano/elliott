@@ -10,7 +10,15 @@ spec:
         capability: network.connect,
         resources: [slack.com, slack-edge.com, hooks.slack.com],
       }
-    - { capability: secret.use, resources: [secret://gateways/slack] }
+    # secret://facilities/webhook is webhook-provisioner's internal
+    # loopback-hop signing secret, not gateway-slack's own — the
+    # interactivity route (below) verifies inbound forwards against it, so
+    # it belongs in the declared inventory alongside the gateway's own
+    # secret rather than being an undeclared read through context.settings.
+    - {
+        capability: secret.use,
+        resources: [secret://gateways/slack, secret://facilities/webhook],
+      }
     - {
         capability: facility.use,
         resources: ["facility://core/ingress.webhook@1"],

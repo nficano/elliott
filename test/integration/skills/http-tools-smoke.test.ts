@@ -6,11 +6,11 @@ import {
   toolByName,
 } from "./fixtures";
 
-// Tier-1 skill-logic smoke for the HTTP tools. The global fetch is spied with a
-// cassette (see fixtures.stubFetch) so these are deterministic and offline,
-// while still driving the real request() helper (SSRF guard + ok-check) and the
-// tool's own request-building and response-parsing. See
-// docs/contributing/skill-e2e-smoke-strategy.md.
+// Tier-1 skill-logic smoke for the HTTP tools. The global fetch is spied with
+// a cassette (see fixtures.stubFetch) so these are deterministic and offline,
+// while still driving the real requestPublicUrl() helper (SSRF guard,
+// DNS-pinned connection, ok-check) and the tool's own request-building and
+// response-parsing. See docs/contributing/skill-e2e-smoke-strategy.md.
 
 afterEach(() => {
   mock.restore();
@@ -18,6 +18,9 @@ afterEach(() => {
 
 describe("fetch_url skill logic (Tier 1)", () => {
   it("fetches a public URL and strips active HTML", async () => {
+    // Matched by Host header, not URL text: requestPublicUrl() pins the
+    // connection to the resolved address, so the raw fetch() call targets
+    // an IP literal, and "example.com" only survives as the Host header.
     const stub = stubFetch([{
       match: "example.com",
       body: "<script>evil()</script><p>Hello <b>world</b></p>",
@@ -35,7 +38,10 @@ describe("fetch_url skill logic (Tier 1)", () => {
     expect(result.status).toBe(200);
     expect(result.text).toContain("Hello");
     expect(result.text).not.toContain("evil");
-    expect(stub.calls[0]).toContain("https://example.com/");
+    expect(stub.calls).toHaveLength(1);
+    // The connection target is a resolved address, not the "example.com"
+    // text — proof this went through the DNS-pinned path.
+    expect(stub.calls[0]).not.toContain("example.com");
   });
 
   it("rejects a non-public destination before any network call", async () => {

@@ -224,10 +224,15 @@ export const makeGatewayEvents = (): {
 };
 
 // A "cassette": spy on the global fetch (the single boundary that
-// src/runtime/skills/http.ts request() calls) with canned Responses matched by
-// URL substring, recording every requested URL. Undone by mock.restore() in an
-// afterEach. This keeps HTTP-tool tests deterministic while still exercising the
-// real request() (SSRF guard, ok-check) and the tool's own parse logic.
+// src/runtime/skills/http.ts request()/fetchPublicUrl() call) with canned
+// Responses matched by URL substring or Host header, recording every
+// requested URL. Undone by mock.restore() in an afterEach. This keeps
+// HTTP-tool tests deterministic while still exercising the real
+// request()/fetchPublicUrl() (SSRF guard, ok-check) and the tool's own
+// parse logic. A DNS-pinned request (fetchPublicUrl) connects to the
+// resolved address, not the hostname text, so a route also matches against
+// the preserved Host header — otherwise a cassette keyed on a hostname
+// would never match the pinned connection for that same host.
 export const stubFetch = (
   routes: readonly {
     readonly match: string;
@@ -237,12 +242,22 @@ export const stubFetch = (
   }[],
 ): { readonly calls: readonly string[]; } => {
   const calls: string[] = [];
-  const impl = (input: string | URL | Request): Promise<Response> => {
+  const impl = (
+    input: string | URL | Request,
+    init?: Readonly<{ readonly headers?: HeadersInit; }>,
+  ): Promise<Response> => {
     const url = input instanceof Request ? input.url : String(input);
     calls.push(url);
-    const route = routes.find((item) => url.includes(item.match));
+    const host = new Headers(
+      input instanceof Request ? input.headers : init?.headers,
+    ).get("host") ?? "";
+    const route = routes.find((item) =>
+      url.includes(item.match) || host.includes(item.match)
+    );
     if (route === undefined) {
-      return Promise.reject(new Error(`no cassette route for ${url}`));
+      return Promise.reject(
+        new Error(`no cassette route for ${url} (host: ${host})`),
+      );
     }
     return Promise.resolve(
       new Response(route.body, {
