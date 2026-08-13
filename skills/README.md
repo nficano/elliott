@@ -37,7 +37,20 @@ The built-in set is:
 - Local execution: `files`, `terminal`, `ssh`
 - Automation: `scheduler`
 - Evolution: `evaluator-dspy`, `evaluator-darwinian`, `evaluator-agent-benchmarks`
-- Observability: `deep-trace`
+- Observability: `deep-trace`, `glitchtip`
+- Secrets: `vault`
+- Chat gateways: `gateway-slack`, `gateway-email`, `gateway-gmail`,
+  `gateway-bluebubbles`, `gateway-webhook`
+- Search and web extraction: `search-brave`, `search-duckduckgo`,
+  `web-firecrawl`, `web-parallel`
+- Local network: `traefik` (provides the `proxy.route` facility)
+- Ingress: `webhook-provisioner` (provides the `ingress.webhook` facility)
+
+`gateway-home-assistant` and `pihole` stay in the registry — everything else
+that used to live under `gateway-*`, `search-*`/`web-*`, or `traefik` moved
+into this built-in set. None of the moved skills are enabled by default: each
+still gates on its own settings block or secret exactly as it did in the
+registry (see the table in `docs/reference/blockers.md`).
 
 Executable entries ship a registration module. Several executable entries stay
 dormant until the operator provisions a secret or flips an enable flag (e.g.

@@ -28,5 +28,12 @@ under **Unreleased** until tagging begins.
 
 - Prose docs moved into Diátaxis quadrants; machine-readable topology
   JSON artifacts intentionally remain at `docs/` root (consumed by code).
+- Consolidated the chat gateways (`gateway-slack`, `gateway-email`,
+  `gateway-gmail`, `gateway-bluebubbles`, `gateway-webhook`), the search
+  and web-extraction tools (`search-brave`, `search-duckduckgo`,
+  `web-firecrawl`, `web-parallel`), `traefik`, and `webhook-provisioner`
+  from the `nficano/skills` registry into the framework's built-in
+  catalog. `gateway-home-assistant` and `pihole` stay in the registry.
+  None of the moved skills are enabled by default.
 
 [Unreleased]: https://github.com/nficano/elliott/commits/main

@@ -27,7 +27,11 @@ the operator's own runbook).
 | `terminal` | `tools.terminal.enabled: true` plus a non-empty `allowed_commands` |
 | `ssh` | `tools.ssh.enabled: true`, a non-empty `hosts` allowlist, and `ssh_private_key` |
 | `deep-trace` publish | `proxy.route` + `dns.local` facility providers installed, plus `public_hostname`/`service_url` |
-| gateways (registry) | their channel secrets (tokens, signing secrets) |
+| `gateway-slack`, `gateway-email`, `gateway-gmail`, `gateway-bluebubbles`, `gateway-webhook` | their channel secrets (tokens, signing secrets) — same gates as before their move into core |
+| `gateway-home-assistant`, `pihole` (registry) | their channel secrets, installed per agent repo |
+| `search-brave`, `web-firecrawl`, `web-parallel` | the provider's API key secret |
+| `traefik` | a `traefik:` config block (provides `proxy.route`) |
+| `webhook-provisioner` | `webhookProvisioner.hooksBaseUrl` plus the internal `webhook_signing_secret` (provides `ingress.webhook`) |
 | `store` vectors | a reachable Postgres with `pgvector` at `store.dsn` |
 
 The general rule: provide the secret or flip the flag, restart, and the

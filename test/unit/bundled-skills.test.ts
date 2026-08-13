@@ -14,12 +14,23 @@ const IMPLEMENTED = [
   "evaluator-dspy",
   "fetch",
   "files",
+  "gateway-bluebubbles",
+  "gateway-email",
+  "gateway-gmail",
+  "gateway-slack",
+  "gateway-webhook",
   "glitchtip",
   "mcp-client",
   "scheduler",
+  "search-brave",
+  "search-duckduckgo",
   "ssh",
   "terminal",
+  "traefik",
   "vault",
+  "web-firecrawl",
+  "web-parallel",
+  "webhook-provisioner",
 ];
 
 describe("Elliott bundled component packages", () => {

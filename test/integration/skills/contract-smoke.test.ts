@@ -18,17 +18,22 @@ import { makeSmokeContext, repoRoot } from "./fixtures";
 // review rather than letting it drift silently. See
 // docs/contributing/skill-e2e-smoke-strategy.md.
 
-// Framework built-ins only (fetch, evaluator/*, files, mcp-client, scheduler,
-// ssh, terminal, deep-trace). Everything else installs from the nficano/skills
-// registry, so no gateways/facilities ship in the framework anymore. The single
-// gateway and all routes come from deep-trace (the observability map + its /map
-// alias); the two services are scheduler and deep-trace's SQLite tail.
+// Framework built-ins (fetch, evaluator/*, files, mcp-client, scheduler, ssh,
+// terminal, deep-trace, glitchtip, vault) plus the gateway/search/proxy/ingress
+// skills consolidated from the nficano/skills registry (gateway-bluebubbles,
+// gateway-email, gateway-gmail, gateway-slack, gateway-webhook, search-brave,
+// search-duckduckgo, web-firecrawl, web-parallel, traefik, webhook-provisioner).
+// Everything else still installs from the registry. Gateways: deep-trace
+// (internal reply route) + gmail, bluebubbles, slack. Facilities: traefik's
+// proxy.route + webhook-provisioner's ingress.webhook (the latter also mounts
+// one route, and gateway-slack's own interactivity route consumes the grant —
+// both counted below).
 const EXPECTED = {
-  tools: 9,
-  gateways: 1,
-  routes: 35,
-  services: 2,
-  facilities: 0,
+  tools: 28,
+  gateways: 4,
+  routes: 41,
+  services: 4,
+  facilities: 2,
 } as const;
 
 describe("skill contract smoke (Tier 0)", () => {

@@ -1,0 +1,34 @@
+apiVersion: elliott/v1
+kind: gateway
+profile: gateway-standard
+metadata:
+  namespace: core
+  name: gateway-email
+  version: 1.0.0
+spec:
+  document: SKILL.md
+  protocols:
+    - message.source
+    - message.sink
+    - identity.resolver
+  capabilities:
+    - capability: network.connect
+      resources:
+        - 'declared://mail-hosts'
+    - capability: secret.use
+      resources:
+        - 'secret://gateways/email'
+  egress:
+    class: declared
+    hosts: []
+  isolation: container
+  senderAllowlist: required
+  outputTrust: untrusted
+  topology:
+    node: { id: tool.email, kind: tool, domain: external-integrations, trustZone: egress, dataClassification: owner-pii, criticality: supporting }
+    dispatch: tool
+    gate: "secret:smtp"
+    egressTargets: [ SMTP ]
+  exports:
+    - ref: gateway/email
+      implementation: src/index.ts

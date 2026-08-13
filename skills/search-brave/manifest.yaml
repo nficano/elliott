@@ -1,0 +1,20 @@
+apiVersion: elliott/v1
+kind: tool
+profile: tool-standard
+metadata: { namespace: core, name: search-brave, version: 1.0.0 }
+spec:
+  document: SKILL.md
+  protocols: [search.provider]
+  capabilities:
+    - { capability: network.connect, resources: [api.search.brave.com] }
+    - { capability: secret.use, resources: [secret://search/brave/api-key] }
+  egress: { class: declared, hosts: [api.search.brave.com] }
+  isolation: container
+  outputTrust: untrusted
+  topology:
+    node: { id: tool.search-brave, kind: tool, domain: external-integrations, trustZone: egress, dataClassification: untrusted-external, criticality: supporting }
+    dispatch: tool
+    gate: "secret:braveApiKey"
+    egressTargets: [ Brave Search API ]
+  exports:
+    - { ref: tool/brave-search, implementation: src/index.ts }

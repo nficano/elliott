@@ -1,0 +1,36 @@
+- id: code-redirect-destination
+  groupId: defect-redirect-destination
+  input:
+    reproduction: Parse a DuckDuckGo redirect URL containing an encoded public destination.
+  expected:
+    behavior: Return the decoded HTTP or HTTPS destination and sanitized title and snippet.
+  rubric: Preserve redirect decoding without accepting non-public protocols.
+  classification: internal
+  sourceDigests: [sha256:duckduckgo-parser-reproduction-v1]
+  timeoutMilliseconds: 120000
+  maximumCostUsd: 0
+  allowedEffects: [process.execute:test-allowlist]
+- id: code-active-markup
+  groupId: defect-active-markup
+  input:
+    reproduction: Parse a result whose title or snippet contains script, style, and nested formatting tags.
+  expected:
+    behavior: Remove active markup and return normalized visible text only.
+  rubric: Preserve visible text while preventing active HTML from reaching tool output.
+  classification: internal
+  sourceDigests: [sha256:duckduckgo-parser-reproduction-v1]
+  timeoutMilliseconds: 120000
+  maximumCostUsd: 0
+  allowedEffects: [process.execute:test-allowlist]
+- id: code-malformed-result
+  groupId: defect-malformed-result
+  input:
+    reproduction: Parse missing, truncated, or non-HTTP result links among otherwise valid search results.
+  expected:
+    behavior: Ignore malformed entries without returning unsafe destinations.
+  rubric: Fail safely and preserve valid deterministic results where possible.
+  classification: internal
+  sourceDigests: [sha256:duckduckgo-parser-reproduction-v1]
+  timeoutMilliseconds: 120000
+  maximumCostUsd: 0
+  allowedEffects: [process.execute:test-allowlist]

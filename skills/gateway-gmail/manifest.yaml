@@ -1,0 +1,21 @@
+apiVersion: elliott/v1
+kind: gateway
+profile: gateway-standard
+metadata: { namespace: core, name: gateway-gmail, version: 1.0.0 }
+spec:
+  document: SKILL.md
+  protocols: [message.source, message.sink, identity.resolver]
+  capabilities:
+    - { capability: network.connect, resources: [googleapis.com, oauth2.googleapis.com] }
+    - { capability: secret.use, resources: [secret://gateways/gmail] }
+  egress: { class: declared, hosts: [googleapis.com, oauth2.googleapis.com] }
+  isolation: container
+  senderAllowlist: required
+  outputTrust: untrusted
+  topology:
+    node: { id: tool.gmail, kind: tool, domain: external-integrations, trustZone: egress, dataClassification: owner-pii, criticality: supporting }
+    dispatch: tool
+    gate: "secret:gmail"
+    egressTargets: [ Gmail API ]
+  exports:
+    - { ref: gateway/gmail, implementation: src/index.ts }

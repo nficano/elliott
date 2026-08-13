@@ -1,0 +1,37 @@
+apiVersion: elliott/v1
+kind: extension
+profile: extension-standard
+metadata: { namespace: core, name: webhook-provisioner, version: 1.0.0 }
+spec:
+  document: SKILL.md
+  protocols: [facility.provider]
+  provides:
+    - { facility: ingress.webhook, version: 1 }
+  capabilities:
+    - { capability: secret.use, resources: [secret://facilities/webhook] }
+  egress: { class: none }
+  isolation: container
+  outputTrust: untrusted
+  topology:
+    node:
+      {
+        id: extension.webhook-provisioner,
+        kind: extension,
+        domain: ingress,
+        trustZone: external-untrusted,
+        dataClassification: untrusted-external,
+        criticality: supporting,
+      }
+    dispatch: route
+    gate: config
+    egressTargets: []
+    edges:
+      - {
+          from: self,
+          to: runtime.http,
+          kind: data,
+          protocol: loopback POST with internal HMAC hop,
+          label: forward verified webhook payloads,
+        }
+  exports:
+    - { ref: extension/webhook-provisioner, implementation: src/index.ts }

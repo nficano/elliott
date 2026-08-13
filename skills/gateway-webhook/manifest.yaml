@@ -1,0 +1,28 @@
+apiVersion: elliott/v1
+kind: gateway
+profile: gateway-standard
+metadata: { namespace: core, name: gateway-webhook, version: 1.0.0 }
+spec:
+  document: SKILL.md
+  protocols: [message.source, identity.resolver]
+  capabilities:
+    - { capability: secret.use, resources: [secret://gateways/webhook] }
+  egress: { class: none }
+  isolation: container
+  senderAllowlist: required
+  outputTrust: untrusted
+  topology:
+    node:
+      {
+        id: gateway.webhook,
+        kind: gateway,
+        domain: ingress,
+        trustZone: external-untrusted,
+        dataClassification: untrusted-external,
+        criticality: supporting,
+      }
+    dispatch: route
+    gate: "secret:webhookSecret"
+    egressTargets: []
+  exports:
+    - { ref: gateway/webhook, implementation: src/index.ts }

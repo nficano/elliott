@@ -1,0 +1,24 @@
+apiVersion: elliott/v1
+kind: extension
+profile: extension-standard
+metadata: { namespace: core, name: traefik, version: 1.0.0 }
+spec:
+  document: SKILL.md
+  protocols: [tool.executor]
+  provides:
+    - { facility: proxy.route, version: 1 }
+  capabilities:
+    - { capability: network.connect, resources: [declared://traefik] }
+    - { capability: fs.write, resources: [state://traefik/routes.json] }
+  egress: { class: lan, hosts: [] }
+  isolation: container
+  outputTrust: untrusted
+  topology:
+    node: { id: tool.traefik, kind: tool, domain: local-network, trustZone: lan, dataClassification: operational-metadata, criticality: supporting }
+    dispatch: tool
+    gate: config
+    egressTargets: [ Traefik API ]
+    edges:
+      - { from: self, to: runtime.http, kind: data, protocol: in-process route dispatch, label: serve /v1/traefik/dynamic }
+  exports:
+    - { ref: extension/traefik, implementation: src/index.ts }

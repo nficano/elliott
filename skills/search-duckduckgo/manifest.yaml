@@ -1,0 +1,19 @@
+apiVersion: elliott/v1
+kind: tool
+profile: tool-standard
+metadata: { namespace: core, name: search-duckduckgo, version: 1.0.0 }
+spec:
+  document: SKILL.md
+  protocols: [search.provider]
+  capabilities:
+    - { capability: network.connect, resources: [duckduckgo.com] }
+  egress: { class: declared, hosts: [duckduckgo.com] }
+  isolation: container
+  outputTrust: untrusted
+  topology:
+    node: { id: tool.search-duckduckgo, kind: tool, domain: external-integrations, trustZone: egress, dataClassification: untrusted-external, criticality: supporting }
+    dispatch: tool
+    gate: always
+    egressTargets: [ DuckDuckGo ]
+  exports:
+    - { ref: tool/duckduckgo-search, implementation: src/index.ts }
