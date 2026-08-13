@@ -15,8 +15,6 @@ const error: TransmittableError = {
 
 const input = {
   error,
-  environment: "production",
-  release: "1.2.3",
   eventId: "abc123",
 };
 
@@ -38,14 +36,12 @@ describe("buildSentryEnvelope", () => {
     expect(JSON.parse(lines[1] ?? "")).toEqual({ type: "event" });
   });
 
-  it("writes the event payload with the error class, frames, and mechanism — no message", () => {
+  it("writes the event payload with the error class, frames, and mechanism — no message, no env/release", () => {
     const lines = buildSentryEnvelope(input).split("\n");
     expect(JSON.parse(lines[2] ?? "")).toEqual({
       event_id: "abc123",
       timestamp: "2026-08-01T00:00:00.000Z",
       platform: "javascript",
-      environment: "production",
-      release: "1.2.3",
       level: "error",
       exception: {
         values: [{
@@ -61,6 +57,14 @@ describe("buildSentryEnvelope", () => {
       },
       tags: { mechanism: "turn" },
     });
+  });
+
+  it("transmits no deployment environment/release (they could equal a resolved secret)", () => {
+    // The builder does not even accept environment/release; nothing env-sourced
+    // crosses the wire. Only structural + generated fields are transmitted.
+    const body = buildSentryEnvelope(input);
+    expect(body).not.toContain("environment");
+    expect(body).not.toContain("release");
   });
 
   it("carries the error class name through to exception.values.type", () => {

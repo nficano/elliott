@@ -35,11 +35,7 @@ export const register = async (
     );
     return {};
   }
-  const sink = new GlitchTipSink({
-    target,
-    environment: context.settings.environment,
-    release: context.settings.release,
-  });
+  const sink = new GlitchTipSink({ target });
   context.installErrorSink(sink);
   return { services: [sink.service()] };
 };

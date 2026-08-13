@@ -7,18 +7,21 @@ const SENTRY_PROTOCOL_VERSION = "7";
 const WITHHELD_VALUE = "(message withheld off-box; see local logs)";
 
 // Pure builder for the GlitchTip/Sentry envelope: the envelope header line, the
-// item header line, then the event payload, newline-joined. It reads only the
-// TransmittableError (error class + stack frames + mechanism + timestamp) plus
-// environment/release — there is NO message field to build from, so no
-// interpolated secret can enter the payload by construction. No redaction is
-// applied or needed: what can't hold a secret can't leak one.
+// item header line, then the event payload, newline-joined. It reads ONLY the
+// TransmittableError — error class, stack frames, mechanism, timestamp — plus a
+// static platform/level and the generated event id. Every one of those is either
+// structural (an error class, a code location, a routing label) or generated
+// here; NONE is sourced from config, the secrets file, Vault, or the process
+// environment. In particular the deployment `environment` and `release` are NOT
+// transmitted: they are read from env variables that could coincide with a
+// resolved secret value, so they stay in the LOCAL boot log only (property 3).
+// Nothing crossing the wire can hold a secret by construction, so no redaction is
+// applied or needed.
 export const buildSentryEnvelope = (input: SentryEnvelopeInput): string => {
   const event = {
     event_id: input.eventId,
     timestamp: input.error.timestamp,
     platform: "javascript",
-    environment: input.environment,
-    release: input.release,
     level: "error",
     exception: {
       values: [{

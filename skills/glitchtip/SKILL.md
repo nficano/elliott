@@ -20,9 +20,12 @@ and then drop, and neither the sink nor the agent loop crashes.
 
 Payloads carry only structural, secret-safe fields: the error class, its stack
 frames (the `at …` lines — never the `Error: <message>` header), the mechanism,
-timestamp, and the configured environment/release. The error **message is never
-transmitted** — it is the one field a caller can interpolate a secret into, so it
-stays in the local console and never crosses the process boundary. The reporter
-hands the sink a message-free `TransmittableError`, never a message and never
-settings, so no secret can ride out and no redaction is needed. The DSN rides
-only on the POST target and auth header.
+and the timestamp. Nothing sourced from config, the secrets file, Vault, or the
+process environment crosses the wire — not even the deployment `environment` or
+`release`, since those come from env variables that could coincide with a
+resolved secret value; they stay in the local boot log only. The error
+**message is never transmitted** either — it is the one field a caller can
+interpolate a secret into, so it stays in the local console and never crosses the
+process boundary. The reporter hands the sink a message-free `TransmittableError`,
+never a message and never settings, so no secret can ride out and no redaction is
+needed. The DSN rides only on the POST target and auth header.

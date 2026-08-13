@@ -11,8 +11,7 @@ const target = {
   publicKey: "supersecretpublickey",
 };
 
-const makeSink = (): GlitchTipSink =>
-  new GlitchTipSink({ target, environment: "prod", release: "1.0.0" });
+const makeSink = (): GlitchTipSink => new GlitchTipSink({ target });
 
 const capturedError = (): TransmittableError => ({
   name: "Error",

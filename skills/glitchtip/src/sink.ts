@@ -19,22 +19,14 @@ const ENVELOPE_CONTENT_TYPE = "application/x-sentry-envelope";
 // collector mid-run just turns every send into a swallowed failure.
 export class GlitchTipSink implements ErrorSink {
   readonly #target: GlitchTipTarget;
-  readonly #environment: string;
-  readonly #release: string;
   readonly #queue: TransmittableError[] = [];
   #sent = 0;
   #dropped = 0;
   #draining = false;
   #stopped = false;
 
-  constructor(input: {
-    readonly target: GlitchTipTarget;
-    readonly environment: string;
-    readonly release: string;
-  }) {
+  constructor(input: { readonly target: GlitchTipTarget; }) {
     this.#target = input.target;
-    this.#environment = input.environment;
-    this.#release = input.release;
   }
 
   capture(event: TransmittableError): void {
@@ -90,8 +82,6 @@ export class GlitchTipSink implements ErrorSink {
   async #send(event: TransmittableError): Promise<boolean> {
     const envelope = buildSentryEnvelope({
       error: event,
-      environment: this.#environment,
-      release: this.#release,
       eventId: crypto.randomUUID().replaceAll("-", ""),
     });
     try {
