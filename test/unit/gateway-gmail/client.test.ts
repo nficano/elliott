@@ -73,7 +73,7 @@ describe("gateway-gmail unsubscribe", () => {
     const headers = new Headers(call.init["headers"] as HeadersInit);
     expect(headers.get("host")).toBe("example.com");
     expect(
-      (call.init["tls"] as { servername?: string; } | undefined)?.servername,
+      (call.init["tls"] as { serverName?: string; } | undefined)?.serverName,
     )
       .toBe("example.com");
     expect(call.init["method"]).toBe("POST");

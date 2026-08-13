@@ -112,13 +112,21 @@ export const fetchPublicUrl = async (
   pinned.hostname = isIP(address) === IP_FAMILY_V6 ? `[${address}]` : address;
   const headers = new Headers(init.headers);
   if (!headers.has("host")) headers.set("host", url.host);
+  // Typed as Bun.TLSOptions explicitly (rather than inlined in the fetch()
+  // call below) so a wrong key name is a compile error: TypeScript only
+  // excess-property-checks a fresh object literal assigned to an explicitly
+  // typed target, and a wrong key silently vanishes (not sent, no SNI, no
+  // certificate-name override) instead of erroring at the inlined call site,
+  // where the literal is wrapped in a conditional spread and the check does
+  // not apply.
+  const tls: Bun.TLSOptions = { serverName: hostname };
   return fetch(pinned, {
     method: init.method ?? (init.body === undefined ? "GET" : "POST"),
     headers,
     ...(init.body !== undefined && { body: init.body }),
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MILLISECONDS),
     redirect: "error",
-    ...(url.protocol === "https:" && { tls: { servername: hostname } }),
+    ...(url.protocol === "https:" && { tls }),
   });
 };
 

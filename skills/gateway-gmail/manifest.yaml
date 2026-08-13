@@ -6,17 +6,19 @@ spec:
   document: SKILL.md
   protocols: [message.source, message.sink, identity.resolver]
   capabilities:
-    - { capability: network.connect, resources: [googleapis.com, oauth2.googleapis.com, declared://unsubscribe-targets] }
+    - { capability: network.connect, resources: [gmail.googleapis.com, oauth2.googleapis.com, declared://unsubscribe-targets] }
     - { capability: secret.use, resources: [secret://gateways/gmail] }
     - { capability: fs.read, resources: [state://gmail-webhook-anchors.json] }
     - { capability: fs.write, resources: [state://gmail-webhook-anchors.json] }
-  # email_unsubscribe follows a sender-controlled List-Unsubscribe URL, which
-  # by design is not restricted to Google's domains — the true footprint is
-  # "Google APIs plus arbitrary public web (SSRF-guarded)", so a static host
-  # list here would understate it. publicUrl() enforces the SSRF boundary at
-  # the code level (src/runtime/skills/http.ts); this egress class matches
-  # the same "dynamic public destination" declaration the fetch skill uses.
-  egress: { class: declared, hosts: [] }
+  # gmail.googleapis.com and oauth2.googleapis.com are the two fixed,
+  # hardcoded API hosts every tool uses (client.ts's API_BASE, auth.ts's
+  # TOKEN_URL) — enumerable and listed below. email_unsubscribe additionally
+  # follows a sender-controlled List-Unsubscribe URL, which by design is not
+  # restricted to Google's domains and cannot be added to this static list;
+  # publicUrl()/fetchPublicUrl() enforce the SSRF boundary for that one path
+  # at the code level (src/runtime/skills/http.ts), the same "dynamic public
+  # destination" guard the fetch skill relies on for the same reason.
+  egress: { class: declared, hosts: [gmail.googleapis.com, oauth2.googleapis.com] }
   isolation: container
   senderAllowlist: required
   outputTrust: untrusted
