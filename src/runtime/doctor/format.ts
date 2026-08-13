@@ -1,4 +1,5 @@
 import { coldRunBudgetMinutes } from "./harness";
+import { oneLine } from "./message";
 import type { DoctorLlmProbe, DoctorReport, DoctorSkillOutcome } from "./types";
 
 const MILLISECONDS_PER_SECOND = 1000;
@@ -15,21 +16,26 @@ const byStatus = (
 
 const llmLines = (llm: DoctorLlmProbe): readonly string[] => {
   const head = `LLM probe   ${llm.ok ? "OK" : "FAILED"}  `
-    + `(${llm.wire} wire, model ${llm.model}, ${llm.baseUrl})`;
+    + `(${llm.wire} wire, model ${oneLine(llm.model)}, ${
+      oneLine(llm.baseUrl)
+    })`;
+  // Both reply and error are already sanitized at the probe boundary; oneLine
+  // here is the renderer's own guarantee that no dynamic value it interpolates
+  // can span lines, independent of who produced it.
   const detail = llm.ok
-    ? `  reply: ${JSON.stringify(llm.reply ?? "")}`
-    : `  error: ${llm.error ?? "unknown failure"}`;
+    ? `  reply: ${JSON.stringify(oneLine(llm.reply ?? ""))}`
+    : `  error: ${oneLine(llm.error ?? "unknown failure")}`;
   return [head, detail];
 };
 
 const skippedReason = (skill: DoctorSkillOutcome): string => {
   if (skill.gate.kind === "secret") {
-    return `needs key ${skill.missingKey ?? skill.gateText}`;
+    return `dormant (gate ${skill.gateText})`;
   }
   if (skill.gate.kind === "config") {
     return skill.gate.identifier === undefined
-      ? "config flag not set"
-      : `config ${skill.gate.identifier} not set`;
+      ? "dormant (config flag not set)"
+      : `dormant (config ${skill.gate.identifier} not set)`;
   }
   return "registered no bindings";
 };
@@ -55,7 +61,20 @@ const skippedLines = (
 };
 
 // The headline requirement: every skill dormant for want of a vendor key,
-// named, with the key it needs and the secret reference to set.
+// named, with the secret(s) to supply and its manifest gate. The secret
+// references are authoritative; some skills need extra config beyond them (a
+// composite gate such as SMTP), so the section points at the activation-gates
+// reference rather than presenting the gate as a single key to set.
+const ACTIVATION_GATES_REF =
+  "see docs/reference/activation-gates.md for the full requirement of each";
+
+const vendorKeyDetail = (skill: DoctorSkillOutcome): string => {
+  const secrets = skill.secretRefs.length > 0
+    ? skill.secretRefs.join(", ")
+    : skill.gate.identifier ?? skill.gateText;
+  return `  - ${skill.name}: supply ${secrets}  (gate ${skill.gateText})`;
+};
+
 const vendorKeyLines = (
   skills: readonly DoctorSkillOutcome[],
 ): readonly string[] => {
@@ -68,15 +87,8 @@ const vendorKeyLines = (
     ];
   }
   return [
-    `Vendor keys needed (${gated.length}):`,
-    ...gated.map((skill) => {
-      const refs = skill.secretRefs.length > 0
-        ? ` (${skill.secretRefs.join(", ")})`
-        : "";
-      return `  - ${skill.name}: set ${
-        skill.missingKey ?? skill.gateText
-      }${refs}`;
-    }),
+    `Vendor keys needed (${gated.length}) — ${ACTIVATION_GATES_REF}:`,
+    ...gated.map(vendorKeyDetail),
   ];
 };
 
@@ -87,7 +99,9 @@ const errorLines = (
   if (errored.length === 0) return [];
   return [
     `Skill errors (${errored.length}):`,
-    ...errored.map((skill) => `  ! ${skill.name}: ${skill.error ?? "unknown"}`),
+    ...errored.map((skill) =>
+      `  ! ${oneLine(skill.name)}: ${oneLine(skill.error ?? "unknown")}`
+    ),
   ];
 };
 
@@ -119,7 +133,7 @@ const timingLines = (report: DoctorReport): readonly string[] => {
 const warningLines = (report: DoctorReport): readonly string[] =>
   report.warnings.length === 0
     ? []
-    : ["Notices:", ...report.warnings.map((line) => `  ~ ${line}`)];
+    : ["Notices:", ...report.warnings.map((line) => `  ~ ${oneLine(line)}`)];
 
 // Render the full report as an operator-facing text block. Ends on an explicit
 // PASS/FAIL verdict so the outcome is unambiguous in a terminal.

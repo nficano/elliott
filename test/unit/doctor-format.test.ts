@@ -32,7 +32,6 @@ const skippedSkill: DoctorSkillOutcome = {
   gateText: "secret:braveApiKey",
   secretRefs: ["secret://search/brave/api-key"],
   needsVendorKey: true,
-  missingKey: "braveApiKey",
   bindings: noBindings,
 };
 
@@ -61,9 +60,11 @@ describe("formatReport", () => {
     const text = formatReport(baseReport({}));
     expect(text).toContain("LLM probe   OK");
     expect(text).toContain("+ fetch");
-    expect(text).toContain("- search-brave — needs key braveApiKey");
     expect(text).toContain(
-      "search-brave: set braveApiKey (secret://search/brave/api-key)",
+      "- search-brave — dormant (gate secret:braveApiKey)",
+    );
+    expect(text).toContain(
+      "search-brave: supply secret://search/brave/api-key  (gate secret:braveApiKey)",
     );
     expect(text).toContain("Egress hosts contacted: api.anthropic.com");
     expect(text).toContain("Elapsed: 1.5s");

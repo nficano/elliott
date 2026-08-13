@@ -37,10 +37,19 @@ export const parseGate = (raw: string): DoctorGate => {
 const totalBindings = (bindings: Readonly<Record<string, number>>): number =>
   Object.values(bindings).reduce((sum, value) => sum + value, 0);
 
+const NO_REGISTRATION_MESSAGE =
+  "did not load: no register() entrypoint or registration produced";
+
 // Classify one package from what the real loader observed plus its manifest
 // gate. `errorMessage` is the message the loader captured when register() threw
 // (undefined otherwise); `secretRefs` are the secret:// URIs the manifest
 // declares.
+//
+// A package that produced no registration at all (registered === false) is an
+// error, not an expected gate miss: it either threw (errorMessage present) or
+// exposed no entrypoint. A genuine gate miss always still registers — the skill
+// imports, its register() runs and returns no bindings — so the two are
+// distinct, and a package that never loaded is surfaced, not hidden as skipped.
 export const classifyOutcome = (
   view: SkillPackageView,
   errorMessage: string | undefined,
@@ -57,23 +66,16 @@ export const classifyOutcome = (
     secretRefs,
     bindings,
   } as const;
-  if (!view.registered && errorMessage !== undefined) {
+  if (!view.registered) {
     return {
       ...base,
       status: "error",
       needsVendorKey: false,
-      error: errorMessage,
+      error: errorMessage ?? NO_REGISTRATION_MESSAGE,
     };
   }
-  if (view.registered && totalBindings(bindings) > 0) {
+  if (totalBindings(bindings) > 0) {
     return { ...base, status: "ran", needsVendorKey: false };
   }
-  const needsVendorKey = gate.kind === "secret";
-  return {
-    ...base,
-    status: "skipped",
-    needsVendorKey,
-    ...(needsVendorKey && gate.identifier !== undefined
-      && { missingKey: gate.identifier }),
-  };
+  return { ...base, status: "skipped", needsVendorKey: gate.kind === "secret" };
 };

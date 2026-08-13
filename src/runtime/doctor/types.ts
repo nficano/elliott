@@ -27,12 +27,13 @@ export interface DoctorSkillOutcome {
   readonly gateText: string;
   // Secret references the manifest declares (secret:// URIs from
   // spec.capabilities). The authoritative "what to set" pointer for a skipped,
-  // secret-gated skill.
+  // secret-gated skill. A skill may need more than these (a composite gate such
+  // as SMTP also wants host/username/recipients config); the report points at
+  // the activation-gates reference rather than claiming the gate is a lone key.
   readonly secretRefs: readonly string[];
   // A skipped skill whose gate is a secret needs a vendor key beyond the LLM
-  // provider before it can activate. `missingKey` names that key.
+  // provider before it can activate.
   readonly needsVendorKey: boolean;
-  readonly missingKey?: string;
   // Binding counts the real loader produced (0 across the board when skipped).
   readonly bindings: Readonly<Record<string, number>>;
   // A clean, single-line message when status is "error" (never a stack trace).
@@ -75,6 +76,16 @@ export interface DoctorEgressTrace<T> {
   readonly result: T;
   readonly contactedHosts: readonly string[];
   readonly violations: readonly string[];
+}
+
+// One request as it walks a redirect chain inside the egress guard. The guard
+// re-checks `url`'s host at every hop and re-issues with `method`/`headers`/
+// `body` adjusted for the redirect status.
+export interface DoctorHop {
+  readonly url: string;
+  readonly method: string;
+  readonly headers: Headers;
+  readonly body: RequestInit["body"];
 }
 
 // Injectable seams so the harness can be exercised offline. Production callers

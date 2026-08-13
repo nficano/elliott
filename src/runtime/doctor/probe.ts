@@ -3,7 +3,7 @@ import type {
   RuntimeModelCompleter,
   RuntimeSettings,
 } from "../types";
-import { cleanMessage } from "./message";
+import { cleanMessage, sanitizeForDisplay } from "./message";
 import type { DoctorLlmProbe } from "./types";
 
 const PROBE_REPLY_MAX_CHARACTERS = 200;
@@ -35,14 +35,25 @@ export const probeLlm = async (
     tools: [],
     allowTools: false,
   };
+  // The API key must never surface in operator-facing output, and neither the
+  // reply nor a provider error body (both endpoint-controlled) may inject
+  // report lines or terminal escapes. Scrub the key and flatten both.
+  const secrets = [settings.llmApiKey];
   try {
     const result = await makeCompleter(settings).complete(request);
     return {
       ok: true,
       ...endpoint,
-      reply: result.text.slice(0, PROBE_REPLY_MAX_CHARACTERS),
+      reply: sanitizeForDisplay(result.text, secrets).slice(
+        0,
+        PROBE_REPLY_MAX_CHARACTERS,
+      ),
     };
   } catch (error) {
-    return { ok: false, ...endpoint, error: cleanMessage(error) };
+    return {
+      ok: false,
+      ...endpoint,
+      error: sanitizeForDisplay(cleanMessage(error), secrets),
+    };
   }
 };

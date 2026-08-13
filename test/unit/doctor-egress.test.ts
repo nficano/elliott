@@ -75,4 +75,76 @@ describe("withEgressAllowlist", () => {
     ).rejects.toThrow("region failure");
     expect(globalThis.fetch).toBe(originalFetch);
   });
+
+  // Install a stub `original` fetch that answers each URL from a script, so the
+  // redirect-following logic can be exercised without real sockets.
+  const stubFetch = (
+    responder: (url: string) => Response,
+  ): string[] => {
+    const seen: string[] = [];
+    // eslint-disable-next-line unicorn/no-global-object-property-assignment
+    globalThis.fetch = Object.assign(
+      async (input: Parameters<typeof fetch>[0]) => {
+        const url = String(input);
+        seen.push(url);
+        return responder(url);
+      },
+      { preconnect: originalFetch.preconnect },
+    );
+    return seen;
+  };
+
+  const redirect = (location: string): Response =>
+    new Response(null, { status: 302, headers: { location } });
+
+  it("blocks and records a redirect to a non-allowlisted host", async () => {
+    const seen = stubFetch((url) =>
+      url.includes("start")
+        ? redirect("https://evil.example.com/capture")
+        : new Response("captured")
+    );
+    const trace = await withEgressAllowlist(["good.example.com"], async () => {
+      try {
+        await fetch("https://good.example.com/start");
+      } catch { /* surfaced below */ }
+      return "done";
+    });
+    expect(trace.violations).toEqual(["evil.example.com"]);
+    expect(trace.contactedHosts).toContain("good.example.com");
+    expect(trace.contactedHosts).toContain("evil.example.com");
+    // The redirect target was never actually fetched.
+    expect(seen.some((url) => url.includes("evil.example.com"))).toBe(false);
+  });
+
+  it("follows a redirect that stays on an allowlisted host", async () => {
+    const seen = stubFetch((url) =>
+      url.endsWith("/start")
+        ? redirect("https://good.example.com/next")
+        : new Response("final")
+    );
+    const trace = await withEgressAllowlist(["good.example.com"], async () => {
+      const response = await fetch("https://good.example.com/start");
+      return response.text();
+    });
+    expect(trace.result).toBe("final");
+    expect(trace.violations).toEqual([]);
+    expect(seen).toEqual([
+      "https://good.example.com/start",
+      "https://good.example.com/next",
+    ]);
+  });
+
+  it("stops a redirect loop with a clear error", async () => {
+    stubFetch(() => redirect("https://good.example.com/loop"));
+    let thrown: unknown;
+    await withEgressAllowlist(["good.example.com"], async () => {
+      try {
+        await fetch("https://good.example.com/start");
+      } catch (error) {
+        thrown = error;
+      }
+      return "done";
+    });
+    expect((thrown as Error).message).toContain("too many redirects");
+  });
 });

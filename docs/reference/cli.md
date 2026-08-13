@@ -49,18 +49,28 @@ order:
 | convenience | `ANTHROPIC_API_KEY` (implies `anthropic`) | a built-in default, override with `ELLIOTT_LLM_MODEL` |
 | convenience | `OPENAI_API_KEY` (implies `openai`) | a built-in default, override with `ELLIOTT_LLM_MODEL` |
 
-With none of these set it prints what to set and exits non-zero.
+With none of these set it prints the variable the loaded config is missing plus
+how to supply it, and exits non-zero. The shipped `config/elliott.yaml` reads a
+provider; to run against an OpenAI-compatible `base_url`, set `llm.base_url`
+there (its line is commented by default) — the doctor then loads whatever that
+config requires. `ELLIOTT_LLM_BASE_URL` alone does nothing against the shipped
+config.
 
 The output has four parts:
 
 - **LLM probe** — `OK` or `FAILED`, with the wire, model, and endpoint. A
   failure prints the provider's own message (e.g. `Anthropic 401: …`), never a
-  stack trace.
+  stack trace; the API key is scrubbed and the message is flattened to one line
+  so a hostile endpoint cannot leak the key or forge a verdict line.
 - **Ran / Skipped** — every bundled skill and why a skipped one is dormant. A
-  skill needing a vendor key beyond the LLM provider is named with the key it
-  waits on and the secret reference to set. Skipped skills never abort the run.
-- **Egress** — the hosts contacted during the run. The command permits network
-  only to the LLM endpoint; a request anywhere else is blocked, recorded, and
+  skill needing a vendor key beyond the LLM provider is named with the secret
+  reference to supply and its manifest gate; some (a composite gate such as
+  SMTP) need extra config, so the section points at
+  [Activation gates](activation-gates.md). A bundled package that produces no
+  registration at all is an error, not a skip. Skipped skills never abort the run.
+- **Egress** — every host contacted during the run, redirect targets included:
+  the command follows redirects manually and permits network only to the LLM
+  endpoint, so a request (or redirect) anywhere else is blocked, recorded, and
   fails the run.
 - **Timing** — elapsed wall time, with a notice when a cold run exceeds five
   minutes.

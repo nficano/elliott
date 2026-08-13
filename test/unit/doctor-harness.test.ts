@@ -99,9 +99,23 @@ describe("runDoctor", () => {
     expect(fetchSkill?.status).toBe("ran");
     expect(brave?.status).toBe("skipped");
     expect(brave?.needsVendorKey).toBe(true);
-    expect(brave?.missingKey).toBe("braveApiKey");
+    expect(brave?.gate).toEqual({ kind: "secret", identifier: "braveApiKey" });
     expect(brave?.secretRefs).toEqual(["secret://search/brave/api-key"]);
     expect(report.egressViolations).toEqual([]);
+  });
+
+  it("fails when a package produced no registration (no entrypoint)", async () => {
+    const report = await runDoctor(
+      input,
+      deps({
+        loadPackages: async () => [pkg("broken", "always")],
+        register: async () => [],
+      }),
+    );
+    const broken = report.skills.find((s) => s.name === "broken");
+    expect(broken?.status).toBe("error");
+    expect(broken?.error).toContain("did not load");
+    expect(report.ok).toBe(false);
   });
 
   it("fails when the LLM probe fails", async () => {

@@ -46,11 +46,18 @@ const defaultModelFor = (provider: string): string | undefined => {
   return undefined;
 };
 
+// The message above this hint already names the exact variable the loaded
+// config is missing. The hint offers the two ways to supply it. It does NOT
+// list base_url as an env-only alternative: the shipped config reads a
+// provider (its base_url line is commented), so a base_url setup means editing
+// config/elliott.yaml, not exporting a variable — claiming otherwise would
+// contradict the missing-variable message.
 const MISSING_CONFIG_HINT =
-  "elliott doctor needs LLM credentials with minimal config. Set either:\n"
-  + `  - ${ANTHROPIC_KEY_VAR} (Anthropic) or ${OPENAI_KEY_VAR} (OpenAI), or\n`
-  + `  - ${LLM_PROVIDER_VAR} + ${LLM_API_KEY_VAR} + ${LLM_MODEL_VAR} `
-  + "(or an OpenAI-compatible base_url) explicitly.";
+  "elliott doctor needs LLM credentials for the config it loaded. Set either:\n"
+  + `  - ${ANTHROPIC_KEY_VAR} (Anthropic) or ${OPENAI_KEY_VAR} (OpenAI) for a `
+  + "turnkey run, or\n"
+  + `  - the ${LLM_PROVIDER_VAR} / ${LLM_API_KEY_VAR} / ${LLM_MODEL_VAR} `
+  + "variables the shipped config reads.";
 
 // Build the environment overlay the doctor applies before loading settings.
 // The convenience path fills the whole LLM trio from a lone vendor key so a

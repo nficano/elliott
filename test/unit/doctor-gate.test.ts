@@ -80,7 +80,7 @@ describe("classifyOutcome", () => {
     expect(outcome.needsVendorKey).toBe(false);
   });
 
-  it("marks a secret-gated skill with no bindings as skipped and names the key", () => {
+  it("marks a secret-gated skill with no bindings as skipped needing a vendor key", () => {
     const outcome = classifyOutcome(
       view({
         name: "search-brave",
@@ -91,7 +91,7 @@ describe("classifyOutcome", () => {
     );
     expect(outcome.status).toBe("skipped");
     expect(outcome.needsVendorKey).toBe(true);
-    expect(outcome.missingKey).toBe("braveApiKey");
+    expect(outcome.gate).toEqual({ kind: "secret", identifier: "braveApiKey" });
     expect(outcome.secretRefs).toEqual(["secret://search/brave/api-key"]);
   });
 
@@ -103,7 +103,6 @@ describe("classifyOutcome", () => {
     );
     expect(outcome.status).toBe("skipped");
     expect(outcome.needsVendorKey).toBe(false);
-    expect(outcome.missingKey).toBeUndefined();
   });
 
   it("marks an unregistered skill with a captured error as error", () => {
@@ -117,8 +116,11 @@ describe("classifyOutcome", () => {
     expect(outcome.needsVendorKey).toBe(false);
   });
 
-  it("treats an unregistered skill with no error as skipped, not failed", () => {
+  it("marks an unregistered skill with no captured error as error, not skipped", () => {
+    // A package that produced no registration never loaded — a real gap, not an
+    // expected gate miss (a gate miss still registers and returns no bindings).
     const outcome = classifyOutcome(view({ registered: false }), undefined, []);
-    expect(outcome.status).toBe("skipped");
+    expect(outcome.status).toBe("error");
+    expect(outcome.error).toContain("did not load");
   });
 });

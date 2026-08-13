@@ -4,7 +4,7 @@ import type { SkillContextSeed, SkillPackageView } from "../skills/types";
 import { hostOf, withEgressAllowlist } from "./egress";
 import { classifyOutcome } from "./gate";
 import { readManifestSecretRefs } from "./manifest";
-import { cleanMessage } from "./message";
+import { cleanMessage, sanitizeForDisplay } from "./message";
 import { probeLlm } from "./probe";
 import type {
   CapturedReport,
@@ -36,7 +36,14 @@ const doctorSeed = (
   stateDirectory: input.settings.stateDirectory,
   packages: () => [],
   report: (error, mechanism) => {
-    reports.push({ mechanism, message: cleanMessage(error) });
+    // A captured message is operator-facing: scrub the key and flatten it so a
+    // skill (or anything it wraps) cannot leak a secret or forge report lines.
+    reports.push({
+      mechanism,
+      message: sanitizeForDisplay(cleanMessage(error), [
+        input.settings.llmApiKey,
+      ]),
+    });
   },
   installErrorSink: () => {},
   deliver: async () => {},
