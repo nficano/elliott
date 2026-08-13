@@ -25,21 +25,26 @@ describe("search-duckduckgo skill logic (Tier 1)", () => {
   });
 
   it("registers and searches once enabled", async () => {
-    const stub = stubFetch([{
-      match: "html.duckduckgo.com",
-      body: "<a class=\"result__a\" href=\"https://example.com/\">Example</a>",
-    }]);
+    const stub = stubFetch([
+      {
+        match: "html.duckduckgo.com",
+        body:
+          "<a class=\"result__a\" href=\"https://example.com/\">Example</a>",
+      },
+    ]);
     const { context } = await makeSmokeContext();
     const tool = toolByName(
       await loadOneSkill("search-duckduckgo", context),
       "duckduckgo_search",
     );
     const result = JSON.parse(await tool.execute({ query: "elliott agent" }));
-    expect(result).toEqual([{
-      title: "Example",
-      url: "https://example.com/",
-      snippet: "",
-    }]);
+    expect(result).toEqual([
+      {
+        title: "Example",
+        url: "https://example.com/",
+        snippet: "",
+      },
+    ]);
     expect(stub.calls[0]).toContain("q=elliott");
   });
 });
