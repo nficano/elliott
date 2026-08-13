@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import {
   cleanMessage,
+  firstLine,
   oneLine,
   redactSecrets,
   sanitizeForDisplay,
@@ -27,9 +28,33 @@ describe("redactSecrets", () => {
     expect(out).toContain("‹redacted›");
   });
 
-  it("ignores undefined and too-short secrets to avoid blanking unrelated text", () => {
-    const out = redactSecrets("the key is x", [undefined, "x", "short7"]);
-    expect(out).toBe("the key is x");
+  it("redacts a short secret too — the config boundary accepts short keys", () => {
+    // A length floor would leave a short but valid API key exposed.
+    expect(redactSecrets("provider echoed abc123", ["abc123"])).toBe(
+      "provider echoed ‹redacted›",
+    );
+    expect(redactSecrets("k is ab", ["ab"])).toBe("k is ‹redacted›");
+  });
+
+  it("ignores only undefined and empty secrets", () => {
+    expect(redactSecrets("unchanged", [undefined, ""])).toBe("unchanged");
+  });
+});
+
+describe("firstLine", () => {
+  it("keeps a single-line message intact", () => {
+    expect(firstLine("Environment is missing ELLIOTT_LLM_PROVIDER")).toBe(
+      "Environment is missing ELLIOTT_LLM_PROVIDER",
+    );
+  });
+
+  it("drops everything after the first newline (a parser code frame)", () => {
+    const parserError =
+      "Nested mappings are not allowed at line 2:\n\n  api_key: sk-secret\n";
+    expect(firstLine(parserError)).toBe(
+      "Nested mappings are not allowed at line 2:",
+    );
+    expect(firstLine(parserError)).not.toContain("sk-secret");
   });
 });
 

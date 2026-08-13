@@ -9,7 +9,7 @@ import { loadSkillRegistrations } from "../skills/loader";
 import type { SecretResolver } from "../types";
 import { formatReport } from "./format";
 import { defaultDoctorDependencies, runDoctor } from "./harness";
-import { cleanMessage } from "./message";
+import { cleanMessage, firstLine, sanitizeForDisplay } from "./message";
 import type { DoctorEnv, DoctorEnvOverlay } from "./types";
 
 const DOCTOR_COMMAND = "doctor";
@@ -94,6 +94,17 @@ const overlayResolver = (
   vault: (path, field) => envBackedSecretResolver.vault(path, field),
 });
 
+// A config-load failure is operator-facing but untrusted: a YAML parser echoes
+// the offending source line (which may hold a hardcoded secret) as a multi-line
+// code frame. Reduce it to its first line — the description, never the frame —
+// then scrub any injected secret and flatten it, so neither a credential nor a
+// forged line can reach the terminal. `secrets` are the doctor's own overlay
+// values (a vendor key it injected), the only secret values it holds here.
+export const configErrorLine = (
+  error: unknown,
+  secrets: readonly string[],
+): string => sanitizeForDisplay(firstLine(cleanMessage(error)), secrets);
+
 // Handle `elliott doctor`. Returns true once it owns the argv (so other CLI
 // handlers stand down), setting a nonzero exit code on any failure — a missing
 // config, a configuration error, a failed probe, an egress breach, or a skill
@@ -112,7 +123,8 @@ export const runDoctorCli = async (
     settings = await loadRuntimeSettings(root, AGENT_NAME, resolver);
   } catch (error) {
     console.error(
-      `elliott doctor: ${cleanMessage(error)}\n\n${MISSING_CONFIG_HINT}`,
+      `elliott doctor: ${configErrorLine(error, Object.values(overlay))}`
+        + `\n\n${MISSING_CONFIG_HINT}`,
     );
     process.exitCode = 1;
     return true;

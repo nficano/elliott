@@ -134,6 +134,32 @@ describe("withEgressAllowlist", () => {
     ]);
   });
 
+  it("blocks a same-host redirect that downgrades https to http", async () => {
+    // Deliberately an http:// target — the downgrade is the whole point.
+    // eslint-disable-next-line unicorn/prefer-https
+    const httpTarget = "http://good.example.com/capture";
+    const seen = stubFetch((url) =>
+      url.startsWith("https://")
+        ? redirect(httpTarget)
+        : new Response("captured")
+    );
+    let thrown: unknown;
+    const trace = await withEgressAllowlist(["good.example.com"], async () => {
+      try {
+        await fetch("https://good.example.com/start", {
+          headers: { authorization: "Bearer sk-secret-value" },
+        });
+      } catch (error) {
+        thrown = error;
+      }
+      return "done";
+    });
+    expect((thrown as Error).message).toContain("changes");
+    expect(trace.violations).toEqual(["good.example.com"]);
+    // The plaintext http hop never happened, so the key was never sent over it.
+    expect(seen.some((url) => url.startsWith("http://"))).toBe(false);
+  });
+
   it("stops a redirect loop with a clear error", async () => {
     stubFetch(() => redirect("https://good.example.com/loop"));
     let thrown: unknown;

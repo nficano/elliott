@@ -1,7 +1,4 @@
 const REDACTION = "‹redacted›";
-// Shorter strings are too generic to redact safely (an empty or 2-char key
-// would blank out unrelated text); real API keys are far longer.
-const MIN_SECRET_LENGTH = 8;
 const CONTROL_MAX = 0x1F;
 const DELETE_CODE = 0x7F;
 
@@ -15,18 +12,29 @@ export const cleanMessage = (error: unknown): string =>
 // the config loader feed provider- and environment-derived text into
 // operator-facing output; a hostile or misconfigured endpoint can echo the
 // Authorization header back in its error body, so the API key is scrubbed
-// before the text is ever printed or captured.
+// before the text is ever printed or captured. Any non-empty secret is redacted
+// regardless of length — the config boundary accepts short keys, so a length
+// floor would leave a short key exposed; over-redacting a pathologically short
+// secret is a readability cost, never a leak.
 export const redactSecrets = (
   text: string,
   secrets: readonly (string | undefined)[],
 ): string => {
   let out = text;
   for (const secret of secrets) {
-    if (secret !== undefined && secret.length >= MIN_SECRET_LENGTH) {
+    if (secret !== undefined && secret.length > 0) {
       out = out.split(secret).join(REDACTION);
     }
   }
   return out;
+};
+
+// The first line of a message, without a trailing newline. Used to strip a
+// parser's multi-line source excerpt (which can quote a file's secret) down to
+// its single-line description before display.
+export const firstLine = (text: string): string => {
+  const newline = text.indexOf("\n");
+  return newline === -1 ? text : text.slice(0, newline);
 };
 
 const isControl = (code: number): boolean =>

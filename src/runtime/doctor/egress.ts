@@ -9,9 +9,9 @@ const hrefOf = (input: unknown): string | undefined => {
   return undefined;
 };
 
-const hostOfUrl = (href: string): string | undefined => {
+const safeUrl = (href: string): URL | undefined => {
   try {
-    return new URL(href).host;
+    return new URL(href);
   } catch {
     return undefined;
   }
@@ -82,14 +82,16 @@ const advance = (
   return { url, method: "GET", headers, body: undefined };
 };
 
-// Issue one request, following redirects by hand so every hop's host passes the
-// caller's `checkHost` (which records it and throws on a non-allowlisted host).
-// This closes the gap where fetch would auto-follow an allowlisted endpoint's
-// redirect to a third host without the guard ever seeing it.
+// Issue one request, following redirects by hand so every hop passes the
+// caller's `checkHop` before it is fetched. checkHop records the host, enforces
+// the allowlist, and — for a redirect — rejects any change of origin
+// (scheme/host/port). That closes two gaps fetch's automatic following leaves:
+// a bounce to a third host, and a same-host downgrade from https to http that
+// would carry the Authorization header over plaintext.
 const followGuarded = async (
   guard: {
     readonly original: typeof fetch;
-    readonly checkHost: (href: string) => void;
+    readonly checkHop: (url: string, fromUrl?: string) => void;
   },
   input: Parameters<typeof fetch>[0],
   init: Parameters<typeof fetch>[1],
@@ -101,8 +103,8 @@ const followGuarded = async (
     return guard.original(input, { ...init, redirect: "error" });
   }
   let hop = initialHop(input, init, href);
+  guard.checkHop(hop.url);
   for (let redirects = 0;; redirects++) {
-    guard.checkHost(hop.url);
     const response = await guard.original(hop.url, {
       ...init,
       method: hop.method,
@@ -119,7 +121,9 @@ const followGuarded = async (
         `egress blocked: too many redirects (> ${MAX_REDIRECTS}) from ${href}`,
       );
     }
-    hop = advance(hop, response.status, location);
+    const next = advance(hop, response.status, location);
+    guard.checkHop(next.url, hop.url);
+    hop = next;
   }
 };
 
@@ -135,22 +139,33 @@ export const withEgressAllowlist = async <T>(
   const contacted = new Set<string>();
   const violations = new Set<string>();
   const original = globalThis.fetch;
-  const checkHost = (href: string): void => {
-    const host = hostOfUrl(href);
-    if (host === undefined) return;
-    contacted.add(host);
-    if (!allowedHosts.includes(host)) {
-      violations.add(host);
+  // Validate one hop. Records the host, enforces the host allowlist, and — when
+  // `fromUrl` is set (a redirect) — refuses any change of origin, so a redirect
+  // can never downgrade the scheme, change the port, or leave the host.
+  const checkHop = (url: string, fromUrl?: string): void => {
+    const target = safeUrl(url);
+    if (target === undefined) return;
+    contacted.add(target.host);
+    if (!allowedHosts.includes(target.host)) {
+      violations.add(target.host);
       throw new Error(
-        `egress blocked: ${host} is outside the LLM-only allowlist `
+        `egress blocked: ${target.host} is outside the LLM-only allowlist `
           + `(permitted: ${allowedHosts.join(", ")})`,
+      );
+    }
+    const from = fromUrl === undefined ? undefined : safeUrl(fromUrl);
+    if (from !== undefined && from.origin !== target.origin) {
+      violations.add(target.host);
+      throw new Error(
+        `egress blocked: redirect ${from.origin} -> ${target.origin} changes `
+          + "origin (scheme/host/port); refusing to carry credentials across it",
       );
     }
   };
   const guarded = async (
     input: Parameters<typeof fetch>[0],
     init?: Parameters<typeof fetch>[1],
-  ): Promise<Response> => followGuarded({ original, checkHost }, input, init);
+  ): Promise<Response> => followGuarded({ original, checkHop }, input, init);
   // Swapping the global fetch is the whole mechanism: it scopes an egress
   // allowlist over `fn` without threading a fetch argument through the model
   // client and every skill. Preserve fetch.preconnect so the swapped global
