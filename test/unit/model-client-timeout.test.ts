@@ -17,6 +17,7 @@ afterEach(() => {
 
 const settings = {
   llmBaseUrl: "https://litellm.test/v1",
+  llmWire: "openai",
   llmApiKey: "sk-test",
   model: "test-model",
   maxTokens: 128,
@@ -83,7 +84,7 @@ describe("model call watchdog", () => {
     });
 
     await expect(client.complete(turn, async () => {}))
-      .rejects.toThrow(/LiteLLM stalled: no data for/);
+      .rejects.toThrow(/Model call stalled \(OpenAI-compatible\): no data for/);
   });
 
   it("lets a slow-but-active stream finish", async () => {
@@ -121,7 +122,7 @@ describe("model call watchdog", () => {
     });
 
     await expect(client.complete(turn)).rejects.toThrow(
-      "LiteLLM stalled: no data for 0s",
+      "Model call stalled (OpenAI-compatible): no data for 0s",
     );
   });
 

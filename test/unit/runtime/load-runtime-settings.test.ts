@@ -336,6 +336,149 @@ llm:
       .rejects.toThrow(/Secret token is not text/);
   });
 
+  const withLlm = (block: string): Record<string, string> => ({
+    "config/elliott.yaml": `
+runtime: { timezone: UTC }
+llm:
+${block}
+  models: { default: { model: m } }
+  profiles: { default: {} }
+`,
+    "config/secrets.yaml": "{}",
+    "agents/tester.yaml": "spec: { persona: p.md, modelProfile: default }",
+    "p.md": "p",
+  });
+
+  it("keeps an explicit base_url verbatim and defaults its wire to openai", async () => {
+    // Every config written before providers existed points at an
+    // OpenAI-compatible endpoint (LiteLLM proxy, Ollama, a vendor /v1).
+    // Those must keep booting unchanged, on the OpenAI wire.
+    const root = await writeTree(
+      withLlm("  base_url: https://proxy.internal/v1\n  api_key: key"),
+    );
+    const settings = await loadRuntimeSettings(root, "tester", resolver());
+    expect(settings.llmBaseUrl).toBe("https://proxy.internal/v1");
+    expect(settings.llmWire).toBe("openai");
+  });
+
+  it("resolves base_url and wire from provider: anthropic", async () => {
+    const root = await writeTree(
+      withLlm("  provider: anthropic\n  api_key: key"),
+    );
+    const settings = await loadRuntimeSettings(root, "tester", resolver());
+    expect(settings.llmBaseUrl).toBe("https://api.anthropic.com/v1");
+    expect(settings.llmWire).toBe("anthropic");
+  });
+
+  it("resolves base_url and wire from provider: openai", async () => {
+    const root = await writeTree(
+      withLlm("  provider: openai\n  api_key: key"),
+    );
+    const settings = await loadRuntimeSettings(root, "tester", resolver());
+    expect(settings.llmBaseUrl).toBe("https://api.openai.com/v1");
+    expect(settings.llmWire).toBe("openai");
+  });
+
+  it("lets an explicit base_url override the provider default, keeping its wire", async () => {
+    // Pointing an Anthropic-speaking gateway at a private host is legitimate:
+    // the URL is yours, the protocol is still Anthropic's.
+    const root = await writeTree(
+      withLlm(
+        "  provider: anthropic\n  base_url: https://gateway.internal/v1\n  api_key: key",
+      ),
+    );
+    const settings = await loadRuntimeSettings(root, "tester", resolver());
+    expect(settings.llmBaseUrl).toBe("https://gateway.internal/v1");
+    expect(settings.llmWire).toBe("anthropic");
+  });
+
+  it("fails closed naming both keys when neither base_url nor provider is set", async () => {
+    const root = await writeTree(withLlm("  api_key: key"));
+    await expect(loadRuntimeSettings(root, "tester", resolver()))
+      .rejects.toThrow(/llm\.base_url.*llm\.provider.*anthropic.*openai/s);
+  });
+
+  it("rejects an unknown provider by name", async () => {
+    const root = await writeTree(
+      withLlm("  provider: googol\n  api_key: key"),
+    );
+    await expect(loadRuntimeSettings(root, "tester", resolver()))
+      .rejects.toThrow(/Unknown llm\.provider: googol/);
+  });
+
+  it("still requires api_key when a provider supplies the base_url", async () => {
+    const root = await writeTree(withLlm("  provider: openai"));
+    await expect(loadRuntimeSettings(root, "tester", resolver()))
+      .rejects.toThrow(/llm\.api_key/);
+  });
+
+  it("reads thinking and effort from the default profile", async () => {
+    const root = await writeTree({
+      "config/elliott.yaml": `
+runtime: { timezone: UTC }
+llm:
+  provider: anthropic
+  api_key: key
+  models: { default: { model: claude-opus-5 } }
+  profiles:
+    default:
+      thinking: adaptive
+      effort: xhigh
+`,
+      "config/secrets.yaml": "{}",
+      "agents/tester.yaml": "spec: { persona: p.md, modelProfile: default }",
+      "p.md": "p",
+    });
+    const settings = await loadRuntimeSettings(root, "tester", resolver());
+    expect(settings.thinking).toBe("adaptive");
+    expect(settings.effort).toBe("xhigh");
+  });
+
+  it("leaves thinking and effort unset when the profile omits them", async () => {
+    const root = await writeTree(
+      withLlm("  provider: anthropic\n  api_key: key"),
+    );
+    const settings = await loadRuntimeSettings(root, "tester", resolver());
+    expect(settings.thinking).toBeUndefined();
+    expect(settings.effort).toBeUndefined();
+  });
+
+  it("rejects an effort level the providers do not define", async () => {
+    const root = await writeTree({
+      "config/elliott.yaml": `
+runtime: { timezone: UTC }
+llm:
+  provider: anthropic
+  api_key: key
+  models: { default: { model: claude-opus-5 } }
+  profiles: { default: { effort: ludicrous } }
+`,
+      "config/secrets.yaml": "{}",
+      "agents/tester.yaml": "spec: { persona: p.md, modelProfile: default }",
+      "p.md": "p",
+    });
+    await expect(loadRuntimeSettings(root, "tester", resolver()))
+      .rejects.toThrow(/llm\.profiles\.default\.effort/);
+  });
+
+  it("rejects a thinking mode the providers do not define", async () => {
+    const root = await writeTree({
+      "config/elliott.yaml": `
+runtime: { timezone: UTC }
+llm:
+  provider: anthropic
+  api_key: key
+  models: { default: { model: claude-opus-5 } }
+  profiles: { default: { thinking: sometimes } }
+`,
+      "config/secrets.yaml": "{}",
+      "agents/tester.yaml": "spec: { persona: p.md, modelProfile: default }",
+      "p.md": "p",
+    });
+    await expect(loadRuntimeSettings(root, "tester", resolver()))
+      .rejects.toThrow(/llm\.profiles\.default\.thinking/);
+  });
+
   it("resolves nested ENV expressions inside the config tree", async () => {
     const root = await writeTree({
       "config/elliott.yaml": `

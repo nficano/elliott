@@ -1,6 +1,9 @@
-import { isJsonRecord, nestedRecord, recordArray } from "../../providers/http";
+import { nestedRecord, recordArray } from "../../providers/http";
 import type { ModelTurnResult, RuntimeModelUsage, ToolCall } from "../types";
+import { parseStreamEvent, readServerEvents } from "./sse";
 import { decodeRuntimeModelUsage } from "./usage";
+
+const WIRE_NAME = "OpenAI-compatible";
 
 export const decodeCompletionStream = async (
   response: Response,
@@ -8,7 +11,7 @@ export const decodeCompletionStream = async (
   onActivity?: () => void,
 ): Promise<ModelTurnResult> => {
   if (response.body === null) {
-    throw new Error("LiteLLM returned an empty stream");
+    throw new Error(`${WIRE_NAME} returned an empty stream`);
   }
   let text = "";
   let usage: RuntimeModelUsage | undefined;
@@ -17,20 +20,21 @@ export const decodeCompletionStream = async (
     { id: string; name: string; arguments: string; }
   >();
   await readServerEvents(response.body, onActivity, async (data) => {
-    if (data === "[DONE]") return;
-    const payload = parseEvent(data);
+    if (data === "[DONE]") return true;
+    const payload = parseStreamEvent(data, WIRE_NAME);
     usage = decodeRuntimeModelUsage(payload) ?? usage;
     const choice = recordArray(payload, "choices")[0];
     const delta = choice === undefined
       ? undefined
       : nestedRecord(choice, "delta");
-    if (delta === undefined) return;
+    if (delta === undefined) return false;
     const content = delta["content"];
     if (typeof content === "string" && content.length > 0) {
       text += content;
       await onTextDelta(content);
     }
     collectToolCalls(delta, calls);
+    return false;
   });
   return {
     text,
@@ -39,65 +43,6 @@ export const decodeCompletionStream = async (
       .map(([, call]) => completeToolCall(call)),
     ...(usage !== undefined && { usage }),
   };
-};
-
-const readServerEvents = async (
-  body: ReadableStream<Uint8Array>,
-  onActivity: (() => void) | undefined,
-  onData: (data: string) => Promise<void>,
-): Promise<void> => {
-  const reader = body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-  for (;;) {
-    const next = await reader.read();
-    onActivity?.();
-    buffer += decoder.decode(next.value, { stream: !next.done });
-    buffer = buffer.replaceAll("\r\n", "\n");
-    const parsed = await consumeEvents(buffer, onData);
-    buffer = parsed.remainder;
-    if (next.done || parsed.done) break;
-  }
-  if (buffer.trim().length > 0) {
-    await dispatchEvent(buffer, onData);
-  }
-};
-
-const consumeEvents = async (
-  input: string,
-  onData: (data: string) => Promise<void>,
-): Promise<{ readonly remainder: string; readonly done: boolean; }> => {
-  let remainder = input;
-  for (;;) {
-    const boundary = remainder.indexOf("\n\n");
-    if (boundary === -1) return { remainder, done: false };
-    const event = remainder.slice(0, boundary);
-    remainder = remainder.slice(boundary + 2);
-    if (await dispatchEvent(event, onData)) {
-      return { remainder: "", done: true };
-    }
-  }
-};
-
-const dispatchEvent = async (
-  event: string,
-  onData: (data: string) => Promise<void>,
-): Promise<boolean> => {
-  const data = event.split("\n")
-    .filter((line) => line.startsWith("data:"))
-    .map((line) => line.slice("data:".length).trimStart())
-    .join("\n");
-  if (data.length === 0) return false;
-  await onData(data);
-  return data === "[DONE]";
-};
-
-const parseEvent = (data: string): Readonly<Record<string, unknown>> => {
-  const value: unknown = JSON.parse(data);
-  if (!isJsonRecord(value)) {
-    throw new Error("LiteLLM returned a non-object stream event");
-  }
-  return value;
 };
 
 const collectToolCalls = (
@@ -126,7 +71,7 @@ const completeToolCall = (call: {
   readonly arguments: string;
 }): ToolCall => {
   if (call.id.length === 0 || call.name.length === 0) {
-    throw new Error("LiteLLM returned an incomplete streamed tool call");
+    throw new Error(`${WIRE_NAME} returned an incomplete streamed tool call`);
   }
   return call;
 };

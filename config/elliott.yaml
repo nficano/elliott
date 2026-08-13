@@ -10,12 +10,21 @@ store:
   vectors: { dim: 768, type: vector }
 
 llm:
-  # Any OpenAI-compatible endpoint: a provider's native /v1, a LiteLLM
-  # proxy, or a local server. No endpoint or model ships as a default —
-  # set these environment variables (or replace the expressions with
-  # literals in your agent repo's copy of this file). A missing variable
-  # fails the boot naming it.
-  base_url: ${ENV:ELLIOTT_LLM_BASE_URL} # e.g. https://api.example.com/v1
+  # Name a provider OR a base_url — one of the two is required, and a missing
+  # both fails the boot naming them. No model ships as a default either.
+  #
+  #   provider: anthropic   -> https://api.anthropic.com/v1, native wire
+  #                            (/messages, thinking, effort)
+  #   provider: openai      -> https://api.openai.com/v1, /chat/completions
+  #   base_url: <url>       -> any OpenAI-compatible endpoint (LiteLLM proxy,
+  #                            Ollama, a vendor /v1). No provider needed.
+  #
+  # Setting both is valid and means "this provider's protocol, my host" — for
+  # an Anthropic-speaking gateway on a private URL. elliott never infers a
+  # provider from the key or the model name: a wrong guess would ship prompts
+  # to a vendor you did not choose.
+  provider: ${ENV:ELLIOTT_LLM_PROVIDER} # anthropic | openai
+  # base_url: ${ENV:ELLIOTT_LLM_BASE_URL} # e.g. https://api.example.com/v1
   api_key: ${ENV:ELLIOTT_LLM_API_KEY}
   max_parallel: 12
   models:
@@ -25,7 +34,14 @@ llm:
       model: ${ENV:ELLIOTT_LLM_MODEL}
       context_window: 128000
   profiles:
+    # `thinking` and `effort` are optional; unset leaves each model's own
+    # default in force. Both reach Anthropic natively (thinking block +
+    # output_config.effort); on the OpenAI wire `effort` maps to
+    # reasoning_effort and is sent only when set. `temperature` applies to the
+    # OpenAI wire only — current Anthropic models reject sampling parameters,
+    # so the native wire omits it.
     default: { max_tokens: 4096, temperature: 0.4 }
+    # default: { max_tokens: 4096, thinking: adaptive, effort: high }
 
 budgets:
   cold_tokens_max: 12000

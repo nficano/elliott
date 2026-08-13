@@ -53,9 +53,47 @@ deploy job.
 ## Boot it
 
 ```bash
-export ELLIOTT_LLM_BASE_URL="https://api.example.com/v1"
-export ELLIOTT_LLM_API_KEY="sk-…"
-export ELLIOTT_LLM_MODEL="your-model-id"
+export ELLIOTT_LLM_PROVIDER="anthropic"   # or: openai
+export ELLIOTT_LLM_API_KEY="sk-ant-…"
+export ELLIOTT_LLM_MODEL="claude-opus-5"
+
+bun run start
+```
+
+Naming a provider resolves its endpoint and wire protocol for you. To use
+anything else — a LiteLLM proxy, Ollama, another vendor's `/v1` — set
+`llm.base_url` in your copy of `config/elliott.yaml` instead and elliott speaks
+the OpenAI-compatible protocol there. See
+[Choosing an endpoint](../reference/configuration.md#choosing-an-endpoint).
+
+A missing required field fails the boot and names the field. Every key is in the
+[configuration reference](../reference/configuration.md).
+
+## Add a skill to it
+
+Skills under `agents/<name>/skills/` load through the same two-pass loader as
+the framework's own. Build them exactly as in
+[Build your first skill](../tutorials/build-your-first-skill.md), with one
+change: import framework types from the package exports rather than by relative
+path.
+
+```typescript
+import type { SkillRegistration } from "elliott/skills";
+import type { ToolDefinition } from "elliott/runtime";
+```
+
+Bun runs TypeScript straight out of `node_modules`, so there is no build step.
+
+## If you need a skill that is generic
+
+Put it in the [skills registry](install-registry-skills.md) instead, or in the
+framework's `skills/` if every install should have it. Agent repositories are
+for what only your agent needs. The reasoning is in
+[Framework skills vs. agent skills](../explanation/framework-vs-agent-repos.md).
+
+## Keep secrets out of the repository
+
+`config/secrets.yaml` holds references, never values:
 
 bun run start
 ```
