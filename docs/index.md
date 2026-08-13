@@ -28,6 +28,7 @@ with something running.
 
 Recipes for people who already know the basics.
 
+- [Check your setup end-to-end](guides/check-your-setup.md)
 - [Create an agent repository](guides/create-an-agent-repo.md)
 - [Set up a development environment](guides/set-up-a-development-environment.md)
 - [Install skills from the registry](guides/install-registry-skills.md)

@@ -5,7 +5,8 @@ to [`src/cli.ts`](../../src/cli.ts). Invoke it as `bunx elliott …` from a
 consumer repository, or `bun src/cli.ts …` inside this one.
 
 Argument handling is ordered: scaffolding claims the invocation first, then
-`skills`, then everything else falls through to the evolution control plane.
+`doctor`, then `skills`, then everything else falls through to the evolution
+control plane.
 
 ## `elliott new`
 
@@ -27,6 +28,45 @@ plus `config/secrets.yaml` with env-backed placeholders for the required LLM
 fields.
 
 Prints the created directory on success.
+
+## `elliott doctor`
+
+```
+elliott doctor
+```
+
+An out-of-box end-to-end check: boots the bundled framework skills, reports
+which registered and which stayed dormant, then runs one live model round-trip
+against the configured provider. Meant for a fresh clone — set the LLM keys and
+watch it work.
+
+Minimal config. The command needs only an LLM credential, resolved in this
+order:
+
+| Precedence | Variables | Model |
+| :--- | :--- | :--- |
+| explicit | `ELLIOTT_LLM_PROVIDER` + `ELLIOTT_LLM_API_KEY` + `ELLIOTT_LLM_MODEL` | as set |
+| convenience | `ANTHROPIC_API_KEY` (implies `anthropic`) | a built-in default, override with `ELLIOTT_LLM_MODEL` |
+| convenience | `OPENAI_API_KEY` (implies `openai`) | a built-in default, override with `ELLIOTT_LLM_MODEL` |
+
+With none of these set it prints what to set and exits non-zero.
+
+The output has four parts:
+
+- **LLM probe** — `OK` or `FAILED`, with the wire, model, and endpoint. A
+  failure prints the provider's own message (e.g. `Anthropic 401: …`), never a
+  stack trace.
+- **Ran / Skipped** — every bundled skill and why a skipped one is dormant. A
+  skill needing a vendor key beyond the LLM provider is named with the key it
+  waits on and the secret reference to set. Skipped skills never abort the run.
+- **Egress** — the hosts contacted during the run. The command permits network
+  only to the LLM endpoint; a request anywhere else is blocked, recorded, and
+  fails the run.
+- **Timing** — elapsed wall time, with a notice when a cold run exceeds five
+  minutes.
+
+Exit is non-zero when the probe fails, a skill fails to load, egress breaches
+the LLM-only allowlist, or the LLM config is missing.
 
 ## `elliott skills`
 
@@ -64,7 +104,7 @@ Without `ELLIOTT_CONTROL_PLANE_URL` the CLI exits non-zero with:
 
 ```
 Evolution commands require ELLIOTT_CONTROL_PLANE_URL;
-usage: elliott new skill|tool|agent <name> [directory]
+usage: elliott doctor | new skill|tool|agent <name> [directory]
 ```
 
 ## Repository scripts

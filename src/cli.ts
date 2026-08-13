@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 
-import { pathToFileURL } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { scaffoldConsumerAgent } from "./agent/index";
 import { runSkillsCli } from "./install/cli";
 import {
@@ -8,6 +8,7 @@ import {
   makeHttpEvolutionCliBackend,
 } from "./learning/evolution/cli/index";
 import { scaffoldComponent } from "./manifest/scaffold";
+import { runDoctorCli } from "./runtime/doctor/index";
 
 const scaffold = async (arguments_: readonly string[]): Promise<boolean> => {
   const [command, kind, name, parentDirectory = "."] = arguments_;
@@ -26,14 +27,19 @@ const scaffold = async (arguments_: readonly string[]): Promise<boolean> => {
   return true;
 };
 
+// The framework checkout root: cli.ts lives at <root>/src/cli.ts, so one level
+// up from src/ is the root that holds config/, skills/, and agents/.
+const frameworkRoot = fileURLToPath(new URL("..", import.meta.url));
+
 const main = async (arguments_: readonly string[]): Promise<void> => {
   if (await scaffold(arguments_)) return;
+  if (await runDoctorCli(arguments_, frameworkRoot)) return;
   if (await runSkillsCli(arguments_, process.cwd())) return;
   const endpoint = Bun.env["ELLIOTT_CONTROL_PLANE_URL"];
   if (endpoint === undefined) {
     throw new Error(
       "Evolution commands require ELLIOTT_CONTROL_PLANE_URL; "
-        + "usage: elliott new skill|tool|agent <name> [directory]",
+        + "usage: elliott doctor | new skill|tool|agent <name> [directory]",
     );
   }
   const token = Bun.env["ELLIOTT_CONTROL_PLANE_TOKEN"];

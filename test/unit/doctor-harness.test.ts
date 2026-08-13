@@ -1,0 +1,188 @@
+import { describe, expect, it } from "bun:test";
+import type { BundledPackage } from "../../src/catalog/types";
+import { runDoctor } from "../../src/runtime/doctor/harness";
+import type {
+  DoctorDependencies,
+  DoctorInput,
+} from "../../src/runtime/doctor/types";
+import type {
+  LoadedSkill,
+  SkillContextSeed,
+  SkillRegistration,
+} from "../../src/runtime/skills/types";
+import type { RuntimeSettings } from "../../src/runtime/types";
+
+const MINUTE_MS = 60_000;
+
+const input: DoctorInput = {
+  frameworkRoot: "/repo",
+  settings: {
+    llmWire: "anthropic",
+    llmBaseUrl: "https://api.anthropic.com/v1",
+    model: "claude-haiku-4-5-20251001",
+    stateDirectory: "/repo/.elliott-runtime",
+  } as unknown as RuntimeSettings,
+};
+
+const pkg = (name: string, gate: string): BundledPackage => ({
+  name,
+  kind: "tool",
+  profile: "tool-standard",
+  directory: `/repo/skills/${name}`,
+  document: "SKILL.md",
+  protocols: [],
+  provides: [],
+  exports: [],
+  topology: { gate },
+});
+
+const loaded = (
+  name: string,
+  registration: SkillRegistration,
+): LoadedSkill => ({
+  name,
+  registration,
+});
+
+const okCompleter: DoctorDependencies["makeCompleter"] = () => ({
+  complete: async () => ({ text: "ready", toolCalls: [] }),
+});
+
+// A clock that returns each supplied timestamp in order, so elapsed time is
+// deterministic without touching the wall clock.
+const clock = (...values: readonly number[]): () => number => {
+  let index = 0;
+  return () => values[Math.min(index++, values.length - 1)] ?? 0;
+};
+
+const deps = (
+  overrides: Partial<DoctorDependencies>,
+): DoctorDependencies => ({
+  loadPackages: async () => [],
+  register: async () => [],
+  makeCompleter: okCompleter,
+  manifestSecrets: async () => [],
+  now: clock(0, 1),
+  ...overrides,
+});
+
+describe("runDoctor", () => {
+  it("classifies ran and skipped skills and passes when the probe succeeds", async () => {
+    const packages = [
+      pkg("fetch", "always"),
+      pkg("search-brave", "secret:braveApiKey"),
+    ];
+    const report = await runDoctor(
+      input,
+      deps({
+        loadPackages: async () => packages,
+        register: async () => [
+          loaded("fetch", {
+            tools: [{
+              name: "fetch",
+              description: "",
+              inputSchema: {},
+              execute: async () => "",
+            }],
+          }),
+          loaded("search-brave", {}),
+        ],
+        manifestSecrets: async (directory) =>
+          directory.endsWith("search-brave")
+            ? ["secret://search/brave/api-key"]
+            : [],
+      }),
+    );
+    expect(report.ok).toBe(true);
+    const brave = report.skills.find((s) => s.name === "search-brave");
+    const fetchSkill = report.skills.find((s) => s.name === "fetch");
+    expect(fetchSkill?.status).toBe("ran");
+    expect(brave?.status).toBe("skipped");
+    expect(brave?.needsVendorKey).toBe(true);
+    expect(brave?.missingKey).toBe("braveApiKey");
+    expect(brave?.secretRefs).toEqual(["secret://search/brave/api-key"]);
+    expect(report.egressViolations).toEqual([]);
+  });
+
+  it("fails when the LLM probe fails", async () => {
+    const report = await runDoctor(
+      input,
+      deps({
+        makeCompleter: () => ({
+          complete: async () => {
+            throw new Error("anthropic 401: invalid x-api-key");
+          },
+        }),
+      }),
+    );
+    expect(report.ok).toBe(false);
+    expect(report.llm.ok).toBe(false);
+    expect(report.llm.error).toContain("401");
+  });
+
+  it("fails and records a violation when a probe reaches a non-LLM host", async () => {
+    const report = await runDoctor(
+      input,
+      deps({
+        makeCompleter: () => ({
+          complete: async () => {
+            await fetch("https://telemetry.example.com/beacon");
+            return { text: "ready", toolCalls: [] };
+          },
+        }),
+      }),
+    );
+    expect(report.ok).toBe(false);
+    expect(report.egressViolations).toEqual(["telemetry.example.com"]);
+    expect(report.llm.error).toContain("egress blocked");
+  });
+
+  it("treats a thrown register as a skill error that fails the run", async () => {
+    const report = await runDoctor(
+      input,
+      deps({
+        loadPackages: async () => [pkg("broken", "always")],
+        register: async (_packages, seed: SkillContextSeed) => {
+          seed.report(new Error("register exploded"), "skill:broken");
+          return [];
+        },
+      }),
+    );
+    const broken = report.skills.find((s) => s.name === "broken");
+    expect(broken?.status).toBe("error");
+    expect(broken?.error).toBe("register exploded");
+    expect(report.ok).toBe(false);
+  });
+
+  it("surfaces a soft register report as a non-fatal notice", async () => {
+    const report = await runDoctor(
+      input,
+      deps({
+        loadPackages: async () => [pkg("glitchtip", "config:x.enabled")],
+        register: async (_packages, seed: SkillContextSeed) => {
+          seed.report(new Error("DSN could not be parsed"), "glitchtip:config");
+          return [loaded("glitchtip", {})];
+        },
+      }),
+    );
+    expect(report.ok).toBe(true);
+    expect(report.warnings).toContain(
+      "glitchtip:config: DSN could not be parsed",
+    );
+  });
+
+  it("flags a cold run over the five-minute budget without failing it", async () => {
+    const report = await runDoctor(
+      input,
+      deps({ now: clock(0, 6 * MINUTE_MS) }),
+    );
+    expect(report.coldRunBudgetExceeded).toBe(true);
+    expect(report.ok).toBe(true);
+    expect(report.elapsedMilliseconds).toBe(6 * MINUTE_MS);
+  });
+
+  it("stays within budget for a fast run", async () => {
+    const report = await runDoctor(input, deps({ now: clock(0, 1200) }));
+    expect(report.coldRunBudgetExceeded).toBe(false);
+  });
+});

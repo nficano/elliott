@@ -44,6 +44,18 @@ ends at `/v1`, not at `/v1/chat/completions`.
 Skip one of the three and the boot stops with the variable's name in the error,
 which is the behavior you want the first time you deploy this somewhere real.
 
+Before booting a long-running server, you can confirm the whole path in one shot:
+
+```bash
+bun src/cli.ts doctor
+```
+
+That boots the same skills, runs one real model round-trip, and prints which
+skills ran, which are dormant and why, and how long it took — then exits. It is
+the quickest way to know your model config is right. Full contract:
+[CLI reference](../reference/cli.md#elliott-doctor). The rest of this tutorial
+uses the running server so you can also poke it over HTTP.
+
 ## Step 3: Boot
 
 ```bash
