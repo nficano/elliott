@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import {
   cleanMessage,
-  firstLine,
+  dropCodeFrame,
   oneLine,
   redactSecrets,
   sanitizeForDisplay,
@@ -29,12 +29,17 @@ describe("redactSecrets", () => {
     expect(out).toContain("‹redacted›");
   });
 
-  it("redacts a short secret too — the config boundary accepts short keys", () => {
-    // A length floor would leave a short but valid API key exposed.
+  it("redacts a realistic-length secret but skips a meaninglessly short one", () => {
+    // A real credential (here 6 chars) is redacted; a one- or two-character
+    // value is not — redacting it would blank a substring of ordinary words and
+    // it is never a real key.
     expect(redactSecrets("provider echoed abc123", ["abc123"])).toBe(
       "provider echoed ‹redacted›",
     );
-    expect(redactSecrets("k is ab", ["ab"])).toBe("k is ‹redacted›");
+    expect(redactSecrets("Unknown key k here", ["k"])).toBe(
+      "Unknown key k here",
+    );
+    expect(redactSecrets("blank is skipped", [" "])).toBe("blank is skipped");
   });
 
   it("ignores only undefined and empty secrets", () => {
@@ -51,20 +56,29 @@ describe("redactSecrets", () => {
   });
 });
 
-describe("firstLine", () => {
+describe("dropCodeFrame", () => {
   it("keeps a single-line message intact", () => {
-    expect(firstLine("Environment is missing ELLIOTT_LLM_PROVIDER")).toBe(
+    expect(dropCodeFrame("Environment is missing ELLIOTT_LLM_PROVIDER")).toBe(
       "Environment is missing ELLIOTT_LLM_PROVIDER",
     );
   });
 
-  it("drops everything after the first newline (a parser code frame)", () => {
+  it("drops a parser code frame (below a blank line), secret and all", () => {
     const parserError =
       "Nested mappings are not allowed at line 2:\n\n  api_key: sk-secret\n";
-    expect(firstLine(parserError)).toBe(
+    expect(dropCodeFrame(parserError)).toBe(
       "Nested mappings are not allowed at line 2:",
     );
-    expect(firstLine(parserError)).not.toContain("sk-secret");
+    expect(dropCodeFrame(parserError)).not.toContain("sk-secret");
+  });
+
+  it("keeps a value whose only newline is embedded, not a code frame", () => {
+    // A single embedded newline (no blank line) is NOT a code frame: the whole
+    // message survives for the caller to flatten, so nothing is truncated to a
+    // misleading prefix.
+    expect(dropCodeFrame("Unknown llm.provider: a\nb (expected x)")).toBe(
+      "Unknown llm.provider: a\nb (expected x)",
+    );
   });
 });
 

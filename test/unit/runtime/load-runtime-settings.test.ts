@@ -5,11 +5,18 @@ import path from "node:path";
 import { loadRuntimeSettings } from "../../../src/runtime/config";
 import type { SecretResolver } from "../../../src/runtime/types";
 
+// Secret-bearing fields must be opaque references (config enforces this), so the
+// fixtures reference ${ENV:LLM_KEY} for the api_key; this default makes it
+// resolvable everywhere without threading it through every call.
+const DEFAULT_ENV: Readonly<Record<string, string>> = {
+  LLM_KEY: "test-api-key",
+};
+
 const resolver = (
   env: Readonly<Record<string, string>> = {},
   vault: Readonly<Record<string, string>> = {},
 ): SecretResolver => ({
-  env: (name) => env[name],
+  env: (name) => env[name] ?? DEFAULT_ENV[name],
   vault: async (_path, field) => {
     const value = vault[field] ?? env[field];
     if (value === undefined) {
@@ -76,9 +83,9 @@ governance:
   deny: [tool.danger]
 observability:
   glitchtip:
-    dsn: https://glitchtip.example/1
+    dsn: "\${ENV:GLITCHTIP_DSN}"
 store:
-  dsn: postgres://local/db
+  dsn: "\${ENV:STORE_DSN}"
 install:
   registry: example/skills
   skills: [fetch]
@@ -126,6 +133,8 @@ describe("loadRuntimeSettings", () => {
         WEBHOOK: "wh",
         BRAVE: "brave",
         MCP_TOKEN: "mcp-auth",
+        GLITCHTIP_DSN: "https://glitchtip.example/1",
+        STORE_DSN: "postgres://local/db",
       }, { vault_field: "from-vault" }),
     );
 
@@ -170,7 +179,7 @@ describe("loadRuntimeSettings", () => {
 runtime: { timezone: UTC }
 llm:
   base_url: http://llm
-  api_key: key
+  api_key: "\${ENV:LLM_KEY}"
   models: { default: { model: m } }
   profiles: { default: {} }
 `,
@@ -232,7 +241,7 @@ spec:
 runtime: { timezone: UTC }
 llm:
   base_url: http://llm
-  api_key: key
+  api_key: "\${ENV:LLM_KEY}"
   models: { default: { model: m } }
   profiles: { default: {} }
 observability:
@@ -289,12 +298,12 @@ observability:
 runtime: { timezone: UTC }
 llm:
   base_url: http://llm
-  api_key: key
+  api_key: "\${ENV:LLM_KEY}"
   models: { default: { model: m } }
   profiles: { default: {} }
 `,
       "config/secrets.yaml": `
-present: literal
+present: "\${ENV:BRAVE}"
 missing: "\${ENV:NOPE}"
 `,
       "agents/elliott/agent.yaml": `
@@ -324,7 +333,7 @@ spec:
 runtime: { timezone: UTC }
 llm:
   base_url: http://llm
-  api_key: key
+  api_key: "\${ENV:LLM_KEY}"
   models: { default: { model: m } }
   profiles: { default: {} }
 `,
@@ -354,7 +363,9 @@ ${block}
     // OpenAI-compatible endpoint (LiteLLM proxy, Ollama, a vendor /v1).
     // Those must keep booting unchanged, on the OpenAI wire.
     const root = await writeTree(
-      withLlm("  base_url: https://proxy.internal/v1\n  api_key: key"),
+      withLlm(
+        "  base_url: https://proxy.internal/v1\n  api_key: '${ENV:LLM_KEY}'",
+      ),
     );
     const settings = await loadRuntimeSettings(root, "tester", resolver());
     expect(settings.llmBaseUrl).toBe("https://proxy.internal/v1");
@@ -363,7 +374,7 @@ ${block}
 
   it("resolves base_url and wire from provider: anthropic", async () => {
     const root = await writeTree(
-      withLlm("  provider: anthropic\n  api_key: key"),
+      withLlm("  provider: anthropic\n  api_key: '${ENV:LLM_KEY}'"),
     );
     const settings = await loadRuntimeSettings(root, "tester", resolver());
     expect(settings.llmBaseUrl).toBe("https://api.anthropic.com/v1");
@@ -372,7 +383,7 @@ ${block}
 
   it("resolves base_url and wire from provider: openai", async () => {
     const root = await writeTree(
-      withLlm("  provider: openai\n  api_key: key"),
+      withLlm("  provider: openai\n  api_key: '${ENV:LLM_KEY}'"),
     );
     const settings = await loadRuntimeSettings(root, "tester", resolver());
     expect(settings.llmBaseUrl).toBe("https://api.openai.com/v1");
@@ -384,7 +395,7 @@ ${block}
     // the URL is yours, the protocol is still Anthropic's.
     const root = await writeTree(
       withLlm(
-        "  provider: anthropic\n  base_url: https://gateway.internal/v1\n  api_key: key",
+        "  provider: anthropic\n  base_url: https://gateway.internal/v1\n  api_key: '${ENV:LLM_KEY}'",
       ),
     );
     const settings = await loadRuntimeSettings(root, "tester", resolver());
@@ -393,14 +404,14 @@ ${block}
   });
 
   it("fails closed naming both keys when neither base_url nor provider is set", async () => {
-    const root = await writeTree(withLlm("  api_key: key"));
+    const root = await writeTree(withLlm("  api_key: '${ENV:LLM_KEY}'"));
     await expect(loadRuntimeSettings(root, "tester", resolver()))
       .rejects.toThrow(/llm\.base_url.*llm\.provider.*anthropic.*openai/s);
   });
 
   it("rejects an unknown provider by name", async () => {
     const root = await writeTree(
-      withLlm("  provider: googol\n  api_key: key"),
+      withLlm("  provider: googol\n  api_key: '${ENV:LLM_KEY}'"),
     );
     await expect(loadRuntimeSettings(root, "tester", resolver()))
       .rejects.toThrow(/Unknown llm\.provider: googol/);
@@ -418,7 +429,7 @@ ${block}
 runtime: { timezone: UTC }
 llm:
   provider: anthropic
-  api_key: key
+  api_key: "\${ENV:LLM_KEY}"
   models: { default: { model: claude-opus-5 } }
   profiles:
     default:
@@ -436,7 +447,7 @@ llm:
 
   it("leaves thinking and effort unset when the profile omits them", async () => {
     const root = await writeTree(
-      withLlm("  provider: anthropic\n  api_key: key"),
+      withLlm("  provider: anthropic\n  api_key: '${ENV:LLM_KEY}'"),
     );
     const settings = await loadRuntimeSettings(root, "tester", resolver());
     expect(settings.thinking).toBeUndefined();
@@ -449,7 +460,7 @@ llm:
 runtime: { timezone: UTC }
 llm:
   provider: anthropic
-  api_key: key
+  api_key: "\${ENV:LLM_KEY}"
   models: { default: { model: claude-opus-5 } }
   profiles: { default: { effort: ludicrous } }
 `,
@@ -467,7 +478,7 @@ llm:
 runtime: { timezone: UTC }
 llm:
   provider: anthropic
-  api_key: key
+  api_key: "\${ENV:LLM_KEY}"
   models: { default: { model: claude-opus-5 } }
   profiles: { default: { thinking: sometimes } }
 `,

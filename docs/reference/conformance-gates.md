@@ -33,6 +33,7 @@ design, not to a test.
 | G24 | `g24-gateway-ingress.test.ts` | gateway ingress discipline |
 | G25 | `g25-scheduler-authority.test.ts` | scheduler authority freshness |
 | G26 | `g26-agent-governance.test.ts` | agent governance |
+| G27 | `g27-secret-reference-enforcement.test.ts` | secret-bearing config fields are opaque references |
 
 G9 and G10 share one file. Twenty-six invariants, twenty-five `g*` files.
 
@@ -55,3 +56,12 @@ isolated container topology.
 
 G26 doubles as the OWASP Agentic Top-10 checklist for the controls described in
 [Governance](../explanation/governance.md).
+
+G27 is the executable form of the secrets doctrine (CLAUDE.md: "Secrets are
+opaque references … resolved at the config boundary"). It asserts that a literal
+credential in any secret-bearing config field — `llm.api_key`,
+`observability.glitchtip.dsn`, `store.dsn`, or a `config/secrets.yaml` entry — is
+a load-time error that names the field without echoing the value, and that
+`${ENV:…}`/`${VAULT:…}` references still resolve. That failing-closed guarantee
+is what makes the doctor's resolved-secret set complete by construction: no
+credential can reach settings without passing through `SecretResolver`.

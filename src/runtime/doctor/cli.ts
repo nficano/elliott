@@ -14,7 +14,7 @@ import { loadSkillRegistrations } from "../skills/loader";
 import type { RuntimeSettings, SecretResolver } from "../types";
 import { formatReport } from "./format";
 import { defaultDoctorDependencies, runDoctor } from "./harness";
-import { cleanMessage, firstLine, sanitizeForDisplay } from "./message";
+import { cleanMessage, dropCodeFrame, oneLine, redactSecrets } from "./message";
 import type { DoctorEnv, DoctorEnvOverlay, DoctorRoots } from "./types";
 
 const DOCTOR_COMMAND = "doctor";
@@ -33,18 +33,37 @@ const DEFAULT_OPENAI_MODEL = "gpt-4o-mini";
 const LLM_PROVIDER_VAR = "ELLIOTT_LLM_PROVIDER";
 const LLM_API_KEY_VAR = "ELLIOTT_LLM_API_KEY";
 const LLM_MODEL_VAR = "ELLIOTT_LLM_MODEL";
+const LLM_BASE_URL_VAR = "ELLIOTT_LLM_BASE_URL";
 const ANTHROPIC_KEY_VAR = "ANTHROPIC_API_KEY";
 const OPENAI_KEY_VAR = "OPENAI_API_KEY";
 
+// The non-secret LLM configuration variables — provider, model, base_url. They
+// are resolved through the same SecretResolver as secrets, so the recording
+// resolver is told to skip them; everything else it resolves defaults to secret.
+// A closed list of the KNOWN non-secrets, inverting the open-ended "which values
+// are secret" question.
+const NON_SECRET_LLM_VARS: readonly string[] = [
+  LLM_PROVIDER_VAR,
+  LLM_MODEL_VAR,
+  LLM_BASE_URL_VAR,
+];
+
+// A present, non-empty value, else undefined. An empty environment variable
+// (`ANTHROPIC_API_KEY=`) is an ABSENT credential, not a supplied one, so the
+// missing-key path (with its guidance) runs instead of a downstream
+// "missing api_key" error that omits the guidance.
+const present = (value: string | undefined): string | undefined =>
+  value !== undefined && value.length > 0 ? value : undefined;
+
 const inferProvider = (env: DoctorEnv): string | undefined => {
-  if (env[ANTHROPIC_KEY_VAR] !== undefined) return "anthropic";
-  if (env[OPENAI_KEY_VAR] !== undefined) return "openai";
+  if (present(env[ANTHROPIC_KEY_VAR]) !== undefined) return "anthropic";
+  if (present(env[OPENAI_KEY_VAR]) !== undefined) return "openai";
   return undefined;
 };
 
 const vendorKeyFor = (provider: string, env: DoctorEnv): string | undefined => {
-  if (provider === "anthropic") return env[ANTHROPIC_KEY_VAR];
-  if (provider === "openai") return env[OPENAI_KEY_VAR];
+  if (provider === "anthropic") return present(env[ANTHROPIC_KEY_VAR]);
+  if (provider === "openai") return present(env[OPENAI_KEY_VAR]);
   return undefined;
 };
 
@@ -75,11 +94,11 @@ const MISSING_CONFIG_HINT =
 // the config boundary validates and names any gap itself.
 export const doctorEnvOverlay = (env: DoctorEnv): DoctorEnvOverlay => {
   const empty: DoctorEnvOverlay = { overlay: {}, modelDefaulted: false };
-  const provider = env[LLM_PROVIDER_VAR] ?? inferProvider(env);
+  const provider = present(env[LLM_PROVIDER_VAR]) ?? inferProvider(env);
   if (provider === undefined) return empty;
-  const apiKey = env[LLM_API_KEY_VAR] ?? vendorKeyFor(provider, env);
+  const apiKey = present(env[LLM_API_KEY_VAR]) ?? vendorKeyFor(provider, env);
   if (apiKey === undefined) return empty;
-  const explicitModel = env[LLM_MODEL_VAR];
+  const explicitModel = present(env[LLM_MODEL_VAR]);
   const model = explicitModel ?? defaultModelFor(provider);
   if (model === undefined) return empty;
   return {
@@ -120,15 +139,15 @@ export const withoutControlPlaneSecrets = (
 
 // A config-load failure is operator-facing but untrusted: a YAML parser echoes
 // the offending source line (which may hold a hardcoded secret) as a multi-line
-// code frame. Reduce it to its first line — the description, never the frame —
-// then scrub any secret and flatten it, so neither a credential nor a forged
-// line can reach the terminal. `secrets` are only the actual secret values
-// (derived, not the whole overlay), so a plain invalid-config error — an
-// unknown provider, a bad model — still prints its real value.
+// code frame. Order matters — REDACT first, then take the first line, then
+// flatten. Redacting before truncation means a recorded secret that itself spans
+// lines (its value contains a newline) is scrubbed whole; truncating first would
+// keep its first-line prefix, which no post-truncation match would then catch.
 export const configErrorLine = (
   error: unknown,
   secrets: readonly string[],
-): string => sanitizeForDisplay(firstLine(cleanMessage(error)), secrets);
+): string =>
+  oneLine(dropCodeFrame(redactSecrets(cleanMessage(error), secrets)));
 
 // Load the packages the doctor checks: the framework's bundled skills from the
 // framework package, plus the deployment's agent-local skills from the consumer
@@ -167,8 +186,13 @@ export const runDoctorCli = async (
   if (argv[0] !== DOCTOR_COMMAND) return false;
   const { overlay, modelDefaulted } = doctorEnvOverlay(env);
   // Load settings through a RECORDING resolver: every value it returns is the
-  // complete, by-construction set of secrets to redact (see recordingResolver).
-  const { resolver, recorded } = recordingResolver(overlayResolver(overlay));
+  // complete, by-construction set of secrets to redact — except the non-secret
+  // LLM configuration variables, which it is told to skip so a plain provider or
+  // model diagnosis is not redacted or mangled (see recordingResolver).
+  const { resolver, recorded } = recordingResolver(
+    overlayResolver(overlay),
+    NON_SECRET_LLM_VARS,
+  );
   let loaded;
   try {
     loaded = await loadRuntimeSettings(

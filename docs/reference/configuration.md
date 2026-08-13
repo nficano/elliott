@@ -10,7 +10,7 @@ The runtime reads two files at the config boundary. No other module reads
 
 ## Reference syntax
 
-Values in either file are literals or opaque references.
+Values are literals or opaque references.
 
 | Form | Resolves against |
 | :--- | :--- |
@@ -20,6 +20,27 @@ Values in either file are literals or opaque references.
 An unresolvable reference in `config/elliott.yaml` is fatal at boot and names
 the missing variable or field. In `config/secrets.yaml` it is omitted, and the
 skills depending on it stay unregistered.
+
+### Secret-bearing fields must be references
+
+A literal in a secret-bearing field is a load-time error that names the field
+and never echoes the value. These fields accept only a `${ENV:…}` or
+`${VAULT:…}` reference:
+
+| Field | |
+| :--- | :--- |
+| `llm.api_key` | bearer for the LLM endpoint |
+| `observability.glitchtip.dsn` | error-reporting DSN |
+| `store.dsn` | Postgres connection string |
+| every `config/secrets.yaml` entry | resolved secret |
+
+This is [conformance gate G27](conformance-gates.md). Because every secret
+reaches settings through the `SecretResolver`, the set of resolved secrets is
+complete by construction — which is what lets `elliott doctor` redact them all
+from its output. A consumer repo that currently holds a literal in any of these
+fields must move the value behind a reference: put the credential in the
+environment (or the `ELLIOTT_SECRETS_FILE` mount, or Vault) and point the field
+at it with `${ENV:VAR}` / `${VAULT:mount/path#field}`.
 
 ## Required fields
 
@@ -88,10 +109,12 @@ observability:
     # dsn: ${ENV:ELLIOTT_GLITCHTIP_DSN}
 ```
 
-DSN precedence: an explicit `glitchtip.dsn`, then the `ELLIOTT_GLITCHTIP_DSN`
-environment variable, then the bundled loopback collector. Unlike a `${ENV:…}`
-reference, an unset `ELLIOTT_GLITCHTIP_DSN` is not fatal. A present but empty or
-non-string `dsn` is rejected at boot.
+DSN precedence: a `glitchtip.dsn` reference, then the `ELLIOTT_GLITCHTIP_DSN`
+environment variable, then the bundled loopback collector. The DSN is a secret,
+so `glitchtip.dsn` is a reference-only field (a literal is a load-time error);
+an unset `ELLIOTT_GLITCHTIP_DSN` its reference points at is not fatal, unlike a
+required `${ENV:…}`. A present but empty or non-string resolved `dsn` is rejected
+at boot.
 
 Transmitted payloads carry the error class, its stack frames, and the mechanism.
 The error message stays in the local console and never crosses the process
@@ -131,7 +154,8 @@ ssh_private_key: ${ENV:ELLIOTT_SSH_PRIVATE_KEY}
 brave_api_key: ${VAULT:secret/data/example#brave_api_key}
 ```
 
-Secrets resolve only at the config boundary, only at boot. An unresolvable
+Secrets resolve only at the config boundary, only at boot. Every entry must be a
+reference (a literal is a load-time error naming the key); an unresolvable
 reference is omitted rather than fatal. Which skills that leaves dormant is
 listed in [Activation gates](activation-gates.md).
 

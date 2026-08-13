@@ -15,33 +15,39 @@ const WHITESPACE_RUN = /\s+/gu;
 export const cleanMessage = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
 
+// A value shorter than this (after trimming) is not redacted: replacing a one-
+// or two-character value would blank a substring of ordinary words (redacting
+// "k" mangles "Unknown"), and no real credential — an API key, a token, a DSN —
+// is that short. This is the addendum's "meaningless replacement" rule: the
+// trigger is length making the replacement meaningless, not the value's secrecy.
+const MIN_REDACTABLE_LENGTH = 4;
+
+const redactable = (value: string | undefined): value is string =>
+  value !== undefined && value.trim().length >= MIN_REDACTABLE_LENGTH;
+
 // Replace every occurrence of a known secret with a fixed marker. Secrets are
 // applied LONGEST first (and de-duplicated), so a recorded secret that is a
 // prefix of another cannot replace the prefix and leave the longer secret's
-// tail exposed. Any non-empty secret is redacted regardless of length — the
-// config boundary accepts short keys, so a length floor would leave a short key
-// exposed; over-redacting a pathologically short secret is a readability cost,
-// never a leak.
+// tail exposed.
 export const redactSecrets = (
   text: string,
   secrets: readonly (string | undefined)[],
 ): string => {
-  const distinct = [
-    ...new Set(
-      secrets.filter((s): s is string => s !== undefined && s.length > 0),
-    ),
-  ].sort((left, right) => right.length - left.length);
+  const distinct = [...new Set(secrets.filter(redactable))]
+    .sort((left, right) => right.length - left.length);
   let out = text;
   for (const secret of distinct) out = out.split(secret).join(REDACTION);
   return out;
 };
 
-// The first line of a message, without a trailing newline. Used to strip a
-// parser's multi-line source excerpt (which can quote a file's secret) down to
-// its single-line description before display.
-export const firstLine = (text: string): string => {
-  const newline = text.indexOf("\n");
-  return newline === -1 ? text : text.slice(0, newline);
+// Drop a parser's multi-line source excerpt, which sits below a BLANK line and
+// can quote a file's bytes. Truncating at the blank line (not the first newline)
+// keeps a description intact and, crucially, does not chop a message whose only
+// newline is inside an interpolated value — that is left whole for the caller to
+// flatten, so a value is never truncated to a misleading prefix.
+export const dropCodeFrame = (text: string): string => {
+  const blank = /\r?\n[ \t]*\r?\n/.exec(text);
+  return blank === null ? text : text.slice(0, blank.index);
 };
 
 // Collapse every control, format, and line/paragraph-separator character to a

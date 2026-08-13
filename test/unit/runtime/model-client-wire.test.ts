@@ -102,4 +102,28 @@ describe("model client wire dispatch", () => {
       new RuntimeModelClient(settingsFor("anthropic")).complete(turn),
     ).rejects.toThrow(/Anthropic 529: overloaded/);
   });
+
+  it("marks a malformed 2xx body as a decode failure, distinct from a transport error", async () => {
+    // A reachable endpoint that returns unparseable bytes is surfaced as a
+    // ModelDecodeError carrying a `decode` marker, so a caller (the doctor)
+    // can classify it as reachable-but-broken rather than unreachable — and its
+    // message never echoes the raw body.
+    spyOn(globalThis, "fetch").mockImplementation(() =>
+      Promise.resolve(
+        new Response("{not json sk-leak", {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+      )
+    );
+    let thrown: unknown;
+    try {
+      await new RuntimeModelClient(settingsFor("anthropic")).complete(turn);
+    } catch (error) {
+      thrown = error;
+    }
+    expect((thrown as { decode?: unknown; }).decode).toBe(true);
+    expect((thrown as Error).name).toBe("ModelDecodeError");
+    expect((thrown as Error).message).not.toContain("sk-leak");
+  });
 });

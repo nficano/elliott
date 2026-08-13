@@ -10,7 +10,7 @@ import {
 import { scaffoldComponent } from "./manifest/scaffold";
 // message.ts is dependency-free (no config import), so it is safe to load
 // eagerly even when a config-evaluation failure is what we are trying to render.
-import { firstLine, oneLine } from "./runtime/doctor/message";
+import { dropCodeFrame, oneLine } from "./runtime/doctor/message";
 
 const scaffold = async (arguments_: readonly string[]): Promise<boolean> => {
   const [command, kind, name, parentDirectory = "."] = arguments_;
@@ -49,7 +49,7 @@ const runDoctorCommand = async (
     await runDoctorCli(arguments_, doctorRoots(frameworkRoot, process.cwd()));
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error(`elliott doctor: ${oneLine(firstLine(message))}`);
+    console.error(`elliott doctor: ${oneLine(dropCodeFrame(message))}`);
     process.exitCode = 1;
   }
 };

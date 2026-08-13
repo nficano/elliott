@@ -28,6 +28,19 @@ export class ModelHttpError extends Error {
   }
 }
 
+// A 2xx response whose body could not be decoded into a completion (invalid
+// JSON, or a shape the wire does not accept). The `decode` marker lets a caller
+// distinguish "reachable endpoint returned garbage" from "endpoint unreachable"
+// without inspecting the message. The message keeps the cause for LOCAL
+// debugging only.
+export class ModelDecodeError extends Error {
+  readonly decode = true;
+  constructor(wireName: string, cause: unknown) {
+    super(`${wireName}: response could not be decoded`, { cause });
+    this.name = "ModelDecodeError";
+  }
+}
+
 // A hung upstream used to fail only at Bun's opaque default fetch deadline
 // (~300s, surfacing as a bare TimeoutError in the turn). The watchdog bounds
 // *inactivity* instead of total time: the initial window covers
@@ -103,10 +116,25 @@ export class RuntimeModelClient {
       );
       throw new ModelHttpError(this.#wire.name, response.status, detail);
     }
-    const result = onTextDelta === undefined
-      ? this.#wire.decode(await response.json())
-      : await this.#wire.decodeStream(response, onTextDelta, watchdog.touch);
-    return this.#attest(result);
+    return this.#attest(await this.#decode(response, onTextDelta, watchdog));
+  }
+
+  // Decode a 2xx response into a completion. A malformed body (bad JSON, a shape
+  // the wire rejects) is a reachable-but-broken endpoint, not a transport
+  // failure, so it is surfaced as a distinct ModelDecodeError rather than
+  // leaking out as a bare parse error the caller would misread as unreachable.
+  async #decode(
+    response: Response,
+    onTextDelta: ((delta: string) => Promise<void>) | undefined,
+    watchdog: ModelCallWatchdog,
+  ): Promise<ModelTurnResult> {
+    try {
+      return onTextDelta === undefined
+        ? this.#wire.decode(await response.json())
+        : await this.#wire.decodeStream(response, onTextDelta, watchdog.touch);
+    } catch (error) {
+      throw new ModelDecodeError(this.#wire.name, error);
+    }
   }
 
   #attest(result: ModelTurnResult): ModelTurnResult {

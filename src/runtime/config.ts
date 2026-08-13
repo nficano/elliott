@@ -184,6 +184,49 @@ const stripDisabledGlitchtipDsn = async (
   };
 };
 
+// A value is an opaque secret reference when it is exactly one `${ENV:VAR}` or
+// `${VAULT:mount/path#field}` expression — the only forms resolveExpression
+// resolves. Anything else in a secret-bearing field is a literal credential.
+const ENV_REFERENCE = /^\$\{ENV:[^}]+\}$/;
+const VAULT_REFERENCE = /^\$\{VAULT:[^#}]+#[^}]+\}$/;
+const isSecretReference = (value: string): boolean =>
+  ENV_REFERENCE.test(value) || VAULT_REFERENCE.test(value);
+
+const REFERENCE_FORMS =
+  "an opaque reference (${ENV:VAR} or ${VAULT:mount/path#field})";
+
+// The secret-bearing fields of config/elliott.yaml. This is the schema that
+// answers "which fields hold a credential" — the doctrine that secrets are
+// opaque references is enforced against exactly these paths (config/secrets.yaml
+// is enforced entry-by-entry in loadSecrets, since every entry there is a
+// secret). A literal in one of these is a load-time error, so no credential can
+// enter settings without passing through SecretResolver.
+const SECRET_BEARING_PATHS: readonly (readonly string[])[] = [
+  ["llm", "api_key"],
+  ["observability", "glitchtip", "dsn"],
+  ["store", "dsn"],
+];
+
+// Reject a literal credential in a secret-bearing config field, naming the field
+// and the reference forms it accepts. Never echoes the offending value (it is
+// the credential).
+const assertSecretReference = (field: string, value: unknown): void => {
+  if (
+    typeof value === "string" && value.length > 0 && !isSecretReference(value)
+  ) {
+    throw new Error(
+      `Secret field ${field} must be ${REFERENCE_FORMS}, `
+        + "not a literal value",
+    );
+  }
+};
+
+const assertConfigSecretReferences = (config: unknown): void => {
+  for (const path of SECRET_BEARING_PATHS) {
+    assertSecretReference(path.join("."), optionalStringAt(config, path));
+  }
+};
+
 export const loadRuntimeSettings = async (
   root: string,
   agentName = "elliott",
@@ -193,6 +236,7 @@ export const loadRuntimeSettings = async (
     await loadYaml(path.join(root, "config/elliott.yaml")),
     resolver,
   );
+  assertConfigSecretReferences(config);
   const secrets = await loadSecrets(root, resolver);
   const agent = await loadAgentDefinition(root, agentName);
   const evolution = await loadEvolutionConfig(root);
@@ -437,6 +481,9 @@ const loadSecrets = async (
       if (typeof value !== "string") {
         throw new TypeError(`Secret ${key} is not text`);
       }
+      // Every secrets.yaml entry is a secret, so it must be an opaque reference;
+      // a literal here would enter settings without passing through the resolver.
+      assertSecretReference(`config/secrets.yaml#${key}`, value);
       // A secret that cannot be resolved is omitted, not fatal: the skills
       // that need it stay unregistered while the rest of the runtime boots.
       try {
@@ -488,22 +535,25 @@ const resolveExpression = async (
   return value;
 };
 
-// A resolver that records every value it returns. Because nothing reaches
-// settings via `${ENV:…}`/`${VAULT:…}` — nor through the config boundary's own
-// secret env reads, which now go through the resolver too — without passing
-// through here, loading settings through this wrapper yields the COMPLETE set of
-// resolved secret values BY CONSTRUCTION: no maintained list of where secrets
-// live, so a new secret-bearing field, skill, or config file is covered the day
-// it is added. The doctor uses `recorded()` as its redaction set. (A non-secret
-// value that is itself a resolved reference — provider, model — is recorded too;
-// redacting it from a message is fail-safe, never a leak.)
+// A resolver that records every value it returns. Because secret-bearing fields
+// must be opaque references (see loadRuntimeSettings' reference check), every
+// secret reaches settings via `${ENV:…}`/`${VAULT:…}` and therefore through
+// here — so loading settings through this wrapper yields the COMPLETE secret set
+// BY CONSTRUCTION: no maintained list of where secrets live. `skipEnv` names the
+// non-secret configuration variables (the LLM provider/model/base_url) that are
+// ALSO resolved through the resolver but must not be treated as secrets — the
+// only place the config boundary distinguishes non-secret config, kept small and
+// closed so everything else defaults to "secret". The doctor uses `recorded()`
+// as its redaction set.
 export const recordingResolver = (
   inner: SecretResolver,
+  skipEnv: readonly string[] = [],
 ): {
   readonly resolver: SecretResolver;
   readonly recorded: () => readonly string[];
 } => {
   const values = new Set<string>();
+  const skip = new Set(skipEnv);
   const keep = (value: string | undefined): void => {
     if (value !== undefined && value.length > 0) values.add(value);
   };
@@ -511,7 +561,7 @@ export const recordingResolver = (
     resolver: {
       env: (name) => {
         const value = inner.env(name);
-        keep(value);
+        if (!skip.has(name)) keep(value);
         return value;
       },
       vault: async (secretPath, field) => {

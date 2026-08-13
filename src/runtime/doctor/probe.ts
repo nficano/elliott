@@ -4,20 +4,20 @@ import type {
   RuntimeSettings,
 } from "../types";
 import { originOf } from "./egress";
-import { oneLine } from "./message";
+import { sanitizeForDisplay } from "./message";
 import type { DoctorLlmProbe } from "./types";
 
 // A deliberately trivial exchange: it proves the whole LLM path end to end
-// (config → endpoint → wire → HTTP → auth → decode) with the cheapest possible
-// generation. The reply content is irrelevant and is NOT surfaced — a well-
-// formed completion coming back at all is the signal.
+// (config → endpoint → wire → HTTP → auth → decode) and that a usable completion
+// comes back. The reply CONTENT is never surfaced; only that a non-empty
+// completion arrived is the signal.
 const PROBE_SYSTEM =
   "You are an elliott connectivity probe. Answer in one short word.";
 const PROBE_PROMPT = "Reply with the single word: ready";
 
-// HTTP status buckets. Common auth-rejection codes. The doctor reports one of
-// these fixed phrases (a fact it derives from the status), never the provider's
-// response body — which is endpoint-controlled and may quote credentials.
+// HTTP status buckets. The doctor reports one of these fixed phrases (a fact it
+// derives from the status), never the provider's response body — which is
+// endpoint-controlled and may quote credentials.
 const UNAUTHORIZED = 401;
 const FORBIDDEN = 403;
 const NOT_FOUND = 404;
@@ -25,6 +25,12 @@ const REQUEST_TIMEOUT = 408;
 const TOO_MANY_REQUESTS = 429;
 const CLIENT_ERROR_MIN = 400;
 const SERVER_ERROR_MIN = 500;
+
+// Fixed outcome phrases (a closed set this repo owns). Reachable-but-broken is
+// distinct from unreachable, and an empty completion is its own outcome.
+const UNREACHABLE = "endpoint unreachable or did not respond";
+const UNREADABLE = "endpoint returned an unreadable response";
+const EMPTY_COMPLETION = "endpoint returned an empty completion";
 
 const classifyStatus = (status: number): string => {
   if (status === UNAUTHORIZED || status === FORBIDDEN) {
@@ -38,18 +44,20 @@ const classifyStatus = (status: number): string => {
   return "unexpected response";
 };
 
-// Turn any thrown model error into a fixed, self-derived classification. An
-// error carrying a numeric `status` (ModelHttpError) is bucketed by that code;
-// anything else (a network failure, a timeout, a decode error) is an
-// unreachable/unresponsive endpoint. No caught message ever reaches the output.
+// Turn any thrown model error into a fixed, self-derived classification. A
+// numeric `status` (ModelHttpError) is bucketed by that code; a `decode` marker
+// (ModelDecodeError) is a reachable endpoint that returned garbage — distinct
+// from an unreachable one; anything else is unreachable. No caught message ever
+// reaches the output.
 const classifyFailure = (error: unknown): string => {
-  const status = error !== null && typeof error === "object"
-    ? (error as { status?: unknown; }).status
-    : undefined;
-  if (typeof status === "number") {
-    return `${classifyStatus(status)} (HTTP ${status})`;
+  const record = error !== null && typeof error === "object"
+    ? (error as { status?: unknown; decode?: unknown; })
+    : {};
+  if (typeof record.status === "number") {
+    return `${classifyStatus(record.status)} (HTTP ${record.status})`;
   }
-  return "endpoint unreachable or did not respond";
+  if (record.decode === true) return UNREADABLE;
+  return UNREACHABLE;
 };
 
 // The endpoint reduced to its ORIGIN (scheme://host:port). An origin cannot
@@ -66,18 +74,20 @@ const endpointOrigin = (baseUrl: string): string => {
 
 // Exercise the configured model once. The result reports only facts the doctor
 // derives itself — the wire, the endpoint origin, the model id, and a fixed
-// failure classification. Nothing the endpoint controls (its response body, its
-// reply text) is carried into the report. Metadata is flattened to one line so
-// it cannot span lines; it needs no secret redaction because none of it is an
-// endpoint-controlled value.
+// outcome phrase. Nothing the endpoint controls (its response body, its reply
+// text) is carried into the report. Metadata is run through the secret
+// sanitizer (`secrets` is the config boundary's recorded set) so a credential
+// that happens to be a resolved config value is scrubbed. PASS requires a
+// non-empty completion — a fulfilled call alone is not success.
 export const probeLlm = async (
   settings: RuntimeSettings,
   makeCompleter: (settings: RuntimeSettings) => RuntimeModelCompleter,
+  secrets: readonly string[],
 ): Promise<DoctorLlmProbe> => {
   const endpoint = {
     wire: settings.llmWire,
-    baseUrl: endpointOrigin(settings.llmBaseUrl),
-    model: oneLine(settings.model),
+    baseUrl: sanitizeForDisplay(endpointOrigin(settings.llmBaseUrl), secrets),
+    model: sanitizeForDisplay(settings.model, secrets),
   } as const;
   const request: ModelTurnRequest = {
     system: PROBE_SYSTEM,
@@ -86,7 +96,10 @@ export const probeLlm = async (
     allowTools: false,
   };
   try {
-    await makeCompleter(settings).complete(request);
+    const result = await makeCompleter(settings).complete(request);
+    if (result.text.trim().length === 0) {
+      return { ok: false, ...endpoint, error: EMPTY_COMPLETION };
+    }
     return { ok: true, ...endpoint };
   } catch (error) {
     return { ok: false, ...endpoint, error: classifyFailure(error) };

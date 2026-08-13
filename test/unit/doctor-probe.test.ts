@@ -68,4 +68,41 @@ describe("probeLlm", () => {
     expect(probe.baseUrl).not.toContain("password");
     expect(probe.baseUrl).not.toContain("leak");
   });
+
+  it("fails a reachable-but-empty completion instead of passing on a fulfilled call", async () => {
+    // A 200 that decodes to no text is reachable but useless: the probe proves
+    // a usable completion, so a fulfilled-but-empty call is a distinct failure,
+    // not a PASS.
+    const empty = () => ({
+      complete: async () => ({ text: "  ", toolCalls: [] }),
+    });
+    const probe = await probeLlm(settings, empty);
+    expect(probe.ok).toBe(false);
+    expect(probe.error).toBe("endpoint returned an empty completion");
+  });
+
+  it("classifies a decode failure as unreadable, distinct from unreachable", async () => {
+    // A ModelDecodeError carries a `decode` marker: the endpoint was reached and
+    // answered, but the bytes would not parse — a different diagnosis than a
+    // host that never responded.
+    const garbled = Object.assign(new Error("bad json at 0"), { decode: true });
+    const probe = await probeLlm(settings, throwing(garbled));
+    expect(probe.ok).toBe(false);
+    expect(probe.error).toBe("endpoint returned an unreadable response");
+  });
+
+  it("redacts a resolved config value that surfaces in the model id or origin", async () => {
+    // The model id and base URL are config-derived, so a credential mistakenly
+    // placed there would otherwise print. The recorded secret set (arg 3) scrubs
+    // it — defense in depth behind reference enforcement.
+    const leaky = {
+      ...settings,
+      model: "model-sk-live-abc123",
+      llmBaseUrl: "https://sk-live-abc123@host.example/v1",
+    } as unknown as RuntimeSettings;
+    const probe = await probeLlm(leaky, ok, ["sk-live-abc123"]);
+    expect(probe.model).not.toContain("sk-live-abc123");
+    expect(probe.model).toContain("‹redacted›");
+    expect(probe.baseUrl).not.toContain("sk-live-abc123");
+  });
 });

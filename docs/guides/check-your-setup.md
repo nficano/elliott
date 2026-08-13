@@ -95,6 +95,19 @@ LLM probe   FAILED  (anthropic wire, model claude-haiku-4-5-20251001, https://ap
 VERDICT: FAIL
 ```
 
+The probe passes only on a non-empty completion; a fulfilled call alone is not
+success. Each failure maps to one phrase from a closed set the doctor owns, so
+the diagnosis is precise:
+
+- `authentication rejected (HTTP 401)` and its siblings — bucketed from the HTTP
+  status.
+- `endpoint returned an empty completion` — reachable, authenticated, but the
+  model returned no text.
+- `endpoint returned an unreadable response` — reachable, but the body would not
+  decode. Distinct from unreachable, so a broken gateway is not misread as a
+  network problem.
+- `endpoint unreachable or did not respond` — no usable response at all.
+
 The report prints only facts the doctor derives itself — the HTTP status, the
 wire, the endpoint origin, a fixed classification from a closed set. A provider's
 response body (which a hostile endpoint could stuff with a forged verdict line or
@@ -102,6 +115,11 @@ an echoed credential) never reaches the output. As defense in depth, everything
 printed is also scrubbed of every secret the config boundary resolved and
 flattened to a single line. A malformed `ELLIOTT_SECRETS_FILE` fails the same
 way: one derived line, never a stack trace or the file's contents.
+
+A hardcoded credential in a secret-bearing config field
+([G27](../reference/configuration.md#secret-bearing-fields-must-be-references))
+also fails at load, before any probe: the error names the field and the
+reference forms it accepts, never the offending value.
 
 The command talks to the LLM endpoint and nothing else. The allowlist is the
 endpoint's exact origin — scheme, host, and port — and every hop, redirect
