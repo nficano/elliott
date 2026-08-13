@@ -168,7 +168,10 @@ export const BUNDLED_CATALOG: readonly BundledComponentDescriptor[] = Object
         "slack.com",
         "slack-edge.com",
         "hooks.slack.com",
-        "wss.slack.com",
+        // Socket Mode's URL comes back from apps.connections.open at runtime;
+        // Slack serves it from these two server-side hosts. See the manifest.
+        "wss-primary.slack.com",
+        "wss-backup.slack.com",
       ]),
       isolation: "container",
       secretRefs: ["secret://gateways/slack", "secret://facilities/webhook"],
