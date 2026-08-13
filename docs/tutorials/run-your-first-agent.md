@@ -33,13 +33,19 @@ elliott ships no endpoint, no API key, and no model id. The config that ships
 reads all three from the environment, so set them now:
 
 ```bash
-export ELLIOTT_LLM_BASE_URL="https://api.example.com/v1"
-export ELLIOTT_LLM_API_KEY="sk-…"
-export ELLIOTT_LLM_MODEL="your-model-id"
+export ELLIOTT_LLM_PROVIDER="anthropic"   # or: openai
+export ELLIOTT_LLM_API_KEY="sk-ant-…"
+export ELLIOTT_LLM_MODEL="claude-opus-5"
 ```
 
-Any endpoint speaking the OpenAI chat-completions shape works here. The URL
-ends at `/v1`, not at `/v1/chat/completions`.
+Naming a provider resolves the endpoint and the protocol together, so a key and
+a model id are all you need. `anthropic` talks to the native `/messages` API,
+`openai` to `/chat/completions`.
+
+To use anything else — a LiteLLM proxy, Ollama, another vendor's `/v1` — set
+`llm.base_url` in `config/elliott.yaml` instead of a provider, and elliott
+speaks the OpenAI chat-completions shape there. That URL ends at `/v1`, not at
+`/v1/chat/completions`.
 
 Skip one of the three and the boot stops with the variable's name in the error,
 which is the behavior you want the first time you deploy this somewhere real.

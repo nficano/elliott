@@ -8,6 +8,11 @@ import { parseInstallSettings } from "../install/index";
 import { decodeEvolutionConfig } from "../learning/evolution/config";
 import { isJsonRecord } from "../providers/http";
 import {
+  parseEffort,
+  parseThinking,
+  resolveLlmEndpoint,
+} from "./model/providers";
+import {
   mcpSettings,
   optionalBlueBubbles,
   optionalGmail,
@@ -304,6 +309,16 @@ const coreSettings = (
   agent: unknown,
 ): RuntimeSettings => {
   const modelProfile = stringAt(agent, ["spec", "modelProfile"]);
+  const endpoint = resolveLlmEndpoint(
+    optionalStringAt(resolved, ["llm", "provider"]),
+    optionalStringAt(resolved, ["llm", "base_url"]),
+  );
+  const thinking = parseThinking(
+    optionalStringAt(resolved, ["llm", "profiles", "default", "thinking"]),
+  );
+  const effort = parseEffort(
+    optionalStringAt(resolved, ["llm", "profiles", "default", "effort"]),
+  );
   return {
     environment: runtimeName,
     release: processEnv["ELLIOTT_RELEASE"] ?? "dev",
@@ -319,8 +334,11 @@ const coreSettings = (
       resolved,
       ["llm", "profiles", "default", "temperature"],
     ) ?? DEFAULT_TEMPERATURE,
-    llmBaseUrl: stringAt(resolved, ["llm", "base_url"]),
+    llmBaseUrl: endpoint.baseUrl,
+    llmWire: endpoint.wire,
     llmApiKey: stringAt(resolved, ["llm", "api_key"]),
+    ...(thinking !== undefined && { thinking }),
+    ...(effort !== undefined && { effort }),
     stateDirectory: path.join(root, ".elliott-runtime"),
     // The browser skill moved to the nficano/skills registry; its config block
     // is optional now. The field stays on RuntimeSettings (transitional, like

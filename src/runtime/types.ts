@@ -304,7 +304,10 @@ export interface RuntimeSettings {
   readonly maxTokens: number;
   readonly temperature: number;
   readonly llmBaseUrl: string;
+  readonly llmWire: LlmWire;
   readonly llmApiKey: string;
+  readonly thinking?: LlmThinking;
+  readonly effort?: LlmEffort;
   readonly stateDirectory: string;
   readonly browser: BrowserSettings;
   readonly braveApiKey?: string;
@@ -375,6 +378,27 @@ export interface InstallHealth {
   readonly required: boolean;
   readonly error?: string;
 }
+
+// The provider an operator names in `llm.provider`. Resolving one yields an
+// LlmEndpoint; the provider name itself never reaches the runtime.
+export type LlmProvider = "anthropic" | "openai";
+
+// The wire protocol spoken at an endpoint. "openai" is POST
+// /chat/completions with a Bearer key; "anthropic" is POST /messages with
+// x-api-key and the native message/content-block shape.
+export type LlmWire = "anthropic" | "openai";
+
+export interface LlmEndpoint {
+  readonly baseUrl: string;
+  readonly wire: LlmWire;
+}
+
+// Reasoning controls, passed through to whichever wire is in force. Both are
+// optional: unset means the model's own default, which is the only setting
+// that stays correct as providers change those defaults per model.
+export type LlmThinking = "adaptive" | "disabled";
+
+export type LlmEffort = "high" | "low" | "max" | "medium" | "xhigh";
 
 export interface ToolDefinition {
   readonly name: string;

@@ -23,20 +23,21 @@ skills depending on it stay unregistered.
 
 ## Required fields
 
-No LLM endpoint, model, or key ships as a default.
+No LLM provider, endpoint, model, or key ships as a default.
 
 | Field | Shipped default | Meaning |
 | :--- | :--- | :--- |
-| `llm.base_url` | `${ENV:ELLIOTT_LLM_BASE_URL}` | OpenAI-compatible endpoint, ending at `/v1` |
-| `llm.api_key` | `${ENV:ELLIOTT_LLM_API_KEY}` | bearer for that endpoint |
+| `llm.provider` **or** `llm.base_url` | `${ENV:ELLIOTT_LLM_PROVIDER}` | see [Choosing an endpoint](#choosing-an-endpoint) — exactly one is required |
+| `llm.api_key` | `${ENV:ELLIOTT_LLM_API_KEY}` | credential for that endpoint |
 | `llm.models.<tier>.model` | `${ENV:ELLIOTT_LLM_MODEL}` | model id for the tier the agent selects |
 | `runtime.timezone` | `UTC` | runtime timezone |
 | agent `spec.persona` | path | persona prompt file |
 | agent `spec.modelProfile` | `default` | which `llm.models` tier this agent uses |
 
 A missing one fails the boot naming it, as
-`Environment is missing ELLIOTT_LLM_BASE_URL` or
-`Missing configuration: llm.models.default.model`.
+`Environment is missing ELLIOTT_LLM_PROVIDER` or
+`Missing configuration: llm.models.default.model`. Setting neither `provider`
+nor `base_url` fails naming both.
 
 Every other block is optional. An absent block disables its feature, with one
 exception noted under `observability`.
@@ -65,7 +66,8 @@ id.
 
 ```yaml
 llm:
-  base_url: ${ENV:ELLIOTT_LLM_BASE_URL}
+  provider: ${ENV:ELLIOTT_LLM_PROVIDER} # anthropic | openai
+  # base_url: ${ENV:ELLIOTT_LLM_BASE_URL}
   api_key: ${ENV:ELLIOTT_LLM_API_KEY}
   max_parallel: 12
   models:
@@ -75,6 +77,58 @@ llm:
   profiles:
     default: { max_tokens: 4096, temperature: 0.4 }
 ```
+
+#### Choosing an endpoint
+
+`provider` and `base_url` resolve to one concrete URL and one wire protocol.
+
+| Config | Endpoint | Wire |
+| :--- | :--- | :--- |
+| `provider: anthropic` | `https://api.anthropic.com/v1` | native `/messages` |
+| `provider: openai` | `https://api.openai.com/v1` | `/chat/completions` |
+| `base_url: <url>` alone | that URL | `/chat/completions` |
+| both | `base_url` | the provider's wire |
+
+Naming a provider is what makes a bare key sufficient — you no longer have to
+know the vendor's URL. Setting `base_url` alone keeps every pre-provider config
+working unchanged: a LiteLLM proxy, Ollama, or any vendor `/v1` is an
+OpenAI-compatible endpoint. Setting both means "this provider's protocol, my
+host", for a gateway that speaks Anthropic on a private URL.
+
+elliott never infers the provider from the API key's prefix or the model's
+name. A wrong guess would send prompts to a vendor the operator did not choose,
+so an unset pair is a boot failure naming both keys rather than a default.
+
+The two wires are not interchangeable. The native Anthropic wire sends
+`x-api-key` with a pinned `anthropic-version` and the content-block message
+shape, and it is the only one that carries `thinking` and `effort`. It also
+omits `temperature`: current Anthropic models removed the sampling parameters
+and reject any of them with a 400, so that setting applies to the OpenAI wire
+only.
+
+#### Reasoning controls
+
+`thinking` and `effort` are optional keys on `llm.profiles.default`. Unset
+leaves each model's own default in force — the only setting that stays correct
+as those defaults change per model. An unrecognized value fails at boot rather
+than on every turn.
+
+| Key | Values | Reaches |
+| :--- | :--- | :--- |
+| `thinking` | `adaptive`, `disabled` | Anthropic wire, as a `thinking` block |
+| `effort` | `low`, `medium`, `high`, `xhigh`, `max` | Anthropic `output_config.effort`; OpenAI `reasoning_effort` |
+
+```yaml
+llm:
+  profiles:
+    default: { max_tokens: 4096, thinking: adaptive, effort: high }
+```
+
+Two things worth knowing before turning these on. `max_tokens` caps thinking
+*plus* the reply, so a budget tuned for a non-thinking model can truncate the
+answer once thinking is on. And current Anthropic models reject `disabled`
+thinking above `high` effort — elliott passes that pairing through and surfaces
+the provider's own 400, rather than encoding a per-model rule that would rot.
 
 ### `observability`
 

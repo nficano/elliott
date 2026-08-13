@@ -65,17 +65,24 @@ against its own `agentRoot`. See
 
 ## Quick start
 
-No LLM endpoint or model ships as a default. The shipped `config/elliott.yaml`
+No LLM provider or model ships as a default. The shipped `config/elliott.yaml`
 reads these three, and the boot fails naming whichever is missing:
 
 ```bash
-export ELLIOTT_LLM_BASE_URL="https://api.example.com/v1"
-export ELLIOTT_LLM_API_KEY="sk-…"
-export ELLIOTT_LLM_MODEL="your-model-id"
+export ELLIOTT_LLM_PROVIDER="anthropic"   # or: openai
+export ELLIOTT_LLM_API_KEY="sk-ant-…"
+export ELLIOTT_LLM_MODEL="claude-opus-5"
 
 bun run start                     # serves until SIGINT
 curl -s localhost:8080/healthz    # from a second shell
 ```
+
+Naming a provider resolves both the endpoint and the wire protocol, so a key
+and a model id are enough — Anthropic gets its native `/messages` API
+(`thinking` and `effort` included), OpenAI gets `/chat/completions`. To point
+at anything else — a LiteLLM proxy, Ollama, another vendor's `/v1` — set
+`llm.base_url` instead and elliott speaks the OpenAI-compatible protocol there.
+Details in [Configuration](docs/reference/configuration.md#choosing-an-endpoint).
 
 ```json
 {"ready":true,"release":"dev","skills":23,"tools":7,
@@ -233,11 +240,16 @@ invariant. A design claim with no gate behind it is not an invariant. Index:
 <details>
 <summary><b>Troubleshooting: failures the code raises by name</b></summary>
 
-**`error: Environment is missing ELLIOTT_LLM_BASE_URL`**: a `${ENV:…}` reference
+**`error: Environment is missing ELLIOTT_LLM_PROVIDER`**: a `${ENV:…}` reference
 in `config/elliott.yaml` did not resolve. Export the variable, or replace the
 expression with a literal in your agent repo's copy. The sibling
 `Missing configuration: llm.models.default.model` means the tier named by
 `spec.modelProfile` has no `model` key.
+
+**`Missing configuration: set llm.base_url … or llm.provider …`**: neither key
+is set. Name a provider (`anthropic`, `openai`) to take its endpoint and wire,
+or give a `base_url` for any OpenAI-compatible endpoint. `Unknown
+llm.provider: <name>` means the provider itself is not one elliott ships.
 
 **`ELLIOTT_SECRETS_FILE <path> is unreadable`** / **`must hold a JSON object`**:
 the mount is set but the file is missing or is not a JSON object. Booting

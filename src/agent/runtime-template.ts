@@ -50,11 +50,16 @@ store:
   vectors: { dim: 768, type: vector }
 
 llm:
-  # Any OpenAI-compatible endpoint: a provider's native /v1, a LiteLLM
-  # proxy, or a local server. No endpoint or model ships as a default —
-  # set these environment variables or replace the expressions with
-  # literals. A missing variable fails the boot naming it.
-  base_url: \${ENV:ELLIOTT_LLM_BASE_URL} # e.g. https://api.example.com/v1
+  # Name a provider OR a base_url — one of the two is required, and setting
+  # neither fails the boot naming them. No model ships as a default either.
+  #
+  #   provider: anthropic   -> https://api.anthropic.com/v1, native wire
+  #                            (/messages, thinking, effort)
+  #   provider: openai      -> https://api.openai.com/v1, /chat/completions
+  #   base_url: <url>       -> any OpenAI-compatible endpoint (LiteLLM proxy,
+  #                            Ollama, a vendor /v1). No provider needed.
+  provider: \${ENV:ELLIOTT_LLM_PROVIDER} # anthropic | openai
+  # base_url: \${ENV:ELLIOTT_LLM_BASE_URL} # e.g. https://api.example.com/v1
   api_key: \${ENV:ELLIOTT_LLM_API_KEY}
   max_parallel: 12
   models:
@@ -64,6 +69,9 @@ llm:
       model: \${ENV:ELLIOTT_LLM_MODEL}
       context_window: 128000
   profiles:
+    # Optional: thinking (adaptive | disabled) and effort (low … max) reach
+    # Anthropic natively; effort maps to reasoning_effort on the OpenAI wire.
+    # temperature applies to the OpenAI wire only.
     default: { max_tokens: 4096, temperature: 0.4 }
 
 budgets:

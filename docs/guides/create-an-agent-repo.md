@@ -53,12 +53,18 @@ deploy job.
 ## Boot it
 
 ```bash
-export ELLIOTT_LLM_BASE_URL="https://api.example.com/v1"
-export ELLIOTT_LLM_API_KEY="sk-…"
-export ELLIOTT_LLM_MODEL="your-model-id"
+export ELLIOTT_LLM_PROVIDER="anthropic"   # or: openai
+export ELLIOTT_LLM_API_KEY="sk-ant-…"
+export ELLIOTT_LLM_MODEL="claude-opus-5"
 
 bun run start
 ```
+
+Naming a provider resolves its endpoint and wire protocol for you. To use
+anything else — a LiteLLM proxy, Ollama, another vendor's `/v1` — set
+`llm.base_url` in your copy of `config/elliott.yaml` instead and elliott speaks
+the OpenAI-compatible protocol there. See
+[Choosing an endpoint](../reference/configuration.md#choosing-an-endpoint).
 
 A missing required field fails the boot and names the field. Every key is in the
 [configuration reference](../reference/configuration.md).
