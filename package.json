@@ -1,6 +1,6 @@
 {
   "name": "elliott",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "type": "module",
   "description": "Standalone TypeScript framework for composing secure personal AI agents from one universal primitive: the Component.",
   "license": "MIT",
