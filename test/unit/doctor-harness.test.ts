@@ -97,6 +97,46 @@ describe("runDoctor", () => {
     expect(JSON.stringify(report)).not.toContain("sk-leak");
   });
 
+  it("scrubs any skills.* config value from a skill's own error, whatever the field is named", async () => {
+    // A literal credential in an arbitrary skill config field (`auth`, `bearer` —
+    // names the role predicate does not recognise) must not reach the report when
+    // the skill echoes it in a register() error. The doctor redacts every skills.*
+    // value from skill-authored text, so completeness does not depend on guessing
+    // the field name.
+    const withSkillConfig: DoctorInput = {
+      ...input,
+      settings: {
+        ...input.settings,
+        skillConfig: {
+          local: { auth: "sk-auth-literal", bearer: "tok-bearer" },
+        },
+      },
+      secretValues: [],
+    };
+    const packages = [pkg("weird", "always")];
+    const report = await runDoctor(
+      withSkillConfig,
+      deps({
+        loadPackages: async () => packages,
+        register: async (_packages, seed) => {
+          seed.report(
+            new Error(
+              `boot failed: auth=${
+                (seed.settings.skillConfig as { local: { auth: string; }; })
+                  .local.auth
+              } bearer=tok-bearer`,
+            ),
+            "skill:weird",
+          );
+          return [];
+        },
+      }),
+    );
+    const text = JSON.stringify(report);
+    expect(text).not.toContain("sk-auth-literal");
+    expect(text).not.toContain("tok-bearer");
+  });
+
   it("classifies ran and skipped skills and passes when the probe succeeds", async () => {
     const packages = [
       pkg("fetch", "always"),

@@ -83,6 +83,11 @@ The output has four parts:
   SMTP) need extra config, so the section points at
   [Activation gates](activation-gates.md). A bundled package that produces no
   registration at all is an error, not a skip. Skipped skills never abort the run.
+  Agent-local input is untrusted: a manifest `secret.use` resource is printed only
+  when it is a well-formed `secret://` reference (a raw string is dropped), and a
+  skill's own registration error is scrubbed of every value in its `skills.*`
+  config — so a credential a skill schema names with any word cannot reach the
+  report even though the config boundary could not know that field was a secret.
 - **Egress** — every host contacted during the run, redirect targets included:
   the command follows redirects manually and permits network only to the LLM
   endpoint's exact origin (scheme, host, and port), so a request or redirect to

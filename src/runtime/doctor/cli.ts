@@ -106,13 +106,20 @@ export const doctorEnvOverlay = (env: DoctorEnv): DoctorEnvOverlay => {
   };
 };
 
-// A resolver that overlays the doctor's derived LLM values on top of the
-// ambient environment, so config/elliott.yaml's ${ENV:ELLIOTT_LLM_*} references
-// resolve without the operator having to export them by hand.
+// A resolver that overlays the doctor's derived LLM values on top of the SAME
+// ambient environment the overlay was derived from, so config/elliott.yaml's
+// ${ENV:ELLIOTT_LLM_*} references resolve without the operator exporting them by
+// hand. A blank (whitespace-only) value from EITHER source resolves to undefined,
+// so a `${ENV:…}` reference to it fails the load naming the variable — the same
+// missing-key path the empty overlay triggers. Without this the overlay could
+// reject a blank key while the resolver read it back from the environment,
+// sending a blank credential to the endpoint instead. The ambient env is passed
+// in (not read from the module) so overlay and resolution share one view.
 const overlayResolver = (
   overlay: Readonly<Record<string, string>>,
+  ambient: DoctorEnv,
 ): SecretResolver => ({
-  env: (name) => overlay[name] ?? runtimeEnvironment[name],
+  env: (name) => present(overlay[name] ?? ambient[name]),
   vault: (path, field) => envBackedSecretResolver.vault(path, field),
 });
 
@@ -192,7 +199,7 @@ export const runDoctorCli = async (
   const secretValues = new Set<string>();
   const recorded = (): readonly string[] => [...secretValues];
   const resolver: SecretResolver = {
-    ...overlayResolver(overlay),
+    ...overlayResolver(overlay, env),
     onSecret: (value) => secretValues.add(value),
   };
   let loaded;

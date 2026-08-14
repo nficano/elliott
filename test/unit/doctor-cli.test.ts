@@ -154,6 +154,28 @@ describe("runDoctorCli", () => {
     }
   });
 
+  it("treats a whitespace-only explicit API key as absent, not a credential to probe", async () => {
+    // A blank key must reach the missing-key diagnostic, not resolve back through
+    // the ambient environment into a doomed authentication probe.
+    const errors: string[] = [];
+    const original = console.error;
+    console.error = (message: unknown) => errors.push(String(message));
+    try {
+      const handled = await runDoctorCli(["doctor"], rootsFor("."), {
+        ELLIOTT_LLM_PROVIDER: "anthropic",
+        ELLIOTT_LLM_API_KEY: " ",
+        ELLIOTT_LLM_MODEL: "test-model",
+      });
+      expect(handled).toBe(true);
+      expect(process.exitCode).toBe(1);
+      const printed = errors.join("\n");
+      expect(printed).toContain("ELLIOTT_LLM_API_KEY");
+      expect(printed).not.toContain("authentication rejected");
+    } finally {
+      console.error = original;
+    }
+  });
+
   it("names an invalid provider in full and omits the hint when credentials are present", async () => {
     const errors: string[] = [];
     const original = console.error;
@@ -167,8 +189,8 @@ describe("runDoctorCli", () => {
       expect(handled).toBe(true);
       expect(process.exitCode).toBe(1);
       const printed = errors.join("\n");
-      // Provider is a non-secret LLM config variable — the recording resolver
-      // skips it — so its real value is named, not redacted or mangled.
+      // Provider is non-secret by role, so it is never recorded — its real value
+      // is named in the diagnosis, not redacted or mangled.
       expect(printed).toContain("Unknown llm.provider: bogus-provider");
       expect(printed).not.toContain("‹redacted›");
       // Credentials are present, so no "set your keys" footer.

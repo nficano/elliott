@@ -36,6 +36,25 @@ const safeOrigin = (baseUrl: string): string | undefined => {
   }
 };
 
+// Every string value in the agent-local `skills.*` config subtree. A skill's
+// register() error is UNTRUSTED text authored by that skill, and it can echo any
+// of the skill's own config values — including a credential a skill schema names
+// with a word the config boundary's role predicate does not recognise (`auth`,
+// `bearer`, a bespoke key). The config boundary cannot know which arbitrary skill
+// field is a secret, so rather than guess by name, the doctor scrubs EVERY skill
+// config value from skill-authored messages: complete by construction, whatever a
+// skill calls its fields. Non-secret config values scrubbed here are only a
+// cosmetic loss inside an untrusted message; the framework's own derived output
+// (the probe line, the verdict) never uses this set, so it is never mangled.
+const skillConfigValues = (config: unknown): readonly string[] => {
+  if (typeof config === "string") return [config];
+  if (Array.isArray(config)) return config.flatMap(skillConfigValues);
+  if (config !== null && typeof config === "object") {
+    return Object.values(config).flatMap(skillConfigValues);
+  }
+  return [];
+};
+
 // The seed a doctor gives each skill's register(): the full resolved settings,
 // a report collector, and inert delivery/sink hooks. Nothing here starts a
 // gateway, opens a socket, or attaches an error sink — the harness only wants
@@ -43,22 +62,27 @@ const safeOrigin = (baseUrl: string): string | undefined => {
 const doctorSeed = (
   input: DoctorInput,
   reports: CapturedReport[],
-): SkillContextSeed => ({
-  settings: input.settings,
-  stateDirectory: input.settings.stateDirectory,
-  packages: () => [],
-  report: (error, mechanism) => {
-    // Scrub every secret the config boundary resolved (input.secretValues), so
-    // a skill echoing ANY credential — a vendor key, a token, a password, a
-    // DSN, an MCP authorization — is redacted, not just the LLM key.
-    reports.push({
-      mechanism,
-      message: sanitizeForDisplay(cleanMessage(error), input.secretValues),
-    });
-  },
-  installErrorSink: () => {},
-  deliver: async () => {},
-});
+): SkillContextSeed => {
+  // Redaction set for skill-authored text: the config boundary's recorded
+  // secrets PLUS every skills.* config value (see skillConfigValues).
+  const skillRedaction = [
+    ...input.secretValues,
+    ...skillConfigValues(input.settings.skillConfig),
+  ];
+  return {
+    settings: input.settings,
+    stateDirectory: input.settings.stateDirectory,
+    packages: () => [],
+    report: (error, mechanism) => {
+      reports.push({
+        mechanism,
+        message: sanitizeForDisplay(cleanMessage(error), skillRedaction),
+      });
+    },
+    installErrorSink: () => {},
+    deliver: async () => {},
+  };
+};
 
 const errorFor = (
   name: string,
