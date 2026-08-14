@@ -58,7 +58,7 @@
     "test:coverage": "bun scripts/coverage-gate.ts"
   },
   "dependencies": {
-    "effect": "^4.0.0-beta.100",
+    "effect": "4.0.0-beta.100",
     "yaml": "^2.6.1"
   },
   "devDependencies": {
