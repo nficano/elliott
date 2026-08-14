@@ -161,6 +161,102 @@ describe("G27 — secret-bearing config fields reject literal credentials", () =
     });
   });
 
+  // The role test reads the key's final WORD, so it must segment the key the way
+  // the repo actually spells keys. `mcp[].authorizationSecret` (see mcpSettings)
+  // is camelCase, and splitting on `_`/`-` alone reads it as one word, matches no
+  // role word, and exempts a credential field from the rule entirely. Pinned in
+  // both spellings so a key's casing can never decide whether it is enforced.
+  it("rejects a literal in a camelCase credential field", async () => {
+    const cases: readonly (readonly [string, string])[] = [
+      ["skills.local.authorizationSecret", "authorizationSecret"],
+      ["skills.local.apiKey", "apiKey"],
+      ["skills.local.privateKey", "privateKey"],
+    ];
+    for (const [field, key] of cases) {
+      await withConfig({
+        "elliott.yaml": llmConfig(
+          `skills:\n  local:\n    ${key}: literal-camel-secret\n`,
+        ),
+      }, async (root) => {
+        let message: string;
+        try {
+          await loadRuntimeSettings(
+            root,
+            "elliott",
+            resolver({ LLM_KEY: "k" }),
+          );
+          throw new Error(`expected a literal ${field} to be rejected`);
+        } catch (error_) {
+          message = error_ instanceof Error ? error_.message : String(error_);
+        }
+        expect(message).toContain(field);
+        expect(message).toContain("opaque reference");
+        expect(message).not.toContain("literal-camel-secret");
+      });
+    }
+  });
+
+  // Credentials whose key carries no role word at all: an `authorization` header
+  // value, a session `cookie`, and a URL whose possession IS the credential (a
+  // SimpleFIN access url, a Slack incoming webhook). The ending test cannot reach
+  // these, so they are declared. Inference covers what nobody declared;
+  // declaration covers what inference cannot name.
+  it("rejects a literal in a credential field with no role word", async () => {
+    const cases: readonly (readonly [string, string])[] = [
+      ["skills.local.authorization", "authorization"],
+      ["skills.local.cookie", "cookie"],
+      ["skills.local.access_url", "access_url"],
+      ["skills.local.webhook_url", "webhook_url"],
+    ];
+    for (const [field, key] of cases) {
+      await withConfig({
+        "elliott.yaml": llmConfig(
+          `skills:\n  local:\n    ${key}: literal-roleless-secret\n`,
+        ),
+      }, async (root) => {
+        let message: string;
+        try {
+          await loadRuntimeSettings(
+            root,
+            "elliott",
+            resolver({ LLM_KEY: "k" }),
+          );
+          throw new Error(`expected a literal ${field} to be rejected`);
+        } catch (error_) {
+          message = error_ instanceof Error ? error_.message : String(error_);
+        }
+        expect(message).toContain(field);
+        expect(message).toContain("opaque reference");
+        expect(message).not.toContain("literal-roleless-secret");
+      });
+    }
+  });
+
+  // The counter-direction: ordinary non-secret settings must stay literal. A rule
+  // that fails closed by flagging everything would be useless — `base_url` and
+  // `model` are the values the doctor NAMES when it reports a misconfiguration.
+  it("leaves non-secret configuration fields literal", async () => {
+    await withConfig({
+      "elliott.yaml": llmConfig(
+        "skills:\n  local:\n    base_url: https://api.example.com\n"
+          + "    baseUrl: https://api.example.com\n    owner_id: u-123\n"
+          + "    default_channel: general\n",
+      ),
+    }, async (root) => {
+      const settings = await loadRuntimeSettings(
+        root,
+        "elliott",
+        resolver({ LLM_KEY: "k" }),
+      );
+      expect(settings.skillConfig?.["local"]).toEqual({
+        base_url: "https://api.example.com",
+        baseUrl: "https://api.example.com",
+        owner_id: "u-123",
+        default_channel: "general",
+      });
+    });
+  });
+
   // The indirection pattern: a secret-named field whose value is the NAME of a
   // config/secrets.yaml entry is accepted (the credential lives in secrets.yaml,
   // enforced there). Recognised structurally — value is a declared secrets key —

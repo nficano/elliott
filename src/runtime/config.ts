@@ -203,8 +203,7 @@ const REFERENCE_FORMS =
 // The words are the endings that name a credential; `bot_token`, `app_token`,
 // `refresh_token`, `signing_secret`, `client_secret`, `api_key`, `private_key`,
 // and a bare `dsn`/`token`/`password` all match, while `base_url`, `owner_id`,
-// `default_channel`, `public_hostname`, `provider`, and `model` do not. Config
-// keys are snake_case, so the final `_`/`-` segment is the discriminator.
+// `default_channel`, `public_hostname`, `provider`, and `model` do not.
 const SECRET_WORDS: ReadonlySet<string> = new Set([
   "token",
   "secret",
@@ -216,9 +215,36 @@ const SECRET_WORDS: ReadonlySet<string> = new Set([
   "credentials",
 ]);
 
+// Credential fields whose names carry NO role word, so the ending test cannot
+// reach them. `authorization` is an HTTP header value (`Bearer …`), `cookie` and
+// `session` carry a bearer session, and an `access_url`/`webhook_url` is a URL
+// whose possession IS the credential (SimpleFIN's access url, a Slack incoming
+// webhook). The role test is the open-ended rule; this is the closed list of
+// known exceptions to it — inference covers the fields nobody thought to
+// declare, declaration covers the ones inference cannot name.
+const SECRET_FIELDS: ReadonlySet<string> = new Set([
+  "authorization",
+  "cookie",
+  "session",
+  "access_url",
+  "webhook_url",
+]);
+
+// Split a config key into lowercase words on `_`, `-`, AND camelCase humps. Keys
+// in this repo are NOT uniformly snake_case — `mcp[].authorizationSecret` is
+// camelCase (see mcpSettings) — so segmenting on `_`/`-` alone reads that whole
+// key as one word, matches no role word, and silently exempts a credential field
+// from the reference rule. Splitting the humps too makes the role test hold for
+// either spelling, which is the property the rule claims.
+const CAMEL_BOUNDARY = /([a-z0-9])([A-Z])/g;
+const fieldWords = (key: string): readonly string[] =>
+  key.replaceAll(CAMEL_BOUNDARY, "$1_$2").toLowerCase().split(/[_-]/);
+
 const isSecretFieldName = (key: string): boolean => {
-  const last = key.toLowerCase().split(/[_-]/).at(-1);
-  return last !== undefined && SECRET_WORDS.has(last);
+  const words = fieldWords(key);
+  const last = words.at(-1);
+  return (last !== undefined && SECRET_WORDS.has(last))
+    || SECRET_FIELDS.has(words.join("_"));
 };
 
 // A secret-bearing config field is acceptable when it is an opaque reference OR
