@@ -87,6 +87,58 @@ describe("G27 — secret-bearing config fields reject literal credentials", () =
     }
   });
 
+  // The schema must cover EVERY config value read straight into settings as a
+  // credential, not just the LLM/observability/store trio. A skill's own
+  // secret-bearing config field (here the Slack tokens and the browser token) is a
+  // credential too; a literal there must fail the same way, or it enters settings
+  // unrecorded and a skill error can print it. This pins the completed set so an
+  // omission is a gate failure, not a future finding.
+  it("rejects a literal in a skill's secret-bearing config field", async () => {
+    const cases: readonly (readonly [string, string, string])[] = [
+      [
+        "channels.slack.app_token",
+        "channels:\n  slack:\n    enabled: true\n    app_token: xapp-literal\n",
+        "xapp-literal",
+      ],
+      [
+        "channels.slack.bot_token",
+        "channels:\n  slack:\n    enabled: true\n"
+        + "    app_token: \"${ENV:SA}\"\n    bot_token: xoxb-literal\n",
+        "xoxb-literal",
+      ],
+      [
+        "channels.slack.user_token",
+        "channels:\n  slack:\n    enabled: true\n"
+        + "    app_token: \"${ENV:SA}\"\n    bot_token: \"${ENV:SB}\"\n"
+        + "    user_token: xoxp-literal\n",
+        "xoxp-literal",
+      ],
+      [
+        "browser.token",
+        "browser:\n  token: browser-literal\n",
+        "browser-literal",
+      ],
+    ];
+    for (const [field, extra, literal] of cases) {
+      await withConfig({ "elliott.yaml": llmConfig(extra) }, async (root) => {
+        let message: string;
+        try {
+          await loadRuntimeSettings(
+            root,
+            "elliott",
+            resolver({ LLM_KEY: "k", SA: "a", SB: "b" }),
+          );
+          throw new Error(`expected a literal ${field} to be rejected`);
+        } catch (error_) {
+          message = error_ instanceof Error ? error_.message : String(error_);
+        }
+        expect(message).toContain(field);
+        expect(message).toContain("opaque reference");
+        expect(message).not.toContain(literal);
+      });
+    }
+  });
+
   it("rejects a literal entry in config/secrets.yaml", async () => {
     await withConfig({
       "elliott.yaml": llmConfig(""),

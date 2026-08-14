@@ -29,21 +29,25 @@ describe("redactSecrets", () => {
     expect(out).toContain("‹redacted›");
   });
 
-  it("redacts a realistic-length secret but skips a meaninglessly short one", () => {
-    // A real credential (here 6 chars) is redacted; a one- or two-character
-    // value is not — redacting it would blank a substring of ordinary words and
-    // it is never a real key.
+  it("redacts a recorded secret of any non-empty length, short ones included", () => {
+    // The redaction set holds only resolved SECRETS (the non-secret LLM config
+    // vars are skip-listed before recording), so a short recorded value is a real
+    // credential and is scrubbed regardless of length — a PIN or a brief token is
+    // still a secret. Length is not a licence to print it.
     expect(redactSecrets("provider echoed abc123", ["abc123"])).toBe(
       "provider echoed ‹redacted›",
     );
-    expect(redactSecrets("Unknown key k here", ["k"])).toBe(
-      "Unknown key k here",
+    expect(redactSecrets("skill echoed abc", ["abc"])).toBe(
+      "skill echoed ‹redacted›",
     );
-    expect(redactSecrets("blank is skipped", [" "])).toBe("blank is skipped");
+    expect(redactSecrets("pin is 12", ["12"])).toBe("pin is ‹redacted›");
   });
 
-  it("ignores only undefined and empty secrets", () => {
+  it("skips only values with nothing to replace (undefined, empty, whitespace)", () => {
+    // A trimmed-empty value would match everywhere and hide nothing real; it is
+    // the only "meaningless replacement" case.
     expect(redactSecrets("unchanged", [undefined, ""])).toBe("unchanged");
+    expect(redactSecrets("blank is skipped", [" "])).toBe("blank is skipped");
   });
 
   it("redacts the longest secret first so a prefix cannot leave a tail exposed", () => {
@@ -111,9 +115,25 @@ describe("oneLine", () => {
 });
 
 describe("stripUrlUserinfo", () => {
-  it("removes user:password from a URL", () => {
+  it("removes user:password from a bare URL", () => {
     expect(stripUrlUserinfo("https://user:password@example.com/v1")).toBe(
       "https://example.com/v1",
+    );
+  });
+
+  it("removes userinfo from a URL embedded in a longer message", () => {
+    // The credential may be inline in a skill's error text; a base_url is
+    // non-secret by name so no recorded secret would match it.
+    expect(
+      stripUrlUserinfo(
+        "skill failed at https://user:password@example.com/v1 now",
+      ),
+    ).toBe("skill failed at https://example.com/v1 now");
+  });
+
+  it("strips bare user@ userinfo too", () => {
+    expect(stripUrlUserinfo("postgres://admin@db.internal/app")).toBe(
+      "postgres://db.internal/app",
     );
   });
 

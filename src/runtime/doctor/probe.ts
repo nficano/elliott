@@ -72,6 +72,40 @@ const endpointOrigin = (baseUrl: string): string => {
   }
 };
 
+// A base URL that will not parse as a URL. The probe cannot run — there is no
+// origin to pin egress to and no endpoint to reach — so it is its own outcome,
+// distinct from a reachable-but-broken one.
+const INVALID_ENDPOINT = "endpoint is not a valid URL";
+
+// The endpoint facts the doctor derives itself, each run through the secret
+// sanitizer (`secrets` is the config boundary's recorded set): the wire, the
+// endpoint ORIGIN (credential-free), and the model id. Nothing endpoint-controlled
+// is carried here.
+const endpointMetadata = (
+  settings: RuntimeSettings,
+  secrets: readonly string[],
+): {
+  readonly wire: string;
+  readonly baseUrl: string;
+  readonly model: string;
+} => ({
+  wire: settings.llmWire,
+  baseUrl: sanitizeForDisplay(endpointOrigin(settings.llmBaseUrl), secrets),
+  model: sanitizeForDisplay(settings.model, secrets),
+});
+
+// A failed probe for a base URL that does not parse. Rendered instead of letting
+// the origin computation throw an unhandled TypeError that would carry the raw
+// URL (which can embed inline credentials) to an outer error handler.
+export const invalidEndpointProbe = (
+  settings: RuntimeSettings,
+  secrets: readonly string[],
+): DoctorLlmProbe => ({
+  ok: false,
+  ...endpointMetadata(settings, secrets),
+  error: INVALID_ENDPOINT,
+});
+
 // Exercise the configured model once. The result reports only facts the doctor
 // derives itself — the wire, the endpoint origin, the model id, and a fixed
 // outcome phrase. Nothing the endpoint controls (its response body, its reply
@@ -84,11 +118,7 @@ export const probeLlm = async (
   makeCompleter: (settings: RuntimeSettings) => RuntimeModelCompleter,
   secrets: readonly string[],
 ): Promise<DoctorLlmProbe> => {
-  const endpoint = {
-    wire: settings.llmWire,
-    baseUrl: sanitizeForDisplay(endpointOrigin(settings.llmBaseUrl), secrets),
-    model: sanitizeForDisplay(settings.model, secrets),
-  } as const;
+  const endpoint = endpointMetadata(settings, secrets);
   const request: ModelTurnRequest = {
     system: PROBE_SYSTEM,
     messages: [{ role: "user", content: PROBE_PROMPT }],

@@ -14,7 +14,13 @@ import { loadSkillRegistrations } from "../skills/loader";
 import type { RuntimeSettings, SecretResolver } from "../types";
 import { formatReport } from "./format";
 import { defaultDoctorDependencies, runDoctor } from "./harness";
-import { cleanMessage, dropCodeFrame, oneLine, redactSecrets } from "./message";
+import {
+  cleanMessage,
+  dropCodeFrame,
+  oneLine,
+  redactSecrets,
+  stripUrlUserinfo,
+} from "./message";
 import type { DoctorEnv, DoctorEnvOverlay, DoctorRoots } from "./types";
 
 const DOCTOR_COMMAND = "doctor";
@@ -147,7 +153,11 @@ export const configErrorLine = (
   error: unknown,
   secrets: readonly string[],
 ): string =>
-  oneLine(dropCodeFrame(redactSecrets(cleanMessage(error), secrets)));
+  oneLine(
+    stripUrlUserinfo(
+      dropCodeFrame(redactSecrets(cleanMessage(error), secrets)),
+    ),
+  );
 
 // Load the packages the doctor checks: the framework's bundled skills from the
 // framework package, plus the deployment's agent-local skills from the consumer
@@ -220,17 +230,36 @@ export const runDoctorCli = async (
     );
   }
   const settings = withoutControlPlaneSecrets(loaded);
-  const report = await runDoctor(
-    { roots, settings, secretValues: recorded() },
-    defaultDoctorDependencies(
-      loadDoctorPackages,
-      (packages, seed) => loadSkillRegistrations(packages, seed),
-      (resolved) => new RuntimeModelClient(resolved),
-    ),
-  );
-  console.log(formatReport(report));
-  process.exitCode = report.ok ? 0 : 1;
+  await reportDoctorRun(roots, settings, recorded);
   return true;
+};
+
+// Run the harness and print its report, setting the exit code from the verdict.
+// runDoctor is built not to throw for expected failures (a bad key, a dormant
+// skill, an egress breach, an unparseable endpoint — all return an ok:false
+// report). Any remaining fault is unexpected, but it is still rendered through
+// the SAME recorded secret set as every other path, so no raw message or trace
+// reaches the outer catch, which has no secret set.
+const reportDoctorRun = async (
+  roots: DoctorRoots,
+  settings: RuntimeSettings,
+  recorded: () => readonly string[],
+): Promise<void> => {
+  try {
+    const report = await runDoctor(
+      { roots, settings, secretValues: recorded() },
+      defaultDoctorDependencies(
+        loadDoctorPackages,
+        (packages, seed) => loadSkillRegistrations(packages, seed),
+        (resolved) => new RuntimeModelClient(resolved),
+      ),
+    );
+    console.log(formatReport(report));
+    process.exitCode = report.ok ? 0 : 1;
+  } catch (error) {
+    console.error(`elliott doctor: ${configErrorLine(error, recorded())}`);
+    process.exitCode = 1;
+  }
 };
 
 // Resolve the deployment root (the consumer's working directory) and agent

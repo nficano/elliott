@@ -60,8 +60,12 @@ G26 doubles as the OWASP Agentic Top-10 checklist for the controls described in
 G27 is the executable form of the secrets doctrine (CLAUDE.md: "Secrets are
 opaque references … resolved at the config boundary"). It asserts that a literal
 credential in any secret-bearing config field — `llm.api_key`,
-`observability.glitchtip.dsn`, `store.dsn`, or a `config/secrets.yaml` entry — is
-a load-time error that names the field without echoing the value, and that
-`${ENV:…}`/`${VAULT:…}` references still resolve. That failing-closed guarantee
-is what makes the doctor's resolved-secret set complete by construction: no
-credential can reach settings without passing through `SecretResolver`.
+`observability.glitchtip.dsn`, `store.dsn`, the Slack tokens
+(`channels.slack.{app_token,bot_token,user_token}`), `browser.token`, or a
+`config/secrets.yaml` entry — is a load-time error that names the field without
+echoing the value, and that `${ENV:…}`/`${VAULT:…}` references still resolve. The
+set is every config value read straight into settings as a credential (a field
+whose value is a *key* into `config/secrets.yaml`, resolved indirectly, is not a
+credential and is excluded). That failing-closed guarantee is what makes the
+doctor's resolved-secret set complete by construction: no credential can reach
+settings without passing through `SecretResolver`.

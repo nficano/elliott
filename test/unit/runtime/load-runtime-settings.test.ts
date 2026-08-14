@@ -68,8 +68,8 @@ tools:
 channels:
   slack:
     enabled: true
-    app_token: xapp
-    bot_token: xoxb
+    app_token: "\${ENV:SLACK_APP}"
+    bot_token: "\${ENV:SLACK_BOT}"
     owner_id: U1
     default_channel: C1
 skills:
@@ -135,6 +135,8 @@ describe("loadRuntimeSettings", () => {
         MCP_TOKEN: "mcp-auth",
         GLITCHTIP_DSN: "https://glitchtip.example/1",
         STORE_DSN: "postgres://local/db",
+        SLACK_APP: "xapp",
+        SLACK_BOT: "xoxb",
       }, { vault_field: "from-vault" }),
     );
 

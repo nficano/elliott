@@ -15,15 +15,18 @@ const WHITESPACE_RUN = /\s+/gu;
 export const cleanMessage = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
 
-// A value shorter than this (after trimming) is not redacted: replacing a one-
-// or two-character value would blank a substring of ordinary words (redacting
-// "k" mangles "Unknown"), and no real credential — an API key, a token, a DSN —
-// is that short. This is the addendum's "meaningless replacement" rule: the
-// trigger is length making the replacement meaningless, not the value's secrecy.
-const MIN_REDACTABLE_LENGTH = 4;
-
+// A value is redacted when it has any non-whitespace content. The set the doctor
+// redacts is the recording resolver's captured set, which holds only resolved
+// SECRETS — the non-secret LLM configuration variables are skip-listed before
+// recording (see recordingResolver). So a short recorded value (a PIN, a
+// three-character token, a brief passphrase) is a real credential the config
+// boundary accepted and must be scrubbed regardless of length; the length of a
+// secret is not a licence to print it. Only a value whose trimmed length is zero
+// is skipped, because there is nothing to replace and an empty match would hit
+// everywhere. This is the addendum's "meaningless replacement" rule read by its
+// cause — nothing to replace — not by a length threshold on real secrets.
 const redactable = (value: string | undefined): value is string =>
-  value !== undefined && value.trim().length >= MIN_REDACTABLE_LENGTH;
+  value !== undefined && value.trim().length > 0;
 
 // Replace every occurrence of a known secret with a fixed marker. Secrets are
 // applied LONGEST first (and de-duplicated), so a recorded secret that is a
@@ -57,23 +60,26 @@ export const oneLine = (text: string): string =>
   text.replaceAll(UNSAFE_CHARACTERS, " ").replaceAll(WHITESPACE_RUN, " ")
     .trim();
 
-// Drop any userinfo (`user:password@`) from a URL before it is printed, so a
-// resolved endpoint that carries inline credentials shows only its safe part.
-// A value that does not parse as a URL is returned unchanged (the caller still
-// runs it through sanitizeForDisplay).
-export const stripUrlUserinfo = (url: string): string => {
-  try {
-    const parsed = new URL(url);
-    parsed.username = "";
-    parsed.password = "";
-    return parsed.href;
-  } catch {
-    return url;
-  }
-};
+// Strip the userinfo (`user:pass@`) from every URL embedded in a string. A
+// resolved endpoint can carry credentials inline that no recorded secret matches
+// — the LLM base_url is non-secret by NAME, so it is never in the redaction set,
+// yet its value may embed a password. Dropping the userinfo component is a
+// structural fact this process derives from the URL grammar, so it holds for any
+// inline credential rather than a specific run of bytes. It runs over free text
+// (a skill's error message, a config error), not just a bare URL, so an endpoint
+// quoted inside a longer message is covered too.
+// Scheme is bounded (URL schemes are short) so the match is linear — no
+// catastrophic backtracking on a long run of scheme-legal characters that never
+// reaches `://`.
+const URL_WITH_USERINFO = /([a-zA-Z][a-zA-Z0-9+.-]{0,31}:\/\/)[^/?#\s@]+@/g;
+export const stripUrlUserinfo = (text: string): string =>
+  text.replaceAll(URL_WITH_USERINFO, "$1");
 
-// The full display sanitizer: scrub secrets, then flatten to a single line.
+// The full display sanitizer: scrub recorded secrets, strip any inline URL
+// credential no recorded secret would match, then flatten to a single line. Every
+// operator-facing string that may carry attacker- or config-influenced content
+// goes through here, so the three defenses are applied uniformly, not per site.
 export const sanitizeForDisplay = (
   text: string,
   secrets: readonly (string | undefined)[] = [],
-): string => oneLine(redactSecrets(text, secrets));
+): string => oneLine(stripUrlUserinfo(redactSecrets(text, secrets)));

@@ -10,7 +10,11 @@ import {
 import { scaffoldComponent } from "./manifest/scaffold";
 // message.ts is dependency-free (no config import), so it is safe to load
 // eagerly even when a config-evaluation failure is what we are trying to render.
-import { dropCodeFrame, oneLine } from "./runtime/doctor/message";
+import {
+  dropCodeFrame,
+  oneLine,
+  stripUrlUserinfo,
+} from "./runtime/doctor/message";
 
 const scaffold = async (arguments_: readonly string[]): Promise<boolean> => {
   const [command, kind, name, parentDirectory = "."] = arguments_;
@@ -48,8 +52,16 @@ const runDoctorCommand = async (
     );
     await runDoctorCli(arguments_, doctorRoots(frameworkRoot, process.cwd()));
   } catch (error) {
+    // Last resort: this catch fires only for a failure BEFORE runDoctorCli builds
+    // its recording resolver (the config module failing to load — a malformed
+    // ELLIOTT_SECRETS_FILE, whose error is secret-free by construction). It has no
+    // recorded set, so it must not echo value-bearing detail: flatten, drop any
+    // parser code frame, and strip inline URL userinfo. Everything after the
+    // recorder exists is redacted inside runDoctorCli against the complete set.
     const message = error instanceof Error ? error.message : String(error);
-    console.error(`elliott doctor: ${oneLine(dropCodeFrame(message))}`);
+    console.error(
+      `elliott doctor: ${oneLine(stripUrlUserinfo(dropCodeFrame(message)))}`,
+    );
     process.exitCode = 1;
   }
 };

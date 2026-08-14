@@ -5,7 +5,7 @@ import { originOf, withEgressAllowlist } from "./egress";
 import { classifyOutcome } from "./gate";
 import { readManifestSecretRefs } from "./manifest";
 import { cleanMessage, sanitizeForDisplay } from "./message";
-import { probeLlm } from "./probe";
+import { invalidEndpointProbe, probeLlm } from "./probe";
 import type {
   CapturedReport,
   DoctorDependencies,
@@ -23,6 +23,18 @@ const COLD_RUN_BUDGET_MILLISECONDS = COLD_RUN_BUDGET_MINUTES
 export const coldRunBudgetMinutes = COLD_RUN_BUDGET_MINUTES;
 
 const SKILL_MECHANISM_PREFIX = "skill:";
+
+// The endpoint origin, or undefined when the base URL will not parse. Returning
+// undefined rather than throwing keeps a bad base_url — an operator config error
+// — on the derived-report path instead of an unhandled TypeError that would carry
+// the raw URL (which can embed inline credentials) to an outer handler.
+const safeOrigin = (baseUrl: string): string | undefined => {
+  try {
+    return originOf(baseUrl);
+  } catch {
+    return undefined;
+  }
+};
 
 // The seed a doctor gives each skill's register(): the full resolved settings,
 // a report collector, and inert delivery/sink hooks. Nothing here starts a
@@ -112,7 +124,22 @@ export const runDoctor = async (
   const start = deps.now();
   const reports: CapturedReport[] = [];
   const seed = doctorSeed(input, reports);
-  const allowedOrigin = originOf(input.settings.llmBaseUrl);
+  const allowedOrigin = safeOrigin(input.settings.llmBaseUrl);
+  if (allowedOrigin === undefined) {
+    // No origin to pin egress to and no endpoint to reach: report a derived
+    // failure (the URL is never echoed) rather than throwing past the harness.
+    const elapsedMilliseconds = deps.now() - start;
+    return {
+      ok: false,
+      elapsedMilliseconds,
+      coldRunBudgetExceeded: elapsedMilliseconds > COLD_RUN_BUDGET_MILLISECONDS,
+      skills: [],
+      llm: invalidEndpointProbe(input.settings, input.secretValues),
+      contactedHosts: [],
+      egressViolations: [],
+      warnings: [],
+    };
+  }
   const trace = await withEgressAllowlist([allowedOrigin], async () => {
     const packages = await deps.loadPackages(input.roots);
     const skills = await deps.register(packages, seed);

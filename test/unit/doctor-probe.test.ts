@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { probeLlm } from "../../src/runtime/doctor/probe";
+import { invalidEndpointProbe, probeLlm } from "../../src/runtime/doctor/probe";
 import type { RuntimeSettings } from "../../src/runtime/types";
 
 const settings = {
@@ -104,5 +104,24 @@ describe("probeLlm", () => {
     expect(probe.model).not.toContain("sk-live-abc123");
     expect(probe.model).toContain("‹redacted›");
     expect(probe.baseUrl).not.toContain("sk-live-abc123");
+  });
+});
+
+describe("invalidEndpointProbe", () => {
+  it("reports a derived failure for an unparseable base URL without echoing it", () => {
+    // A base_url that will not parse would otherwise throw a TypeError carrying
+    // the raw URL — which can embed a credential — to an outer handler. Instead
+    // the endpoint is shown as a fixed placeholder and the failure is its own
+    // phrase; a secret embedded in the literal is redacted by the recorded set.
+    const bad = {
+      llmWire: "openai",
+      llmBaseUrl: "not-a-url-sk-live-abc123",
+      model: "m",
+    } as unknown as RuntimeSettings;
+    const probe = invalidEndpointProbe(bad, ["sk-live-abc123"]);
+    expect(probe.ok).toBe(false);
+    expect(probe.error).toBe("endpoint is not a valid URL");
+    expect(probe.baseUrl).toBe("(unparseable endpoint)");
+    expect(JSON.stringify(probe)).not.toContain("sk-live-abc123");
   });
 });

@@ -32,7 +32,18 @@ and never echoes the value. These fields accept only a `${ENV:…}` or
 | `llm.api_key` | bearer for the LLM endpoint |
 | `observability.glitchtip.dsn` | error-reporting DSN |
 | `store.dsn` | Postgres connection string |
+| `channels.slack.app_token` | Slack app-level token |
+| `channels.slack.bot_token` | Slack bot token |
+| `channels.slack.user_token` | Slack user token |
+| `browser.token` | browser-daemon token |
 | every `config/secrets.yaml` entry | resolved secret |
+
+The list is every `config/elliott.yaml` value read straight into settings as a
+credential. A field whose value is instead a *key* into `config/secrets.yaml` —
+a Google account's `refresh_token_secret`, an MCP endpoint's
+`authorizationSecret`, a litellm account's `secret` — is not on it: its value is
+an identifier, and the credential it names lives in `config/secrets.yaml`, which
+is enforced entry by entry.
 
 This is [conformance gate G27](conformance-gates.md). Because every secret
 reaches settings through the `SecretResolver`, the set of resolved secrets is

@@ -195,16 +195,30 @@ const isSecretReference = (value: string): boolean =>
 const REFERENCE_FORMS =
   "an opaque reference (${ENV:VAR} or ${VAULT:mount/path#field})";
 
-// The secret-bearing fields of config/elliott.yaml. This is the schema that
-// answers "which fields hold a credential" — the doctrine that secrets are
-// opaque references is enforced against exactly these paths (config/secrets.yaml
-// is enforced entry-by-entry in loadSecrets, since every entry there is a
-// secret). A literal in one of these is a load-time error, so no credential can
-// enter settings without passing through SecretResolver.
+// The secret-bearing fields of config/elliott.yaml: the schema that answers
+// "which config values hold a credential". The doctrine that secrets are opaque
+// references is enforced against exactly these paths (config/secrets.yaml is
+// enforced entry-by-entry in loadSecrets, since every entry there is a secret), so
+// a literal in any of them is a load-time error and no credential can enter
+// settings without passing through SecretResolver — which is what makes the
+// recording resolver's captured set the COMPLETE secret set.
+//
+// Every path here is a value read straight into RuntimeSettings AS a credential.
+// A field whose value is instead a KEY into config/secrets.yaml — google
+// `refresh_token_secret`, an mcp endpoint's `authorizationSecret`, a litellm
+// account's `secret` — is deliberately absent: its value is a plain identifier,
+// and the credential it names lives in secrets.yaml, already enforced there. When
+// a new config field is read as a credential (grep: a `stringAt`/`optionalStringAt`
+// on a token/secret/password/key/dsn path that is not a `secrets[...]` lookup),
+// it belongs here; conformance gate G27 pins the set.
 const SECRET_BEARING_PATHS: readonly (readonly string[])[] = [
   ["llm", "api_key"],
   ["observability", "glitchtip", "dsn"],
   ["store", "dsn"],
+  ["channels", "slack", "app_token"],
+  ["channels", "slack", "bot_token"],
+  ["channels", "slack", "user_token"],
+  ["browser", "token"],
 ];
 
 // Reject a literal credential in a secret-bearing config field, naming the field

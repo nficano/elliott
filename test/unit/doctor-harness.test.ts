@@ -72,6 +72,31 @@ const deps = (
 });
 
 describe("runDoctor", () => {
+  it("returns a derived failure for an unparseable base URL instead of throwing", async () => {
+    // originOf would throw a TypeError carrying the raw URL (which can embed a
+    // credential). The harness must instead report a failed probe — no skills
+    // registered, no egress attempted — and never let the URL escape.
+    const badInput: DoctorInput = {
+      ...input,
+      settings: { ...input.settings, llmBaseUrl: "not-a-url-sk-leak" },
+      secretValues: ["sk-leak"],
+    };
+    let threw = false;
+    const report = await runDoctor(badInput, deps({})).catch(
+      (error: unknown) => {
+        threw = true;
+        throw error;
+      },
+    );
+    expect(threw).toBe(false);
+    expect(report.ok).toBe(false);
+    expect(report.llm.ok).toBe(false);
+    expect(report.llm.error).toBe("endpoint is not a valid URL");
+    expect(report.skills).toEqual([]);
+    expect(report.contactedHosts).toEqual([]);
+    expect(JSON.stringify(report)).not.toContain("sk-leak");
+  });
+
   it("classifies ran and skipped skills and passes when the probe succeeds", async () => {
     const packages = [
       pkg("fetch", "always"),

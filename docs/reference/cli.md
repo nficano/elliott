@@ -71,10 +71,12 @@ The output has four parts:
   HTTP-status bucket (e.g. `authentication rejected (HTTP 401)`),
   `endpoint returned an empty completion`,
   `endpoint returned an unreadable response` (reachable but undecodable, distinct
-  from unreachable), or `endpoint unreachable or did not respond` — never the
-  provider's response body, and never a stack trace. Every printed value is also
-  secret-scrubbed and flattened to one line as defense in depth, so a hostile
-  endpoint cannot leak a key or forge a verdict line.
+  from unreachable), `endpoint unreachable or did not respond`, or
+  `endpoint is not a valid URL` (the configured `base_url` will not parse) —
+  never the provider's response body, and never a stack trace. Every printed
+  value is also secret-scrubbed, has any inline URL userinfo stripped, and is
+  flattened to one line as defense in depth, so a hostile endpoint or a
+  credential-bearing base URL cannot leak a key or forge a verdict line.
 - **Ran / Skipped** — every bundled skill and why a skipped one is dormant. A
   skill needing a vendor key beyond the LLM provider is named with the secret
   reference to supply and its manifest gate; some (a composite gate such as

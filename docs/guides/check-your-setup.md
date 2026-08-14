@@ -107,6 +107,9 @@ the diagnosis is precise:
   decode. Distinct from unreachable, so a broken gateway is not misread as a
   network problem.
 - `endpoint unreachable or did not respond` — no usable response at all.
+- `endpoint is not a valid URL` — the configured `base_url` will not parse, so
+  there is no endpoint to reach; the URL itself is never echoed (it can carry
+  inline credentials).
 
 The report prints only facts the doctor derives itself — the HTTP status, the
 wire, the endpoint origin, a fixed classification from a closed set. A provider's
