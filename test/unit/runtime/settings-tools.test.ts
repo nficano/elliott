@@ -159,20 +159,24 @@ describe("optionalTraefik / webhook / cloudflared / subscription", () => {
     expect(optionalSubscriptionUsage({
       tools: { subscription_usage: { enabled: true } },
     }, {})).toEqual({});
+    // Each account's `secret` reaches the parser already dereferenced by the
+    // config boundary: the resolved credential for a valid account, undefined for
+    // an unresolved one (that account is skipped). litellm_admin_key is a fixed
+    // secrets.yaml key still read from the secrets map.
     expect(optionalSubscriptionUsage({
       tools: {
         subscription_usage: {
           enabled: true,
           claude_accounts: [
-            { name: "a", secret: "missing" },
-            { name: "b", secret: "ok" },
+            { name: "a" },
+            { name: "b", secret: "creds" },
             { bad: true },
           ],
           codex_accounts: "nope",
           litellm: { base_url: "http://litellm" },
         },
       },
-    }, { ok: "creds", litellm_admin_key: "admin" })).toEqual({
+    }, { litellm_admin_key: "admin" })).toEqual({
       subscriptionUsage: {
         claudeAccounts: [{ name: "b", credentials: "creds" }],
         codexAccounts: [],

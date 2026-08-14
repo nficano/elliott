@@ -78,16 +78,17 @@ The output has four parts:
   flattened to one line as defense in depth, so a hostile endpoint or a
   credential-bearing base URL cannot leak a key or forge a verdict line.
 - **Ran / Skipped** — every bundled skill and why a skipped one is dormant. A
-  skill needing a vendor key beyond the LLM provider is named with the secret
-  reference to supply and its manifest gate; some (a composite gate such as
-  SMTP) need extra config, so the section points at
-  [Activation gates](activation-gates.md). A bundled package that produces no
-  registration at all is an error, not a skip. Skipped skills never abort the run.
-  Agent-local input is untrusted: a manifest `secret.use` resource is printed only
-  when it is a well-formed `secret://` reference (a raw string is dropped), and a
-  skill's own registration error is scrubbed of every value in its `skills.*`
-  config — so a credential a skill schema names with any word cannot reach the
-  report even though the config boundary could not know that field was a secret.
+  skill needing a vendor key beyond the LLM provider — its gate is a secret OR it
+  declares any secret reference — is named with the secret to supply and its
+  manifest gate; some (a composite gate such as SMTP) need extra config, so the
+  section points at [Activation gates](activation-gates.md). A bundled package
+  that produces no registration at all is an error, not a skip. Skipped skills
+  never abort the run. Untrusted input is never forwarded: a skill's own
+  registration error is reported as a derived phrase, never the exception text
+  (which could echo a credential in a form no redaction can catch); an agent-local
+  manifest's `secret.use` references are withheld (only a bundled, framework-
+  authored manifest's references are printed); and a soft notice is reported as a
+  count, not its text.
 - **Egress** — every host contacted during the run, redirect targets included:
   the command follows redirects manually and permits network only to the LLM
   endpoint's exact origin (scheme, host, and port), so a request or redirect to

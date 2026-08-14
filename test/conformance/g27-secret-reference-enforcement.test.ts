@@ -258,11 +258,13 @@ describe("G27 — secret-bearing config fields reject literal credentials", () =
   });
 
   // The indirection pattern: a secret-named field whose value is the NAME of a
-  // config/secrets.yaml entry is accepted (the credential lives in secrets.yaml,
-  // enforced there). Recognised structurally — value is a declared secrets key —
-  // so google `refresh_token_secret`, litellm `secret`, and any future pointer
-  // are covered without a hand-list of pointer field names.
-  it("accepts a secret-named field that names a config/secrets.yaml entry", async () => {
+  // config/secrets.yaml entry is accepted AND dereferenced to that entry's
+  // resolved value (the credential lives in secrets.yaml, enforced there).
+  // Recognised structurally — value is a declared secrets key — so google
+  // `refresh_token_secret`, litellm `secret`, and any future pointer are covered
+  // without a hand-list of pointer field names, and the field carries the
+  // credential rather than the key name.
+  it("accepts and DEREFERENCES a secret-named field that names a config/secrets.yaml entry", async () => {
     await withConfig({
       "elliott.yaml": llmConfig(
         "skills:\n  local:\n    account_secret: pointed\n",
@@ -272,11 +274,28 @@ describe("G27 — secret-bearing config fields reject literal credentials", () =
       const settings = await loadRuntimeSettings(
         root,
         "elliott",
-        resolver({ LLM_KEY: "k", P: "v" }),
+        resolver({ LLM_KEY: "k", P: "resolved-credential" }),
       );
+      // The field holds the resolved credential, not the key name "pointed".
       expect(settings.skillConfig?.["local"]).toEqual({
-        account_secret: "pointed",
+        account_secret: "resolved-credential",
       });
+    });
+  });
+
+  it("dereferences a direct field (llm.api_key) that names a secrets.yaml entry", async () => {
+    await withConfig({
+      "elliott.yaml":
+        "runtime: { timezone: UTC }\nllm:\n  provider: anthropic\n  api_key: pointed\n  models: { default: { model: m } }\n  profiles: { default: {} }\n",
+      "secrets.yaml": "pointed: \"${ENV:P}\"\n",
+    }, async (root) => {
+      const settings = await loadRuntimeSettings(
+        root,
+        "elliott",
+        resolver({ P: "real-key" }),
+      );
+      // Not "pointed" — the pointer resolves to the credential it names.
+      expect(settings.llmApiKey).toBe("real-key");
     });
   });
 

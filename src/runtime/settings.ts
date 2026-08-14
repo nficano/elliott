@@ -111,12 +111,14 @@ const googleAccounts = (
   return list.flatMap((item) => {
     if (!isJsonRecord(item)) return [];
     const name = item["name"];
-    const refreshTokenSecret = item["refresh_token_secret"];
-    if (typeof name !== "string" || typeof refreshTokenSecret !== "string") {
+    // `refresh_token_secret` is a secret-bearing field: the config boundary has
+    // already dereferenced its secrets.yaml-key value to the resolved token (or
+    // undefined if that entry did not resolve), so read it directly rather than
+    // looking it up again.
+    const refreshToken = item["refresh_token_secret"];
+    if (typeof name !== "string" || typeof refreshToken !== "string") {
       return [];
     }
-    const refreshToken = secrets[refreshTokenSecret];
-    if (refreshToken === undefined) return [];
     const email = item["email"];
     return [{
       name,

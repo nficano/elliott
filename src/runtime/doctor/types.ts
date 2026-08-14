@@ -132,9 +132,12 @@ export interface DoctorInput {
 // One report a skill's register() emitted through SkillContext.report: the
 // mechanism it was tagged with (skill:<name> when the loader caught a throw)
 // and its clean message.
+// A skill reported through the context during registration. Only the mechanism
+// the LOADER stamps (`skill:<name>`, framework-derived) is kept — never the
+// skill-authored error text, which the doctor does not forward (it derives its
+// own failure phrasing instead).
 export interface CapturedReport {
   readonly mechanism: string;
-  readonly message: string;
 }
 
 // The environment overlay the doctor applies before loading runtime settings,

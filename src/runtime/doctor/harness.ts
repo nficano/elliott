@@ -1,10 +1,10 @@
+import path from "node:path";
 import type { BundledPackage } from "../../catalog/types";
 import { collectPackageViews } from "../skills/loader";
 import type { SkillContextSeed, SkillPackageView } from "../skills/types";
 import { originOf, withEgressAllowlist } from "./egress";
 import { classifyOutcome } from "./gate";
 import { readManifestSecretRefs } from "./manifest";
-import { cleanMessage, sanitizeForDisplay } from "./message";
 import { invalidEndpointProbe, probeLlm } from "./probe";
 import type {
   CapturedReport,
@@ -36,62 +36,47 @@ const safeOrigin = (baseUrl: string): string | undefined => {
   }
 };
 
-// Every string value in the agent-local `skills.*` config subtree. A skill's
-// register() error is UNTRUSTED text authored by that skill, and it can echo any
-// of the skill's own config values — including a credential a skill schema names
-// with a word the config boundary's role predicate does not recognise (`auth`,
-// `bearer`, a bespoke key). The config boundary cannot know which arbitrary skill
-// field is a secret, so rather than guess by name, the doctor scrubs EVERY skill
-// config value from skill-authored messages: complete by construction, whatever a
-// skill calls its fields. Non-secret config values scrubbed here are only a
-// cosmetic loss inside an untrusted message; the framework's own derived output
-// (the probe line, the verdict) never uses this set, so it is never mangled.
-const skillConfigValues = (config: unknown): readonly string[] => {
-  if (typeof config === "string") return [config];
-  if (Array.isArray(config)) return config.flatMap(skillConfigValues);
-  if (config !== null && typeof config === "object") {
-    return Object.values(config).flatMap(skillConfigValues);
-  }
-  return [];
-};
-
 // The seed a doctor gives each skill's register(): the full resolved settings,
 // a report collector, and inert delivery/sink hooks. Nothing here starts a
 // gateway, opens a socket, or attaches an error sink — the harness only wants
-// to observe which skills register.
+// to observe which skills register. The reported ERROR is deliberately dropped:
+// a skill's exception text is untrusted and can echo a credential in a form no
+// value-matching redaction can catch (a substring, a transform, a non-string),
+// so the doctor records only THAT the skill reported (by the loader-stamped
+// mechanism) and derives its own failure phrasing. This is addendum 3 applied to
+// skill-authored text: derive, never forward.
 const doctorSeed = (
   input: DoctorInput,
   reports: CapturedReport[],
-): SkillContextSeed => {
-  // Redaction set for skill-authored text: the config boundary's recorded
-  // secrets PLUS every skills.* config value (see skillConfigValues).
-  const skillRedaction = [
-    ...input.secretValues,
-    ...skillConfigValues(input.settings.skillConfig),
-  ];
-  return {
-    settings: input.settings,
-    stateDirectory: input.settings.stateDirectory,
-    packages: () => [],
-    report: (error, mechanism) => {
-      reports.push({
-        mechanism,
-        message: sanitizeForDisplay(cleanMessage(error), skillRedaction),
-      });
-    },
-    installErrorSink: () => {},
-    deliver: async () => {},
-  };
-};
+): SkillContextSeed => ({
+  settings: input.settings,
+  stateDirectory: input.settings.stateDirectory,
+  packages: () => [],
+  report: (_error, mechanism) => {
+    reports.push({ mechanism });
+  },
+  installErrorSink: () => {},
+  deliver: async () => {},
+});
 
-const errorFor = (
+// Whether a skill's register() reported an error (the loader stamps the mechanism
+// `skill:<name>` when register throws). A boolean, not the message — the message
+// is never forwarded.
+const reportedError = (
   name: string,
   reports: readonly CapturedReport[],
-): string | undefined =>
-  reports.find((entry) =>
+): boolean =>
+  reports.some((entry) =>
     entry.mechanism === `${SKILL_MECHANISM_PREFIX}${name}`
-  )
-    ?.message;
+  );
+
+// A skill's package is bundled (framework-authored, in this repo, code-reviewed)
+// unless it loaded from the consumer's agent-local skills directory
+// (agents/<agent>/skills). Only bundled manifests are trusted enough to echo
+// their declared secret references into the report; an agent-local manifest is
+// untrusted and its references are withheld (see classifyOutcome/format).
+const isBundled = (directory: string, agentName: string): boolean =>
+  !directory.includes(path.join("agents", agentName, "skills"));
 
 const secretRefsFor = async (
   packages: readonly BundledPackage[],
@@ -105,23 +90,25 @@ const secretRefsFor = async (
   return new Map(entries);
 };
 
-const classifyAll = (
-  views: readonly SkillPackageView[],
+// A classifier bound to one run's reports, manifest references, and agent name,
+// so mapping views over it stays a single-argument call.
+const classifierFor = (
   reports: readonly CapturedReport[],
   secretRefs: ReadonlyMap<string, readonly string[]>,
-): readonly DoctorSkillOutcome[] =>
-  views.map((view) =>
-    classifyOutcome(
-      view,
-      errorFor(view.name, reports),
-      secretRefs.get(view.name) ?? [],
-    )
-  );
+  agentName: string,
+): (view: SkillPackageView) => DoctorSkillOutcome =>
+(view) =>
+  classifyOutcome(view, {
+    threw: reportedError(view.name, reports),
+    secretRefs: secretRefs.get(view.name) ?? [],
+    bundled: isBundled(view.directory, agentName),
+  });
 
-// Reports that did not become a skill's hard error (register threw). A skill
-// that soft-reports through the context but still returns bindings — or returns
-// {} without throwing, like a default-on glitchtip with no collector — is a
-// notice, not a failure.
+// A soft report — a skill that reported through the context but still registered
+// (its mechanism is not a hard-errored skill's `skill:<name>`). The message is
+// untrusted and never forwarded, so notices are reported only as a count: the
+// operator learns some skills flagged a non-fatal issue during registration and
+// can run a skill directly for detail.
 const warningsFrom = (
   reports: readonly CapturedReport[],
   outcomes: readonly DoctorSkillOutcome[],
@@ -131,9 +118,11 @@ const warningsFrom = (
       .filter((outcome) => outcome.status === "error")
       .map((outcome) => `${SKILL_MECHANISM_PREFIX}${outcome.name}`),
   );
-  return reports
-    .filter((entry) => !hardErrors.has(entry.mechanism))
-    .map((entry) => `${entry.mechanism}: ${entry.message}`);
+  const notices = reports.filter((entry) => !hardErrors.has(entry.mechanism));
+  if (notices.length === 0) return [];
+  return [
+    `${notices.length} skill(s) reported a non-fatal issue during registration`,
+  ];
 };
 
 // Boot the framework skills under an LLM-only egress guard, classify what
@@ -169,7 +158,9 @@ export const runDoctor = async (
     const skills = await deps.register(packages, seed);
     const secretRefs = await secretRefsFor(packages, deps.manifestSecrets);
     const views = collectPackageViews(packages, skills);
-    const outcomes = classifyAll(views, reports, secretRefs);
+    const outcomes = views.map(
+      classifierFor(reports, secretRefs, input.roots.agentName),
+    );
     // The probe reports only facts it derives (endpoint origin, model id, a
     // fixed outcome phrase), never anything the endpoint controls. It still runs
     // its metadata through the recorded secret set so a credential that happens

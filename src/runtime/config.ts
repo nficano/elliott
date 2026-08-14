@@ -319,7 +319,7 @@ export const loadRuntimeSettings = async (
   const secrets = await resolveSecrets(rawSecrets, resolver);
   const agent = await loadAgentDefinition(root, agentName);
   const evolution = await loadEvolutionConfig(root);
-  const resolved = await resolveTree(config, resolver);
+  const resolved = await makeResolveTree(resolver, secretKeys, secrets)(config);
   // The GlitchTip DSN's fallback source is a direct env var, not a config-tree
   // reference, so record it here — it is a secret and reaches settings.
   const glitchtipDsn = resolver.env("ELLIOTT_GLITCHTIP_DSN");
@@ -584,35 +584,49 @@ const resolveSecrets = async (
   return output;
 };
 
-// Resolve every `${ENV:…}`/`${VAULT:…}` reference in the config tree. Recording
-// is driven by the FIELD, not the resolver: only a secret-named field whose value
-// was a reference hands its resolved value to `onSecret`. A non-secret reference
-// (a timezone, a base_url) resolves normally but is never recorded, so it cannot
-// mangle diagnostic output; a pointer field (its value is a secrets.yaml key, not
-// a reference) is not recorded here — the credential it names is recorded by
-// resolveSecrets instead.
-const resolveTree = async (
-  value: unknown,
+// A tree resolver bound to one load's resolver and resolved secrets. A
+// secret-bearing field (by the secret-name schema) is resolved AND recorded: a
+// `${ENV:…}`/`${VAULT:…}` reference through the resolver, or the NAME of a
+// config/secrets.yaml entry DEREFERENCED to that entry's resolved value — so a
+// direct field like `llm.api_key: pointed` yields the credential, not the key
+// name (a named entry that did not resolve yields undefined, which the field's
+// reader treats as absent). A non-secret reference (a timezone, a base_url)
+// resolves normally but is never recorded, so it cannot mangle diagnostic output.
+const makeResolveTree = (
   resolver: SecretResolver,
-): Promise<unknown> => {
-  if (typeof value === "string") return resolveExpression(value, resolver);
-  if (Array.isArray(value)) {
-    return Promise.all(value.map((item) => resolveTree(item, resolver)));
-  }
-  if (!isJsonRecord(value)) return value;
-  const entries = await Promise.all(
-    Object.entries(value).map(async ([key, item]) => {
-      const resolvedItem = await resolveTree(item, resolver);
-      if (
-        typeof item === "string" && typeof resolvedItem === "string"
-        && isSecretFieldName(key) && isSecretReference(item)
-      ) {
-        resolver.onSecret?.(resolvedItem);
-      }
-      return [key, resolvedItem] as const;
-    }),
-  );
-  return Object.fromEntries(entries);
+  secretKeys: ReadonlySet<string>,
+  secrets: Readonly<Record<string, string>>,
+): (value: unknown) => Promise<unknown> => {
+  const resolveSecret = async (
+    value: string,
+  ): Promise<string | undefined> => {
+    let resolved: string | undefined;
+    if (isSecretReference(value)) {
+      resolved = await resolveExpression(value, resolver);
+    } else if (secretKeys.has(value)) {
+      resolved = secrets[value];
+    } else {
+      resolved = value;
+    }
+    if (resolved !== undefined && resolved.length > 0) {
+      resolver.onSecret?.(resolved);
+    }
+    return resolved;
+  };
+  const resolve = async (value: unknown): Promise<unknown> => {
+    if (typeof value === "string") return resolveExpression(value, resolver);
+    if (Array.isArray(value)) return Promise.all(value.map(resolve));
+    if (!isJsonRecord(value)) return value;
+    const entries = await Promise.all(
+      Object.entries(value).map(async ([key, item]) =>
+        typeof item === "string" && isSecretFieldName(key)
+          ? [key, await resolveSecret(item)] as const
+          : [key, await resolve(item)] as const
+      ),
+    );
+    return Object.fromEntries(entries);
+  };
+  return resolve;
 };
 
 const resolveExpression = async (

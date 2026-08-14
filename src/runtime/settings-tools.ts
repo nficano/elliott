@@ -184,11 +184,9 @@ export const optionalSubscriptionUsage = (
   if (valueAt(value, [...base, "enabled"]) !== true) return {};
   const claudeAccounts = usageAccounts(
     valueAt(value, [...base, "claude_accounts"]),
-    secrets,
   );
   const codexAccounts = usageAccounts(
     valueAt(value, [...base, "codex_accounts"]),
-    secrets,
   );
   const litellm = litellmSpend(value, [...base, "litellm"], secrets);
   if (
@@ -210,16 +208,17 @@ export const optionalSubscriptionUsage = (
 // the accounts (and the skill) still register.
 const usageAccounts = (
   value: unknown,
-  secrets: Readonly<Record<string, string>>,
 ): readonly SubscriptionAccountSettings[] => {
   if (!Array.isArray(value)) return [];
   return value.flatMap((item) => {
     if (!isJsonRecord(item)) return [];
     const name = item["name"];
-    const secret = item["secret"];
-    if (typeof name !== "string" || typeof secret !== "string") return [];
-    const credentials = secrets[secret];
-    return credentials === undefined ? [] : [{ name, credentials }];
+    // `secret` is a secret-bearing field: the config boundary has already
+    // dereferenced its secrets.yaml-key value to the resolved credential (or
+    // undefined if unresolved), so read it directly.
+    const credentials = item["secret"];
+    if (typeof name !== "string" || typeof credentials !== "string") return [];
+    return [{ name, credentials }];
   });
 };
 

@@ -39,22 +39,31 @@ const totalBindings = (bindings: Readonly<Record<string, number>>): number =>
 
 const NO_REGISTRATION_MESSAGE =
   "did not load: no register() entrypoint or registration produced";
+// A skill whose register() threw. The exception TEXT is never carried into the
+// report (it is untrusted and may echo a credential), so the doctor states the
+// fact it derived — the registration failed — and nothing the skill authored.
+const REGISTER_FAILED_MESSAGE = "register() failed during startup";
 
-// Classify one package from what the real loader observed plus its manifest
-// gate. `errorMessage` is the message the loader captured when register() threw
-// (undefined otherwise); `secretRefs` are the secret:// URIs the manifest
-// declares.
+// Classify one package from what the real loader observed plus its manifest gate.
+// `threw` is whether register() reported an error (never the message); `secretRefs`
+// are the secret:// references the manifest declares; `bundled` is whether the
+// package is framework-authored (its manifest is trusted enough to echo those
+// references) rather than an untrusted agent-local skill.
 //
 // A package that produced no registration at all (registered === false) is an
-// error, not an expected gate miss: it either threw (errorMessage present) or
-// exposed no entrypoint. A genuine gate miss always still registers — the skill
-// imports, its register() runs and returns no bindings — so the two are
-// distinct, and a package that never loaded is surfaced, not hidden as skipped.
+// error, not an expected gate miss: it either threw or exposed no entrypoint. A
+// genuine gate miss always still registers — the skill imports, its register()
+// runs and returns no bindings — so the two are distinct, and a package that never
+// loaded is surfaced, not hidden as skipped.
 export const classifyOutcome = (
   view: SkillPackageView,
-  errorMessage: string | undefined,
-  secretRefs: readonly string[],
+  observed: {
+    readonly threw: boolean;
+    readonly secretRefs: readonly string[];
+    readonly bundled: boolean;
+  },
 ): DoctorSkillOutcome => {
+  const { threw, secretRefs, bundled } = observed;
   const gateText = gateTextOf(view);
   const gate = parseGate(gateText);
   const bindings = view.bindings;
@@ -63,7 +72,10 @@ export const classifyOutcome = (
     kind: view.kind,
     gate,
     gateText,
-    secretRefs,
+    // Only a bundled (framework-authored, trusted) manifest's references are
+    // carried for display; an agent-local manifest's are withheld so a credential
+    // smuggled behind a `secret://` prefix cannot reach the printed report.
+    secretRefs: bundled ? secretRefs : [],
     bindings,
   } as const;
   if (!view.registered) {
@@ -71,11 +83,19 @@ export const classifyOutcome = (
       ...base,
       status: "error",
       needsVendorKey: false,
-      error: errorMessage ?? NO_REGISTRATION_MESSAGE,
+      error: threw ? REGISTER_FAILED_MESSAGE : NO_REGISTRATION_MESSAGE,
     };
   }
   if (totalBindings(bindings) > 0) {
     return { ...base, status: "ran", needsVendorKey: false };
   }
-  return { ...base, status: "skipped", needsVendorKey: gate.kind === "secret" };
+  // A skill needs a vendor key when its gate is a secret OR it declares any
+  // secret reference — a config-gated skill (gateway-slack, gated on
+  // channels.slack.enabled) that also requires `secret://gateways/slack` belongs
+  // in the vendor-key list, not just the skipped list.
+  return {
+    ...base,
+    status: "skipped",
+    needsVendorKey: gate.kind === "secret" || secretRefs.length > 0,
+  };
 };

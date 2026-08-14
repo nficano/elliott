@@ -97,35 +97,29 @@ describe("runDoctor", () => {
     expect(JSON.stringify(report)).not.toContain("sk-leak");
   });
 
-  it("scrubs any skills.* config value from a skill's own error, whatever the field is named", async () => {
-    // A literal credential in an arbitrary skill config field (`auth`, `bearer` —
-    // names the role predicate does not recognise) must not reach the report when
-    // the skill echoes it in a register() error. The doctor redacts every skills.*
-    // value from skill-authored text, so completeness does not depend on guessing
-    // the field name.
+  it("never forwards a skill's exception text, even a transformed or non-string config value", async () => {
+    // The skill echoes a SLICE of one config value and a non-string one; neither
+    // could be caught by value-matching redaction. The doctor forwards no skill
+    // message at all — the error is a phrase it derives — so the class of leak
+    // (transform, substring, non-string) is closed by construction.
     const withSkillConfig: DoctorInput = {
       ...input,
       settings: {
         ...input.settings,
-        skillConfig: {
-          local: { auth: "sk-auth-literal", bearer: "tok-bearer" },
-        },
+        skillConfig: { local: { auth: "sk-auth-literal", pin: 123_456 } },
       },
       secretValues: [],
     };
-    const packages = [pkg("weird", "always")];
     const report = await runDoctor(
       withSkillConfig,
       deps({
-        loadPackages: async () => packages,
+        loadPackages: async () => [pkg("weird", "always")],
         register: async (_packages, seed) => {
+          const local = (seed.settings.skillConfig as {
+            local: { auth: string; pin: number; };
+          }).local;
           seed.report(
-            new Error(
-              `boot failed: auth=${
-                (seed.settings.skillConfig as { local: { auth: string; }; })
-                  .local.auth
-              } bearer=tok-bearer`,
-            ),
+            new Error(`${local.auth.slice(3)} pin=${local.pin}`),
             "skill:weird",
           );
           return [];
@@ -133,8 +127,11 @@ describe("runDoctor", () => {
       }),
     );
     const text = JSON.stringify(report);
-    expect(text).not.toContain("sk-auth-literal");
-    expect(text).not.toContain("tok-bearer");
+    expect(text).not.toContain("auth-literal");
+    expect(text).not.toContain("123456");
+    expect(report.skills.find((s) => s.name === "weird")?.error).toBe(
+      "register() failed during startup",
+    );
   });
 
   it("classifies ran and skipped skills and passes when the probe succeeds", async () => {
@@ -237,22 +234,19 @@ describe("runDoctor", () => {
     );
     const broken = report.skills.find((s) => s.name === "broken");
     expect(broken?.status).toBe("error");
-    expect(broken?.error).toBe("register exploded");
+    // The exception text ("register exploded") is never forwarded; derived phrase.
+    expect(broken?.error).toBe("register() failed during startup");
     expect(report.ok).toBe(false);
   });
 
-  it("redacts every resolved secret a skill echoes, whatever its name", async () => {
-    // secretValues comes from the config boundary (resolveSecretValues), so it
-    // covers any credential regardless of the settings field it landed in — a
-    // vendor key, an mcp authorization, a password.
-    const withSecret = { ...input, secretValues: ["mcp-authorization-value"] };
+  it("carries no skill-authored text in the error, whatever the skill threw", async () => {
     const report = await runDoctor(
-      withSecret,
+      input,
       deps({
         loadPackages: async () => [pkg("broken", "always")],
         register: async (_packages, seed: SkillContextSeed) => {
           seed.report(
-            new Error("setup rejected mcp-authorization-value"),
+            new Error("setup rejected sk-secret-xyz"),
             "skill:broken",
           );
           return [];
@@ -260,17 +254,18 @@ describe("runDoctor", () => {
       }),
     );
     const broken = report.skills.find((s) => s.name === "broken");
-    expect(broken?.status).toBe("error");
-    expect(broken?.error).not.toContain("mcp-authorization-value");
-    expect(broken?.error).toContain("‹redacted›");
+    expect(broken?.error).toBe("register() failed during startup");
+    expect(JSON.stringify(report)).not.toContain("sk-secret-xyz");
   });
 
-  it("surfaces a soft register report as a non-fatal notice", async () => {
+  it("surfaces a soft register report as a count-only non-fatal notice", async () => {
     const report = await runDoctor(
       input,
       deps({
         loadPackages: async () => [pkg("glitchtip", "config:x.enabled")],
         register: async (_packages, seed: SkillContextSeed) => {
+          // The message would carry skill-authored text, so only the count is
+          // surfaced — never "DSN could not be parsed" verbatim.
           seed.report(new Error("DSN could not be parsed"), "glitchtip:config");
           return [loaded("glitchtip", {})];
         },
@@ -278,7 +273,7 @@ describe("runDoctor", () => {
     );
     expect(report.ok).toBe(true);
     expect(report.warnings).toContain(
-      "glitchtip:config: DSN could not be parsed",
+      "1 skill(s) reported a non-fatal issue during registration",
     );
   });
 

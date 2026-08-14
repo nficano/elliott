@@ -83,14 +83,17 @@ describe("optionalGmail / optionalGoogle", () => {
     });
   });
 
-  it("optionalGoogle skips accounts whose refresh token is unresolved", () => {
+  it("optionalGoogle skips accounts whose refresh token did not resolve", () => {
+    // `refresh_token_secret` reaches the parser already dereferenced by the
+    // config boundary: the resolved token for a valid account, undefined for one
+    // whose secrets.yaml entry did not resolve (that account is skipped).
     expect(
       optionalGoogle(
         {
           google: {
             accounts: [
-              { name: "a", refresh_token_secret: "missing" },
-              { name: "b", refresh_token_secret: "tok_b", email: "b@x" },
+              { name: "a" },
+              { name: "b", refresh_token_secret: "refresh-b", email: "b@x" },
               { bad: true },
               "skip",
             ],
@@ -99,7 +102,6 @@ describe("optionalGmail / optionalGoogle", () => {
         {
           google_client_id: "cid",
           google_client_secret: "csec",
-          tok_b: "refresh-b",
         },
       ),
     ).toEqual({
