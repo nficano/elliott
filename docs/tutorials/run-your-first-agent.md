@@ -29,17 +29,22 @@ That prints nothing and exits 0. Silence is the success case for `tsc --noEmit`.
 
 ## Step 2: Point it at a model
 
-elliott ships no endpoint, no API key, and no model id. The config that ships
+elliott ships no provider, no API key, and no model id. The config that ships
 reads all three from the environment, so set them now:
 
 ```bash
-export ELLIOTT_LLM_BASE_URL="https://api.example.com/v1"
-export ELLIOTT_LLM_API_KEY="sk-…"
-export ELLIOTT_LLM_MODEL="your-model-id"
+export ELLIOTT_LLM_PROVIDER="anthropic"   # or: openai
+export ELLIOTT_LLM_API_KEY="sk-ant-…"
+export ELLIOTT_LLM_MODEL="claude-haiku-4-5-20251001"
 ```
 
-Any endpoint speaking the OpenAI chat-completions shape works here. The URL
-ends at `/v1`, not at `/v1/chat/completions`.
+Naming a provider resolves its endpoint and wire protocol for you: `anthropic`
+talks to `https://api.anthropic.com/v1` on the native wire, `openai` to
+`https://api.openai.com/v1` on `/chat/completions`. To point at anything else,
+a LiteLLM proxy, Ollama, another vendor's `/v1`, set `llm.base_url` in
+`config/elliott.yaml` instead (its line is commented out by default) and export
+`ELLIOTT_LLM_BASE_URL`. Setting the env var without uncommenting that line does
+nothing, because the shipped config never reads it.
 
 Skip one of the three and the boot stops with the variable's name in the error,
 which is the behavior you want the first time you deploy this somewhere real.

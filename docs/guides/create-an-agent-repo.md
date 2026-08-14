@@ -63,8 +63,8 @@ bun run start
 Naming a provider resolves its endpoint and wire protocol for you. To use
 anything else — a LiteLLM proxy, Ollama, another vendor's `/v1` — set
 `llm.base_url` in your copy of `config/elliott.yaml` instead and elliott speaks
-the OpenAI-compatible protocol there. See
-[Choosing an endpoint](../reference/configuration.md#choosing-an-endpoint).
+the OpenAI-compatible protocol there. See the
+[`llm` reference](../reference/configuration.md#llm).
 
 A missing required field fails the boot and names the field. Every key is in the
 [configuration reference](../reference/configuration.md).

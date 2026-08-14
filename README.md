@@ -65,13 +65,14 @@ against its own `agentRoot`. See
 
 ## Quick start
 
-No LLM endpoint or model ships as a default. The shipped `config/elliott.yaml`
-reads these three, and the boot fails naming whichever is missing:
+No LLM provider, key, or model ships as a default. The shipped
+`config/elliott.yaml` reads these three, and the boot fails naming whichever is
+missing:
 
 ```bash
-export ELLIOTT_LLM_BASE_URL="https://api.example.com/v1"
-export ELLIOTT_LLM_API_KEY="sk-…"
-export ELLIOTT_LLM_MODEL="your-model-id"
+export ELLIOTT_LLM_PROVIDER="anthropic"   # or: openai
+export ELLIOTT_LLM_API_KEY="sk-ant-…"
+export ELLIOTT_LLM_MODEL="claude-haiku-4-5-20251001"
 
 bun run start                     # serves until SIGINT
 curl -s localhost:8080/healthz    # from a second shell
@@ -83,6 +84,14 @@ curl -s localhost:8080/healthz    # from a second shell
  "services":{"deep-trace":{"turns":0,"events":3,"clients":0,"dbTables":12},
              "glitchtip":{"queued":0,"sent":0,"dropped":0},"scheduler":{}}}
 ```
+
+Naming a provider resolves its endpoint and wire protocol for you. To run
+against anything else, a LiteLLM proxy, Ollama, another vendor's `/v1`, set
+`llm.base_url` in your copy of `config/elliott.yaml` instead (its line is
+commented by default) and export `ELLIOTT_LLM_BASE_URL`. Exporting
+`ELLIOTT_LLM_BASE_URL` without uncommenting that line does nothing, since the
+shipped config never reads it. See the
+[`llm` reference](docs/reference/configuration.md#llm).
 
 All 23 bundled packages load. Only 7 tools register, because the rest stay
 dormant until you supply their secret or flip their flag. That gap is the design
@@ -233,7 +242,7 @@ invariant. A design claim with no gate behind it is not an invariant. Index:
 <details>
 <summary><b>Troubleshooting: failures the code raises by name</b></summary>
 
-**`error: Environment is missing ELLIOTT_LLM_BASE_URL`**: a `${ENV:…}` reference
+**`error: Environment is missing ELLIOTT_LLM_PROVIDER`**: a `${ENV:…}` reference
 in `config/elliott.yaml` did not resolve. Export the variable, or replace the
 expression with a literal in your agent repo's copy. The sibling
 `Missing configuration: llm.models.default.model` means the tier named by
