@@ -232,12 +232,17 @@ export const runDoctorCli = async (
   return true;
 };
 
+// A fixed phrase for a fault that escapes the harness. Everything reaching this
+// catch is UNEXPECTED — runDoctor returns an ok:false report for every expected
+// failure — so the thrown message is untrusted (a package-loader error quotes a
+// field of an agent-local manifest verbatim, e.g. `Unsupported bundled kind
+// <attacker text>`). The message is therefore NOT forwarded; the doctor states
+// only what it derived: the run could not complete.
+const UNEXPECTED_FAILURE =
+  "the run could not complete (an internal error, or a malformed skill package "
+  + "in the deployment)";
+
 // Run the harness and print its report, setting the exit code from the verdict.
-// runDoctor is built not to throw for expected failures (a bad key, a dormant
-// skill, an egress breach, an unparseable endpoint — all return an ok:false
-// report). Any remaining fault is unexpected, but it is still rendered through
-// the SAME recorded secret set as every other path, so no raw message or trace
-// reaches the outer catch, which has no secret set.
 const reportDoctorRun = async (
   roots: DoctorRoots,
   settings: RuntimeSettings,
@@ -254,8 +259,8 @@ const reportDoctorRun = async (
     );
     console.log(formatReport(report));
     process.exitCode = report.ok ? 0 : 1;
-  } catch (error) {
-    console.error(`elliott doctor: ${configErrorLine(error, recorded())}`);
+  } catch {
+    console.error(`elliott doctor: ${UNEXPECTED_FAILURE}`);
     process.exitCode = 1;
   }
 };

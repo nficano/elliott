@@ -10,43 +10,22 @@ import type { ModelWire } from "./types";
 import { anthropicWire } from "./wire/anthropic";
 import { openaiWire } from "./wire/openai";
 
-const RESPONSE_DETAIL_MAX_CHARACTERS = 500;
 const MILLISECONDS_PER_SECOND = 1000;
 
-const REDACTION = "‹redacted›";
-
-// Strip the userinfo (`user:pass@`) from any URL the endpoint echoes back, and
-// replace the credential this client authenticates with. The endpoint is the one
-// party that is GIVEN the api key, so a hostile or compromised one can quote it
-// straight back in an error body; `detail` is endpoint-controlled text. Both
-// scrubs target values this process already knows, so neither is a guess about
-// what a credential looks like. Doctrine (CLAUDE.md) forbids logging a secret,
-// not merely transmitting one — process logs get shipped off-box in every real
-// deployment, so "local console only" is not a safe place to put a key.
-const URL_WITH_USERINFO = /([a-zA-Z][a-zA-Z0-9+.-]{0,31}:\/\/)[^/?#\s]*@/g;
-const scrubDetail = (detail: string, apiKey: string | undefined): string => {
-  const withoutUserinfo = detail.replaceAll(URL_WITH_USERINFO, "$1");
-  return apiKey === undefined || apiKey.trim().length === 0
-    ? withoutUserinfo
-    : withoutUserinfo.split(apiKey).join(REDACTION);
-};
-
 // A non-2xx model response. Carries the HTTP `status` as structured data so a
-// caller (e.g. the doctor) can classify the failure from a fact it derived —
-// the status code — without parsing or echoing the provider's response body,
-// which is endpoint-controlled and may quote credentials. The body is kept for
-// LOCAL debugging, but only after the credentials this process knows are
-// scrubbed out of it: an endpoint that echoes the api key must not be able to
-// write it into the operator's logs.
+// caller (e.g. the doctor) classifies the failure from a fact it DERIVED — the
+// status code — and the message is only the wire name and that code. The
+// endpoint's response body is NEVER read into the error: it is endpoint-
+// controlled text (the endpoint is the one party GIVEN the api key, so a hostile
+// one can echo the key — whole, sliced, or re-encoded — back in the body), and
+// no value-matching scrub over attacker-chosen bytes is safe. Nothing to scrub
+// because nothing is forwarded. If an operator needs the raw body, that is a
+// separate opt-in that writes to a file, never the default error text that
+// shipped container logs capture.
 export class ModelHttpError extends Error {
   readonly status: number;
-  constructor(
-    wireName: string,
-    status: number,
-    detail: string,
-    apiKey?: string,
-  ) {
-    super(`${wireName} ${status}: ${scrubDetail(detail, apiKey)}`);
+  constructor(wireName: string, status: number) {
+    super(`${wireName} ${status}`);
     this.name = "ModelHttpError";
     this.status = status;
   }
@@ -134,16 +113,9 @@ export class RuntimeModelClient {
     });
     watchdog.touch();
     if (!response.ok) {
-      const detail = (await response.text()).slice(
-        0,
-        RESPONSE_DETAIL_MAX_CHARACTERS,
-      );
-      throw new ModelHttpError(
-        this.#wire.name,
-        response.status,
-        detail,
-        this.#settings.llmApiKey,
-      );
+      // The body is endpoint-controlled and deliberately not read: the status is
+      // the fact the caller acts on (see ModelHttpError).
+      throw new ModelHttpError(this.#wire.name, response.status);
     }
     return this.#attest(await this.#decode(response, onTextDelta, watchdog));
   }

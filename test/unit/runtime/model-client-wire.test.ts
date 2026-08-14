@@ -94,13 +94,21 @@ describe("model client wire dispatch", () => {
     );
   });
 
-  it("reports upstream failures with the wire that produced them", async () => {
+  it("reports upstream failures with the wire and status, never the body", async () => {
+    // The 529 body is endpoint-controlled; the error names the wire and status
+    // (the derived facts) and never carries "overloaded" or any echoed bytes.
     spyOn(globalThis, "fetch").mockImplementation(() =>
-      Promise.resolve(new Response("overloaded", { status: 529 }))
+      Promise.resolve(new Response("overloaded secret-body", { status: 529 }))
     );
-    await expect(
-      new RuntimeModelClient(settingsFor("anthropic")).complete(turn),
-    ).rejects.toThrow(/Anthropic 529: overloaded/);
+    let thrown: unknown;
+    try {
+      await new RuntimeModelClient(settingsFor("anthropic")).complete(turn);
+    } catch (error) {
+      thrown = error;
+    }
+    expect((thrown as Error).message).toBe("Anthropic 529");
+    expect((thrown as Error).message).not.toContain("overloaded");
+    expect((thrown as { status?: unknown; }).status).toBe(529);
   });
 
   it("marks a malformed 2xx body as a decode failure, distinct from a transport error", async () => {

@@ -64,7 +64,7 @@ Vendor keys needed (8) — see docs/reference/activation-gates.md for the full r
   - search-brave: supply secret://search/brave/api-key  (gate secret:braveApiKey)
   …
 
-Egress hosts contacted: api.anthropic.com
+Egress: 1 host(s) contacted; allowlist = LLM endpoint only (https://api.anthropic.com)
 Elapsed: 0.3s
 
 VERDICT: PASS

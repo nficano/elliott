@@ -322,15 +322,10 @@ export const loadRuntimeSettings = async (
     isJsonRecord(rawSecrets) ? Object.keys(rawSecrets) : [],
   );
   assertConfigSecretReferences(config, secretKeys);
-  const resolvedSecrets = await resolveSecrets(rawSecrets, resolver);
-  const secrets = resolvedSecrets.secrets;
+  const secrets = await resolveSecrets(rawSecrets, resolver);
   const agent = await loadAgentDefinition(root, agentName);
   const evolution = await loadEvolutionConfig(root);
-  const resolved = await makeResolveTree(
-    resolver,
-    secretKeys,
-    resolvedSecrets,
-  )(config);
+  const resolved = await makeResolveTree(resolver, secretKeys, secrets)(config);
   // The GlitchTip DSN's fallback source is a direct env var, not a config-tree
   // reference, so record it here — it is a secret and reaches settings.
   const glitchtipDsn = resolver.env("ELLIOTT_GLITCHTIP_DSN");
@@ -577,24 +572,23 @@ const loadYaml = async (file: string): Promise<unknown> => {
 const resolveSecrets = async (
   raw: unknown,
   resolver: SecretResolver,
-): Promise<{
-  readonly secrets: Readonly<Record<string, string>>;
-  readonly unresolved: ReadonlyMap<string, string>;
-}> => {
+): Promise<Readonly<Record<string, string>>> => {
   const output: Record<string, string> = {};
-  const unresolved = new Map<string, string>();
-  if (!isJsonRecord(raw)) return { secrets: output, unresolved };
+  if (!isJsonRecord(raw)) return output;
   const entries = await Promise.all(
     Object.entries(raw).map(async ([key, value]) => {
       if (typeof value !== "string") {
         throw new TypeError(`Secret ${key} is not text`);
       }
       assertSecretReference(`config/secrets.yaml#${key}`, value, new Set());
+      // A secret that cannot be resolved is OMITTED, not fatal: the skills that
+      // need it stay dormant while the rest of the runtime boots (the doctrine —
+      // a disabled or dormant feature must not turn a missing env var into a boot
+      // failure). A field pointing at such an entry likewise yields undefined,
+      // which its reader treats as absent.
       try {
         return [key, await resolveExpression(value, resolver)] as const;
-      } catch (error) {
-        // The reason names the missing ENV/VAULT key, never a resolved value.
-        unresolved.set(key, cleanReason(error));
+      } catch {
         return undefined;
       }
     }),
@@ -604,34 +598,24 @@ const resolveSecrets = async (
     output[entry[0]] = entry[1];
     resolver.onSecret?.(entry[1]);
   }
-  return { secrets: output, unresolved };
+  return output;
 };
-
-// A resolver failure's message names the variable it could not find (see
-// resolveExpression), which is exactly what the operator must act on. Anything
-// that is not an Error contributes no detail rather than a stringified object.
-const cleanReason = (error: unknown): string =>
-  error instanceof Error ? error.message : "could not be resolved";
 
 // A tree resolver bound to one load's resolver and resolved secrets. A
 // secret-bearing field (by the secret-name schema) is resolved AND recorded: a
 // `${ENV:…}`/`${VAULT:…}` reference through the resolver, or the NAME of a
 // config/secrets.yaml entry DEREFERENCED to that entry's resolved value — so a
 // direct field like `llm.api_key: pointed` yields the credential, not the key
-// name (a named entry that did not resolve yields undefined, which the field's
-// reader treats as absent). A non-secret reference (a timezone, a base_url)
-// resolves normally but is never recorded, so it cannot mangle diagnostic output.
+// name. A named entry that did not resolve (its env var is unset) yields
+// undefined, which the field's reader treats as absent — omitted, never fatal, so
+// a disabled skill's unresolved secret cannot abort the load. A non-secret
+// reference (a timezone, a base_url) resolves normally but is never recorded, so
+// it cannot mangle diagnostic output.
 const makeResolveTree = (
   resolver: SecretResolver,
   secretKeys: ReadonlySet<string>,
-  // The two halves of one secrets.yaml load: what resolved, and why the rest did
-  // not. They are always produced and consumed together (see resolveSecrets).
-  resolvedSecrets: {
-    readonly secrets: Readonly<Record<string, string>>;
-    readonly unresolved: ReadonlyMap<string, string>;
-  },
+  secrets: Readonly<Record<string, string>>,
 ): (value: unknown) => Promise<unknown> => {
-  const { secrets, unresolved } = resolvedSecrets;
   const resolveSecret = async (
     value: string,
   ): Promise<string | undefined> => {
@@ -639,16 +623,6 @@ const makeResolveTree = (
     if (isSecretReference(value)) {
       resolved = await resolveExpression(value, resolver);
     } else if (secretKeys.has(value)) {
-      // A field pointing at an entry that did not resolve fails HERE, naming the
-      // key the entry needed. Falling through to undefined would surface as
-      // "Missing configuration: llm.api_key" — true, but it blames the field the
-      // operator set correctly instead of the variable they did not set.
-      const reason = unresolved.get(value);
-      if (reason !== undefined) {
-        throw new Error(
-          `config/secrets.yaml#${value} could not be resolved: ${reason}`,
-        );
-      }
       resolved = secrets[value];
     } else {
       resolved = value;

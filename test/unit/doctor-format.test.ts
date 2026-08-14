@@ -66,7 +66,10 @@ describe("formatReport", () => {
     expect(text).toContain(
       "search-brave: supply secret://search/brave/api-key  (gate secret:braveApiKey)",
     );
-    expect(text).toContain("Egress hosts contacted: api.anthropic.com");
+    // Egress is reported as derived counts + the allowlist origin (the LLM
+    // endpoint the operator configured), never a raw contacted host.
+    expect(text).toContain("Egress: 1 host(s) contacted");
+    expect(text).toContain("allowlist = LLM endpoint only");
     expect(text).toContain("Elapsed: 1.5s");
     expect(text.trimEnd().endsWith("VERDICT: PASS")).toBe(true);
   });
@@ -89,17 +92,25 @@ describe("formatReport", () => {
     expect(text.trimEnd().endsWith("VERDICT: FAIL")).toBe(true);
   });
 
-  it("shows an egress violation line", () => {
+  it("counts egress violations without printing the attacker-chosen host", () => {
+    // A blocked hostname is chosen by whatever issued the request (an untrusted
+    // skill or a redirect) and can encode a credential, so it is never printed —
+    // only the count and the fact it was blocked.
     const text = formatReport(
       baseReport({
         ok: false,
-        egressViolations: ["evil.example.com"],
-        contactedHosts: ["api.anthropic.com", "evil.example.com"],
+        egressViolations: ["sk-live-secret.evil.example.com"],
+        contactedHosts: [
+          "api.anthropic.com",
+          "sk-live-secret.evil.example.com",
+        ],
       }),
     );
     expect(text).toContain(
-      "reached outside the LLM allowlist: evil.example.com",
+      "1 request(s) reached outside the LLM allowlist and were blocked",
     );
+    expect(text).not.toContain("sk-live-secret");
+    expect(text).not.toContain("evil.example.com");
   });
 
   it("warns when the cold-run budget is exceeded", () => {

@@ -89,11 +89,14 @@ The output has four parts:
   manifest's `secret.use` references are withheld (only a bundled, framework-
   authored manifest's references are printed); and a soft notice is reported as a
   count, not its text.
-- **Egress** — every host contacted during the run, redirect targets included:
-  the command follows redirects manually and permits network only to the LLM
-  endpoint's exact origin (scheme, host, and port), so a request or redirect to
-  any other host — or a plaintext `http` downgrade of an `https` endpoint — is
-  blocked, recorded, and fails the run.
+- **Egress** — the command follows redirects manually and permits network only
+  to the LLM endpoint's exact origin (scheme, host, and port), so a request or
+  redirect to any other host — or a plaintext `http` downgrade of an `https`
+  endpoint — is blocked and fails the run. The report states the count of hosts
+  contacted, the allowlist (the LLM endpoint origin), and the count of blocked
+  requests. A blocked or contacted hostname is chosen by whatever issued the
+  request (an untrusted skill or a redirect) and a hostname can encode a
+  credential, so the raw host is never printed — only the derived counts.
 - **Timing** — elapsed wall time, with a notice when a cold run exceeds five
   minutes.
 

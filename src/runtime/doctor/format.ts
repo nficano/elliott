@@ -107,15 +107,20 @@ const errorLines = (
 };
 
 const egressLines = (report: DoctorReport): readonly string[] => {
-  const contacted = report.contactedHosts.length > 0
-    ? report.contactedHosts.join(", ")
-    : "(none)";
-  const lines = [`Egress hosts contacted: ${contacted}`];
+  // A contacted or blocked HOST is chosen by whatever issued the request — an
+  // untrusted skill or a redirect — and a hostname is a valid place to encode a
+  // credential, so the raw host is never printed. The report states facts the
+  // doctor derived: the allowlist it enforced (the LLM endpoint origin, itself
+  // sanitized) and COUNTS of hosts contacted and blocked.
+  const allowlist = oneLine(report.llm.baseUrl);
+  const lines = [
+    `Egress: ${report.contactedHosts.length} host(s) contacted; `
+    + `allowlist = LLM endpoint only (${allowlist})`,
+  ];
   if (report.egressViolations.length > 0) {
     lines.push(
-      `  ! reached outside the LLM allowlist: ${
-        report.egressViolations.join(", ")
-      }`,
+      `  ! ${report.egressViolations.length} request(s) reached outside the `
+        + "LLM allowlist and were blocked",
     );
   }
   return lines;
