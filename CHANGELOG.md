@@ -89,13 +89,51 @@ which binding kind the skill registers:
   (a `facilities` binding) has the same unchecked-`flatMap` exposure via
   `collectFacilities`.
 
+Beyond the skill move, v0.1.0 changed the framework's own contract in ways a
+consumer feels on upgrade. These are not registry-related and an earlier draft
+of these notes named none of them:
+
+- **`SkillContext` gained a required `installErrorSink(sink: ErrorSink): void`**
+  ([src/runtime/skills/types.ts:174](src/runtime/skills/types.ts#L174)). Any
+  consumer that constructs a `SkillContext` (a test harness, a custom loader)
+  stops typechecking until it supplies one; a no-op suffices when the skill never
+  reports through it. `LoadedSkill` likewise gained a required `directory` field
+  (loader-populated), so code that builds or keys `LoadedSkill` values by hand
+  must set it.
+- **`RuntimeSettings` was reshaped.** `glitchtipDsn?: string` is gone — GlitchTip
+  config now lives under `glitchtip?: GlitchTipSettings` (`{ dsn }`), alongside a
+  new `vault?: VaultSettings`. The LLM tier settings gained a required `llmWire`,
+  and `searchDuckduckgo?` / `webhookGatewaySecret?` were added. Consumers that
+  read `glitchtipDsn` or build a full `RuntimeSettings` must move to the new shape.
+- **The config secret-field rule tightened.** `assertConfigSecretReferences`
+  ([src/runtime/config.ts:290](src/runtime/config.ts#L290)) now rejects a literal
+  in any field whose last name-word is a role word (`token`, `secret`, `password`,
+  `dsn`, `key`, …) or whose full name is one of `authorization`, `cookie`,
+  `session`, `access_url`, `webhook_url`. A `notify.webhook_url: https://…`
+  literal that loaded on the old pin now fails at boot; it must become a
+  `${VAULT:…}` / `${ENV:…}` reference or the name of a `secrets.yaml` entry.
+- **Two moved skills tightened their own activation gate.** Registry
+  `search-duckduckgo` registered `duckduckgo_search` unconditionally; the bundled
+  copy needs `tools.search_duckduckgo.enabled: true`
+  ([src/runtime/settings-tools.ts:163](src/runtime/settings-tools.ts#L163)) or the
+  tool is gone. Registry `gateway-webhook` read the shared `webhookSecret`
+  (`secrets.webhook_signing_secret`); the bundled copy reads a distinct
+  `webhookGatewaySecret` (`secrets.webhook_gateway_secret`,
+  [src/runtime/config.ts:556](src/runtime/config.ts#L556)), so its inbound
+  `POST /v1/gateways/webhook` route goes silent unless that new key is provisioned.
+
 **Fix**: remove all eleven names from `install.skills` and from
 `skills.lock.json`, then enable elliott's built-in equivalents through
 `config/elliott.yaml`'s own `tools` / `gateways` / `channels` blocks (all off
 by default — see
-[Activation gates](docs/reference/activation-gates.md)). Phase 8 of this
-consolidation run carries out this migration for `workspace-agents`
-specifically.
+[Activation gates](docs/reference/activation-gates.md)). To preserve behavior a
+consumer must also: set `tools.search_duckduckgo.enabled: true` where the
+registry tool was relied on; provision `webhook_gateway_secret` (it may point at
+the same Vault field the shared `webhook_signing_secret` used, to keep the
+inbound route on its old secret); turn any `webhook_url`/`access_url` literal
+into an opaque reference; and add an `installErrorSink` to any hand-built
+`SkillContext`. Phase 8 of this consolidation run carries out this migration for
+`workspace-agents` specifically.
 
 ### Rollback
 
