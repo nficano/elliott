@@ -66,15 +66,26 @@ which binding kind the skill registers:
   registry-installed copy and the new bundled copy share a name. This is a
   loud, immediate crash — annoying, but safe.
 - **Gateway-kind skills double-register silently**: `gateway-slack`,
-  `gateway-gmail`, `gateway-bluebubbles`, and `gateway-webhook` register a
-  `gateways` binding, and `collectGateways`
+  `gateway-gmail`, and `gateway-bluebubbles` register a `gateways` binding,
+  and `collectGateways`
   ([src/runtime/skills/loader.ts:104](src/runtime/skills/loader.ts#L104)) has
   no duplicate-name check — it is a plain `flatMap`. Both copies register,
   and `#startBindings` starts both
   ([src/runtime/app.ts:446](src/runtime/app.ts#L446)): two live connections
   to the same external service on the same credential (for example, two
   Slack Socket Mode clients on one bot token), which reads as duplicate
-  messages or replies rather than as a boot failure. `webhook-provisioner`
+  messages or replies rather than as a boot failure. (`gateway-slack` also
+  registers a `tools` binding, so in any config where its tools load it hits
+  the tool-kind crash above first — its silent path is only reachable when
+  Slack is configured gateway-only.)
+- **`gateway-webhook` shadows a duplicate route silently**: it registers a
+  `routes` binding, not a `gateways` one — the inbound
+  `POST /v1/gateways/webhook`. Its duplicate rides `collectRoutes`
+  ([src/runtime/skills/loader.ts:109](src/runtime/skills/loader.ts#L109)),
+  the same unguarded `flatMap`, and route resolution takes the first
+  method+path match
+  ([src/runtime/app.ts:114](src/runtime/app.ts#L114)), so the second copy is
+  dead-lettered rather than opening a second connection. `webhook-provisioner`
   (a `facilities` binding) has the same unchecked-`flatMap` exposure via
   `collectFacilities`.
 
