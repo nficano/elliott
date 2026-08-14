@@ -97,6 +97,29 @@ describe("doctorEnvOverlay", () => {
     expect(overlay["ELLIOTT_LLM_API_KEY"]).toBe("sk-oai");
   });
 
+  // Model defaulting is a convenience for the TURNKEY path only. An operator who
+  // set ELLIOTT_LLM_PROVIDER opted into the explicit trio, and the documented
+  // contract is that an incomplete trio fails; defaulting there would probe a
+  // model they never chose and hide the gap behind a plausible-looking run.
+  it("does not default the model when the provider was set explicitly", () => {
+    const { overlay, modelDefaulted } = doctorEnvOverlay({
+      ELLIOTT_LLM_PROVIDER: "anthropic",
+      ELLIOTT_LLM_API_KEY: "k",
+    });
+    expect(overlay).toEqual({});
+    expect(modelDefaulted).toBe(false);
+  });
+
+  it("still builds the overlay when the explicit trio is complete", () => {
+    const { overlay, modelDefaulted } = doctorEnvOverlay({
+      ELLIOTT_LLM_PROVIDER: "anthropic",
+      ELLIOTT_LLM_API_KEY: "k",
+      ELLIOTT_LLM_MODEL: "m",
+    });
+    expect(overlay["ELLIOTT_LLM_MODEL"]).toBe("m");
+    expect(modelDefaulted).toBe(false);
+  });
+
   it("honors an explicit model over the default when only a vendor key is set", () => {
     const { overlay, modelDefaulted } = doctorEnvOverlay({
       ANTHROPIC_API_KEY: "sk-ant",

@@ -531,4 +531,60 @@ browser:
       allowedDomains: ["example.com"],
     });
   });
+
+  // An unresolvable secrets.yaml entry must NOT be fatal. A dormant or disabled
+  // skill whose credential is absent is the expected steady state on a fresh
+  // checkout; failing the boot for it would make the runtime unstartable until
+  // every optional secret is seeded. Pinned because an earlier attempt to improve
+  // the diagnosis below did exactly that.
+  it("boots with an unresolvable secret a dormant skill points at", async () => {
+    const root = await writeTree({
+      "config/elliott.yaml": `
+runtime: { timezone: UTC }
+llm:
+  provider: anthropic
+  api_key: "\${ENV:LLM_KEY}"
+  models: { default: { model: m } }
+  profiles: { default: {} }
+skills:
+  dormant:
+    token: sleepy
+`,
+      "config/secrets.yaml": "sleepy: \"${ENV:NEVER_SET}\"\n",
+      "agents/elliott.yaml": "spec: { persona: p.md, modelProfile: default }\n",
+      "p.md": "persona",
+    });
+    const settings = await loadRuntimeSettings(root, "elliott", resolver());
+    expect(settings.llmApiKey).toBe("test-api-key");
+    // The dormant skill's credential is simply absent, not a boot failure.
+    expect(settings.skillConfig?.["dormant"]).toEqual({});
+  });
+
+  // The other direction: when a REQUIRED field is the one left absent, the error
+  // must name the environment key behind the pointer. "Missing configuration:
+  // llm.api_key" alone blames the field the operator set correctly.
+  it("names the missing environment key when a required pointer cannot resolve", async () => {
+    const root = await writeTree({
+      "config/elliott.yaml": `
+runtime: { timezone: UTC }
+llm:
+  provider: anthropic
+  api_key: pointed
+  models: { default: { model: m } }
+  profiles: { default: {} }
+`,
+      "config/secrets.yaml": "pointed: \"${ENV:MISSING_VENDOR_KEY}\"\n",
+      "agents/elliott.yaml": "spec: { persona: p.md, modelProfile: default }\n",
+      "p.md": "persona",
+    });
+    let message = "";
+    try {
+      await loadRuntimeSettings(root, "elliott", resolver());
+    } catch (error) {
+      message = error instanceof Error ? error.message : String(error);
+    }
+    expect(message).toContain("llm.api_key");
+    expect(message).toContain("config/secrets.yaml#pointed");
+    expect(message).toContain("MISSING_VENDOR_KEY");
+  });
 });

@@ -196,8 +196,12 @@ describe("Elliott bundled component packages", () => {
 
   it("joins catalog and registrations into SkillContext package views", async () => {
     const packages = await loadBundledPackages(root);
+    // The join is by directory (name is manifest-authored and can collide), so
+    // the fixture takes its directory from the package it stands in for.
+    const deepTrace = packages.find((item) => item.name === "deep-trace");
     const views = collectPackageViews(packages, [{
       name: "deep-trace",
+      directory: deepTrace?.directory ?? "",
       registration: {
         gateways: [{ name: "deep-trace" }],
         routes: [{ method: "GET", path: "/x" }],

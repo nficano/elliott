@@ -89,11 +89,21 @@ const MISSING_CONFIG_HINT =
 // the config boundary validates and names any gap itself.
 export const doctorEnvOverlay = (env: DoctorEnv): DoctorEnvOverlay => {
   const empty: DoctorEnvOverlay = { overlay: {}, modelDefaulted: false };
-  const provider = present(env[LLM_PROVIDER_VAR]) ?? inferProvider(env);
+  const explicitProvider = present(env[LLM_PROVIDER_VAR]);
+  const provider = explicitProvider ?? inferProvider(env);
   if (provider === undefined) return empty;
   const apiKey = present(env[LLM_API_KEY_VAR]) ?? vendorKeyFor(provider, env);
   if (apiKey === undefined) return empty;
   const explicitModel = present(env[LLM_MODEL_VAR]);
+  // Defaulting the model is a convenience for the TURNKEY path — a lone vendor
+  // key, where the operator named no provider and expects sensible choices. An
+  // operator who set ELLIOTT_LLM_PROVIDER opted into the explicit trio, and the
+  // documented contract is that the trio must be complete; silently supplying a
+  // model there hides the gap and probes some model they never chose. Falling
+  // back to an empty overlay routes them to the missing-variable guidance.
+  if (explicitProvider !== undefined && explicitModel === undefined) {
+    return empty;
+  }
   const model = explicitModel ?? defaultModelFor(provider);
   if (model === undefined) return empty;
   return {

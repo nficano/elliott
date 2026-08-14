@@ -193,5 +193,12 @@ export type SkillRegistrar = (
 
 export interface LoadedSkill {
   readonly name: string;
+  // The package directory this registration came from. `name` is manifest-
+  // authored, so two packages can claim the same one (an agent-local skill
+  // colliding with a bundled skill, deliberately or by accident); joining
+  // registrations back to packages by name would then attribute one package's
+  // registration to the other and hide a real failure. The directory is assigned
+  // by the loader from where the package was found, so it is unique.
+  readonly directory: string;
   readonly registration: SkillRegistration;
 }

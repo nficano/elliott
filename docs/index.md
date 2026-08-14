@@ -48,8 +48,10 @@ Dry and complete. Structured for lookup rather than reading.
 - [Activation gates](reference/activation-gates.md) — what each bundled
   component waits on before it registers
 - [Quality gates](reference/quality-gates.md) — what runs pre-push and in CI
-- [Conformance gates](reference/conformance-gates.md) — G1 through G26, one file
+- [Conformance gates](reference/conformance-gates.md) — G1 through G27, one file
   each
+- [Known issues](reference/known-issues.md) — limits the framework knows about
+  and has decided not to close yet, with what closing each one takes
 - [`register()` and `SkillContext`](reference/api/skill-context.md)
 - [`manifest.yaml`](reference/api/manifest.md)
 - [Package exports](reference/api/package-exports.md)

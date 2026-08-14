@@ -201,6 +201,16 @@ const isSecretReference = (value: string): boolean =>
 const REFERENCE_FORMS =
   "an opaque reference (${ENV:VAR} or ${VAULT:mount/path#field})";
 
+// Best-effort EARLY rejection, not a containment boundary. Deciding which field
+// holds a credential from its key is inference, and it cannot be complete: a
+// skill may name its credential field `auth`, `bearer`, or anything else, and
+// this boundary has no manifest to consult because config loads before skills.
+// A literal in such a field is NOT rejected. Nothing operator-facing depends on
+// that being complete — the doctor forwards no untrusted text at all (see
+// doctor/gate.ts and doctor/harness.ts), so a missed name has no channel to leak
+// through. The complete close is manifest-declared secret fields; see
+// docs/reference/known-issues.md.
+//
 // Which config fields hold a credential, answered by the field's ROLE — the
 // final word of its key — rather than a list of paths. A fixed path list can
 // never cover a field owned by an agent-local skill schema under `skills.*`
@@ -322,7 +332,8 @@ export const loadRuntimeSettings = async (
     isJsonRecord(rawSecrets) ? Object.keys(rawSecrets) : [],
   );
   assertConfigSecretReferences(config, secretKeys);
-  const secrets = await resolveSecrets(rawSecrets, resolver);
+  const unresolved = new Map<string, string>();
+  const secrets = await resolveSecrets(rawSecrets, resolver, unresolved);
   const agent = await loadAgentDefinition(root, agentName);
   const evolution = await loadEvolutionConfig(root);
   const resolved = await makeResolveTree(resolver, secretKeys, secrets)(config);
@@ -332,16 +343,47 @@ export const loadRuntimeSettings = async (
   if (glitchtipDsn !== undefined && glitchtipDsn.length > 0) {
     resolver.onSecret?.(glitchtipDsn);
   }
-  return {
-    ...coreSettings(root, resolved, agent),
-    ...optionalSettings(root, resolved, secrets),
-    ...optionalGlitchTip(resolved, glitchtipDsn),
-    mcp: mcpSettings(agent, secrets),
-    ...(evolution !== undefined && { evolution }),
-    ...runtimeEvolutionSettings(),
-    ...governanceSettings(resolved),
-    ...installSettings(resolved),
-  };
+  try {
+    return {
+      ...coreSettings(root, resolved, agent),
+      ...optionalSettings(root, resolved, secrets),
+      ...optionalGlitchTip(resolved, glitchtipDsn),
+      mcp: mcpSettings(agent, secrets),
+      ...(evolution !== undefined && { evolution }),
+      ...runtimeEvolutionSettings(),
+      ...governanceSettings(resolved),
+      ...installSettings(resolved),
+    };
+  } catch (error) {
+    throw explainMissingPointer(error, config, unresolved);
+  }
+};
+
+// Only a REQUIRED field reaches here: reading an optional one yields undefined
+// and never throws, so a dormant skill's unresolvable secret still costs nothing.
+// When a required field IS missing, say why. `Missing configuration: llm.api_key`
+// is true but blames the field the operator set correctly; if that field holds
+// the name of a config/secrets.yaml entry that failed to resolve, the actionable
+// fact is the environment or Vault key behind it. Rethrown as a new Error with
+// the original as `cause`, so nothing about the failure is lost.
+const MISSING_CONFIGURATION = /^Missing configuration: (?<field>[\w.[\]-]+)$/;
+
+const explainMissingPointer = (
+  error: unknown,
+  config: unknown,
+  unresolved: ReadonlyMap<string, string>,
+): unknown => {
+  if (!(error instanceof Error) || unresolved.size === 0) return error;
+  const field = MISSING_CONFIGURATION.exec(error.message)?.groups?.["field"];
+  if (field === undefined) return error;
+  const pointer = optionalStringAt(config, field.split("."));
+  const reason = pointer === undefined ? undefined : unresolved.get(pointer);
+  if (reason === undefined) return error;
+  return new Error(
+    `${error.message} — it names config/secrets.yaml#${pointer}, `
+      + `which could not be resolved: ${reason}`,
+    { cause: error },
+  );
 };
 
 // Parse the `install:` block (installable skills) off the resolved config.
@@ -569,9 +611,16 @@ const loadYaml = async (file: string): Promise<unknown> => {
 // required by reference, and reporting it as plain absent loses the one fact the
 // operator needs. Keeping the reason lets the dereference explain itself without
 // making an unresolvable optional secret fatal for everyone else.
+// A resolver failure's message names the ENV/VAULT key it could not find (see
+// resolveExpression), which is the one fact the operator must act on. It never
+// carries a resolved value, so it is safe to surface.
+const cleanReason = (error: unknown): string =>
+  error instanceof Error ? error.message : "could not be resolved";
+
 const resolveSecrets = async (
   raw: unknown,
   resolver: SecretResolver,
+  unresolved: Map<string, string>,
 ): Promise<Readonly<Record<string, string>>> => {
   const output: Record<string, string> = {};
   if (!isJsonRecord(raw)) return output;
@@ -585,10 +634,15 @@ const resolveSecrets = async (
       // need it stay dormant while the rest of the runtime boots (the doctrine —
       // a disabled or dormant feature must not turn a missing env var into a boot
       // failure). A field pointing at such an entry likewise yields undefined,
-      // which its reader treats as absent.
+      // which its reader treats as absent. The REASON is kept so that if some
+      // REQUIRED field turns out to be the one that went absent, the failure can
+      // name the variable rather than the field (see reasonForMissing). Keeping
+      // the reason changes no control flow — an earlier attempt to throw here
+      // instead made every dormant skill's missing secret a fatal boot error.
       try {
         return [key, await resolveExpression(value, resolver)] as const;
-      } catch {
+      } catch (error) {
+        unresolved.set(key, cleanReason(error));
         return undefined;
       }
     }),

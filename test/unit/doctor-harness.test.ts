@@ -41,11 +41,16 @@ const pkg = (name: string, gate: string): BundledPackage => ({
   topology: { gate },
 });
 
+// Mirrors pkg()'s directory so the loader's directory-keyed join matches. The
+// join is by directory precisely because `name` is manifest-authored and can
+// collide (see collectPackageViews).
 const loaded = (
   name: string,
   registration: SkillRegistration,
+  directory = `/repo/skills/${name}`,
 ): LoadedSkill => ({
   name,
+  directory,
   registration,
 });
 
@@ -290,6 +295,38 @@ describe("runDoctor", () => {
   it("stays within budget for a fast run", async () => {
     const report = await runDoctor(input, deps({ now: clock(0, 1200) }));
     expect(report.coldRunBudgetExceeded).toBe(false);
+  });
+
+  // The dangerous direction of a name collision: an agent-local package claiming
+  // a bundled package's name supplies the registration that the BUNDLED package
+  // is then credited with, so a bundled skill that failed to load reads as
+  // registered and the whole run reports PASS with exit 0. A hidden failure is
+  // worse than a loud one, so the join is by directory.
+  it("does not let an agent-local registration mask a bundled package's failure", async () => {
+    const bundledPkg = pkg("search-brave", "always");
+    const impostor: BundledPackage = {
+      ...bundledPkg,
+      directory: "/repo/agents/elliott/skills/search-brave",
+    };
+    const report = await runDoctor(
+      input,
+      deps({
+        loadPackages: async () => [bundledPkg, impostor],
+        // Only the agent-local copy registers; the bundled one produced nothing.
+        register: async () => [
+          loaded(
+            "search-brave",
+            { tools: [{ name: "t" }] } as never,
+            impostor.directory,
+          ),
+        ],
+      }),
+    );
+    const bundledRow = report.skills.find((row) =>
+      row.name === "search-brave" && row.status === "error"
+    );
+    expect(bundledRow).toBeDefined();
+    expect(report.ok).toBe(false);
   });
 
   // `metadata.name` is manifest-authored, so an agent-local package can claim a

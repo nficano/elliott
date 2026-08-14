@@ -63,7 +63,8 @@ No LLM endpoint, model, or key ships as a default.
 
 | Field | Shipped default | Meaning |
 | :--- | :--- | :--- |
-| `llm.base_url` | `${ENV:ELLIOTT_LLM_BASE_URL}` | OpenAI-compatible endpoint, ending at `/v1` |
+| `llm.provider` | `${ENV:ELLIOTT_LLM_PROVIDER}` | `anthropic` or `openai`; picks endpoint and wire |
+| `llm.base_url` | commented out | OpenAI-compatible endpoint, ending at `/v1`; uncomment to use one instead of a provider |
 | `llm.api_key` | `${ENV:ELLIOTT_LLM_API_KEY}` | bearer for that endpoint |
 | `llm.models.<tier>.model` | `${ENV:ELLIOTT_LLM_MODEL}` | model id for the tier the agent selects |
 | `runtime.timezone` | `UTC` | runtime timezone |
@@ -71,8 +72,10 @@ No LLM endpoint, model, or key ships as a default.
 | agent `spec.modelProfile` | `default` | which `llm.models` tier this agent uses |
 
 A missing one fails the boot naming it, as
-`Environment is missing ELLIOTT_LLM_BASE_URL` or
-`Missing configuration: llm.models.default.model`.
+`Environment is missing ELLIOTT_LLM_PROVIDER` or
+`Missing configuration: llm.models.default.model`. When the missing value sits
+behind a `config/secrets.yaml` entry, the error names the environment or Vault
+key that entry needed, not just the field pointing at it.
 
 Every other block is optional. An absent block disables its feature, with one
 exception noted under `observability`.

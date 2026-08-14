@@ -56,6 +56,7 @@ const loadOne = async (
   try {
     return {
       name: item.name,
+      directory: item.directory,
       registration: await registerModule(item.entrypoint, context),
     };
   } catch (error) {
@@ -140,11 +141,15 @@ export const collectPackageViews = (
   packages: readonly BundledPackage[],
   skills: readonly LoadedSkill[],
 ): readonly SkillPackageView[] => {
+  // Keyed by directory, not name: a name collision between an agent-local and a
+  // bundled package would otherwise let one package's registration stand in for
+  // the other's, so a bundled skill that failed to register reads as registered
+  // and the run reports PASS with exit 0 — the failure hidden, not surfaced.
   const registrations = new Map(
-    skills.map((skill) => [skill.name, skill.registration]),
+    skills.map((skill) => [skill.directory, skill.registration]),
   );
   return packages.map((item) => {
-    const registration = registrations.get(item.name);
+    const registration = registrations.get(item.directory);
     return {
       name: item.name,
       kind: item.kind,

@@ -67,8 +67,23 @@ no enumerated path list to fall behind. G27 asserts that a literal in any such
 field is a load-time error naming the field without echoing the value; that a
 `${ENV:…}`/`${VAULT:…}` reference resolves; and that a field naming a
 `config/secrets.yaml` entry (the indirection pattern — recognised structurally,
-the value is a declared secrets key) is accepted. That failing-closed guarantee
-is what makes the doctor's resolved-secret set complete by construction: no
-credential can reach settings without passing through `SecretResolver`, and only
-secret-bearing fields are recorded, so a non-secret reference never mangles
-output.
+the value is a declared secrets key) is accepted.
+
+G27 is best-effort EARLY rejection, and the gate claims nothing more. Deciding
+which field holds a credential from its key is inference: it covers the role
+words above in either `snake_case` or `camelCase`, plus a declared set of
+credential fields whose names carry no role word (`authorization`, `cookie`,
+`session`, `access_url`, `webhook_url`), but a skill may call its credential
+field anything — `auth`, `bearer`, something bespoke — and the config boundary
+has no manifest to consult, because config loads before skills do. A literal in
+such a field is not rejected. The complete close is manifest-declared secret
+fields, which would require the loader to read manifests before resolving config;
+it is not implemented (see [Known issues](known-issues.md)).
+
+**Containment does not rest on G27.** What keeps a missed credential out of
+operator-facing output is the output side: the doctor never forwards untrusted
+text — a skill's `register()` error, an agent-local manifest's name, gate, or
+secret references, an endpoint's response body — and prints only facts it
+derived, so there is nothing to scrub and nothing for a name the role test missed
+to ride out on. G27's value is failing a bad config early and loudly, not
+containing a leak.
