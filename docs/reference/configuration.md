@@ -24,34 +24,38 @@ skills depending on it stay unregistered.
 ### Secret-bearing fields must be references
 
 A literal in a secret-bearing field is a load-time error that names the field
-and never echoes the value. These fields accept only a `${ENV:…}` or
-`${VAULT:…}` reference:
+and never echoes the value. A field is secret-bearing when its key's final word
+names a credential — `token`, `secret`, `password`, `passphrase`, `dsn`, `key`
+(as in `api_key`), or `credential`. So `llm.api_key`, `observability.glitchtip.dsn`,
+`store.dsn`, `channels.slack.{app_token,bot_token,user_token}`, `browser.token`,
+and any field a skill adds under `skills.*` (for example `skills.foo.api_token`)
+are all covered — by role, not an enumerated path list, so a new credential field
+is protected the day it is added. `provider`, `base_url`, `model`, `owner_id`,
+`default_channel`, and `public_hostname` are not secret-bearing and keep their
+literal value.
 
-| Field | |
-| :--- | :--- |
-| `llm.api_key` | bearer for the LLM endpoint |
-| `observability.glitchtip.dsn` | error-reporting DSN |
-| `store.dsn` | Postgres connection string |
-| `channels.slack.app_token` | Slack app-level token |
-| `channels.slack.bot_token` | Slack bot token |
-| `channels.slack.user_token` | Slack user token |
-| `browser.token` | browser-daemon token |
-| every `config/secrets.yaml` entry | resolved secret |
+Every `config/secrets.yaml` entry is a secret and is enforced the same way.
 
-The list is every `config/elliott.yaml` value read straight into settings as a
-credential. A field whose value is instead a *key* into `config/secrets.yaml` —
-a Google account's `refresh_token_secret`, an MCP endpoint's
-`authorizationSecret`, a litellm account's `secret` — is not on it: its value is
-an identifier, and the credential it names lives in `config/secrets.yaml`, which
-is enforced entry by entry.
+A secret-bearing field accepts one of two forms:
+
+- an opaque reference — `${ENV:VAR}` or `${VAULT:mount/path#field}`; or
+- the **name of a `config/secrets.yaml` entry** (the indirection pattern: a
+  Google account's `refresh_token_secret`, an MCP endpoint's `authorizationSecret`,
+  a litellm account's `secret`). The field holds an identifier and the credential
+  it names lives in `config/secrets.yaml`, enforced there. This is recognised
+  structurally — the value is a declared secrets key — so a new pointer field is
+  covered without a hand-list of pointer names.
+
+Anything else is a literal credential and fails the load.
 
 This is [conformance gate G27](conformance-gates.md). Because every secret
 reaches settings through the `SecretResolver`, the set of resolved secrets is
 complete by construction — which is what lets `elliott doctor` redact them all
-from its output. A consumer repo that currently holds a literal in any of these
-fields must move the value behind a reference: put the credential in the
-environment (or the `ELLIOTT_SECRETS_FILE` mount, or Vault) and point the field
-at it with `${ENV:VAR}` / `${VAULT:mount/path#field}`.
+from its output, while a non-secret reference (a timezone, a base URL) is never
+recorded and so never mangles a diagnosis. A consumer repo that holds a literal
+in a secret-bearing field must move the value behind a reference (the credential
+in the environment, the `ELLIOTT_SECRETS_FILE` mount, or Vault) or a
+`config/secrets.yaml` entry; the load error names the field.
 
 ## Required fields
 

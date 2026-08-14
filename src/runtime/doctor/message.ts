@@ -16,15 +16,15 @@ export const cleanMessage = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
 
 // A value is redacted when it has any non-whitespace content. The set the doctor
-// redacts is the recording resolver's captured set, which holds only resolved
-// SECRETS — the non-secret LLM configuration variables are skip-listed before
-// recording (see recordingResolver). So a short recorded value (a PIN, a
-// three-character token, a brief passphrase) is a real credential the config
-// boundary accepted and must be scrubbed regardless of length; the length of a
-// secret is not a licence to print it. Only a value whose trimmed length is zero
-// is skipped, because there is nothing to replace and an empty match would hit
-// everywhere. This is the addendum's "meaningless replacement" rule read by its
-// cause — nothing to replace — not by a length threshold on real secrets.
+// redacts holds only resolved SECRETS — the config boundary records a value only
+// when it fills a secret-bearing field (see loadRuntimeSettings' onSecret sink),
+// so a non-secret reference (a provider, a model, a timezone) is never in it. A
+// short recorded value (a PIN, a three-character token, a brief passphrase) is
+// therefore a real credential and must be scrubbed regardless of length; the
+// length of a secret is not a licence to print it. Only a value whose trimmed
+// length is zero is skipped, because there is nothing to replace and an empty
+// match would hit everywhere. This is the addendum's "meaningless replacement"
+// rule read by its cause — nothing to replace — not a length threshold on secrets.
 const redactable = (value: string | undefined): value is string =>
   value !== undefined && value.trim().length > 0;
 
@@ -60,6 +60,18 @@ export const oneLine = (text: string): string =>
   text.replaceAll(UNSAFE_CHARACTERS, " ").replaceAll(WHITESPACE_RUN, " ")
     .trim();
 
+// Make an already-built, indented report line injection-safe: replace only the
+// line-forging characters (controls, formats, line/paragraph separators, which
+// include every newline) with a space, WITHOUT collapsing runs or trimming, so
+// the line keeps its own leading indentation. This is the formatter's single
+// chokepoint — applied to every emitted line, it stops ANY interpolated value
+// (a skill name, a gate text, a manifest secret reference) from carrying a
+// newline that forges a standalone line, without each call site having to
+// remember to flatten. `oneLine` compacts a value to a token; this only defuses
+// injection while preserving layout.
+export const flattenLine = (line: string): string =>
+  line.replaceAll(UNSAFE_CHARACTERS, " ");
+
 // Strip the userinfo (`user:pass@`) from every URL embedded in a string. A
 // resolved endpoint can carry credentials inline that no recorded secret matches
 // — the LLM base_url is non-secret by NAME, so it is never in the redaction set,
@@ -68,10 +80,13 @@ export const oneLine = (text: string): string =>
 // inline credential rather than a specific run of bytes. It runs over free text
 // (a skill's error message, a config error), not just a bare URL, so an endpoint
 // quoted inside a longer message is covered too.
-// Scheme is bounded (URL schemes are short) so the match is linear — no
-// catastrophic backtracking on a long run of scheme-legal characters that never
-// reaches `://`.
-const URL_WITH_USERINFO = /([a-zA-Z][a-zA-Z0-9+.-]{0,31}:\/\/)[^/?#\s@]+@/g;
+// Userinfo is everything between `://` and the LAST `@` of the authority — that
+// is the delimiter URL parsing uses, so a password may itself contain `@`. The
+// character class stops at the authority's end (`/`, `?`, `#`, or whitespace) and
+// the greedy `*` then backtracks to the final `@`, matching the whole userinfo
+// including embedded `@`. Scheme is bounded (schemes are short) so the match stays
+// linear — no catastrophic backtracking on a long run that never reaches `://`.
+const URL_WITH_USERINFO = /([a-zA-Z][a-zA-Z0-9+.-]{0,31}:\/\/)[^/?#\s]*@/g;
 export const stripUrlUserinfo = (text: string): string =>
   text.replaceAll(URL_WITH_USERINFO, "$1");
 

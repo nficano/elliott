@@ -195,52 +195,87 @@ const isSecretReference = (value: string): boolean =>
 const REFERENCE_FORMS =
   "an opaque reference (${ENV:VAR} or ${VAULT:mount/path#field})";
 
-// The secret-bearing fields of config/elliott.yaml: the schema that answers
-// "which config values hold a credential". The doctrine that secrets are opaque
-// references is enforced against exactly these paths (config/secrets.yaml is
-// enforced entry-by-entry in loadSecrets, since every entry there is a secret), so
-// a literal in any of them is a load-time error and no credential can enter
-// settings without passing through SecretResolver — which is what makes the
-// recording resolver's captured set the COMPLETE secret set.
-//
-// Every path here is a value read straight into RuntimeSettings AS a credential.
-// A field whose value is instead a KEY into config/secrets.yaml — google
-// `refresh_token_secret`, an mcp endpoint's `authorizationSecret`, a litellm
-// account's `secret` — is deliberately absent: its value is a plain identifier,
-// and the credential it names lives in secrets.yaml, already enforced there. When
-// a new config field is read as a credential (grep: a `stringAt`/`optionalStringAt`
-// on a token/secret/password/key/dsn path that is not a `secrets[...]` lookup),
-// it belongs here; conformance gate G27 pins the set.
-const SECRET_BEARING_PATHS: readonly (readonly string[])[] = [
-  ["llm", "api_key"],
-  ["observability", "glitchtip", "dsn"],
-  ["store", "dsn"],
-  ["channels", "slack", "app_token"],
-  ["channels", "slack", "bot_token"],
-  ["channels", "slack", "user_token"],
-  ["browser", "token"],
-];
+// Which config fields hold a credential, answered by the field's ROLE — the
+// final word of its key — rather than a list of paths. A fixed path list can
+// never cover a field owned by an agent-local skill schema under `skills.*`
+// (that subtree passes through verbatim, see optionalSkillConfig); a role
+// predicate covers it the day it is added, with no list for anyone to forget.
+// The words are the endings that name a credential; `bot_token`, `app_token`,
+// `refresh_token`, `signing_secret`, `client_secret`, `api_key`, `private_key`,
+// and a bare `dsn`/`token`/`password` all match, while `base_url`, `owner_id`,
+// `default_channel`, `public_hostname`, `provider`, and `model` do not. Config
+// keys are snake_case, so the final `_`/`-` segment is the discriminator.
+const SECRET_WORDS: ReadonlySet<string> = new Set([
+  "token",
+  "secret",
+  "password",
+  "passphrase",
+  "dsn",
+  "key",
+  "credential",
+  "credentials",
+]);
 
-// Reject a literal credential in a secret-bearing config field, naming the field
-// and the reference forms it accepts. Never echoes the offending value (it is
-// the credential).
-const assertSecretReference = (field: string, value: unknown): void => {
-  if (
-    typeof value === "string" && value.length > 0 && !isSecretReference(value)
-  ) {
-    throw new Error(
-      `Secret field ${field} must be ${REFERENCE_FORMS}, `
-        + "not a literal value",
-    );
+const isSecretFieldName = (key: string): boolean => {
+  const last = key.toLowerCase().split(/[_-]/).at(-1);
+  return last !== undefined && SECRET_WORDS.has(last);
+};
+
+// A secret-bearing config field is acceptable when it is an opaque reference OR
+// the NAME of a config/secrets.yaml entry. The second form is the indirection
+// pattern the framework already uses (google `refresh_token_secret`, an mcp
+// `authorizationSecret`, a litellm account `secret`): the field holds an
+// identifier and the credential it names lives in secrets.yaml, enforced there.
+// Recognising the pointer by whether its value is a declared secrets key — not by
+// a hand-list of pointer field names — means a new pointer field is covered too.
+// Anything else is a literal credential in the clear, a load-time error naming
+// the field (never the value, which is the credential).
+const assertSecretReference = (
+  field: string,
+  value: string,
+  secretKeys: ReadonlySet<string>,
+): void => {
+  if (isSecretReference(value) || secretKeys.has(value)) return;
+  throw new Error(
+    `Secret field ${field} must be ${REFERENCE_FORMS} `
+      + "or the name of a config/secrets.yaml entry, not a literal value",
+  );
+};
+
+// Walk the whole config tree and enforce the reference rule on every secret-named
+// field, at any depth and inside arrays — so a credential under `skills.*`, a new
+// channel, or a nested account is covered without enumerating its path.
+const assertConfigSecretReferences = (
+  node: unknown,
+  secretKeys: ReadonlySet<string>,
+  pathPrefix = "",
+): void => {
+  if (Array.isArray(node)) {
+    for (const [index, item] of node.entries()) {
+      assertConfigSecretReferences(item, secretKeys, `${pathPrefix}[${index}]`);
+    }
+    return;
+  }
+  if (!isJsonRecord(node)) return;
+  for (const [key, value] of Object.entries(node)) {
+    const dotted = pathPrefix === "" ? key : `${pathPrefix}.${key}`;
+    if (typeof value === "string") {
+      if (value.length > 0 && isSecretFieldName(key)) {
+        assertSecretReference(dotted, value, secretKeys);
+      }
+      continue;
+    }
+    assertConfigSecretReferences(value, secretKeys, dotted);
   }
 };
 
-const assertConfigSecretReferences = (config: unknown): void => {
-  for (const path of SECRET_BEARING_PATHS) {
-    assertSecretReference(path.join("."), optionalStringAt(config, path));
-  }
-};
-
+// The resolver's optional `onSecret` sink (see SecretResolver) receives every
+// resolved SECRET value the load touches: the resolved value of each
+// secret-bearing config field (per the secret-name schema) and every
+// config/secrets.yaml entry — and NOTHING else, so an ordinary referenced setting
+// (a timezone, a base_url) never enters the set and cannot mangle output. The
+// doctor supplies a sink to obtain the redaction set complete by construction, no
+// maintained list of where secrets live.
 export const loadRuntimeSettings = async (
   root: string,
   agentName = "elliott",
@@ -250,19 +285,25 @@ export const loadRuntimeSettings = async (
     await loadYaml(path.join(root, "config/elliott.yaml")),
     resolver,
   );
-  assertConfigSecretReferences(config);
-  const secrets = await loadSecrets(root, resolver);
+  const rawSecrets = await loadYaml(path.join(root, "config/secrets.yaml"));
+  const secretKeys: ReadonlySet<string> = new Set(
+    isJsonRecord(rawSecrets) ? Object.keys(rawSecrets) : [],
+  );
+  assertConfigSecretReferences(config, secretKeys);
+  const secrets = await resolveSecrets(rawSecrets, resolver);
   const agent = await loadAgentDefinition(root, agentName);
   const evolution = await loadEvolutionConfig(root);
   const resolved = await resolveTree(config, resolver);
+  // The GlitchTip DSN's fallback source is a direct env var, not a config-tree
+  // reference, so record it here — it is a secret and reaches settings.
+  const glitchtipDsn = resolver.env("ELLIOTT_GLITCHTIP_DSN");
+  if (glitchtipDsn !== undefined && glitchtipDsn.length > 0) {
+    resolver.onSecret?.(glitchtipDsn);
+  }
   return {
     ...coreSettings(root, resolved, agent),
     ...optionalSettings(root, resolved, secrets),
-    // Read the GlitchTip DSN through the resolver (not the ambient environment
-    // directly) so it, like every secret, passes through SecretResolver and is
-    // captured by a recording resolver. Value-preserving: the default resolver
-    // reads the same overlay-aware environment.
-    ...optionalGlitchTip(resolved, resolver.env("ELLIOTT_GLITCHTIP_DSN")),
+    ...optionalGlitchTip(resolved, glitchtipDsn),
     mcp: mcpSettings(agent, secrets),
     ...(evolution !== undefined && { evolution }),
     ...runtimeEvolutionSettings(),
@@ -483,11 +524,17 @@ const loadYaml = async (file: string): Promise<unknown> => {
   return value;
 };
 
-const loadSecrets = async (
-  root: string,
+// Resolve config/secrets.yaml. Every entry is a secret, so each must be an opaque
+// reference (a literal here would enter settings without passing through the
+// resolver) and each resolved value is handed to `onSecret` — this is what makes
+// the secret set cover secrets.yaml completely, including the credential a config
+// pointer field (a litellm account `secret`, a google `refresh_token_secret`)
+// names. A secret that cannot be resolved is omitted, not fatal: the skills that
+// need it stay unregistered while the rest of the runtime boots.
+const resolveSecrets = async (
+  raw: unknown,
   resolver: SecretResolver,
 ): Promise<Readonly<Record<string, string>>> => {
-  const raw = await loadYaml(path.join(root, "config/secrets.yaml"));
   const output: Record<string, string> = {};
   if (!isJsonRecord(raw)) return output;
   const entries = await Promise.all(
@@ -495,11 +542,7 @@ const loadSecrets = async (
       if (typeof value !== "string") {
         throw new TypeError(`Secret ${key} is not text`);
       }
-      // Every secrets.yaml entry is a secret, so it must be an opaque reference;
-      // a literal here would enter settings without passing through the resolver.
-      assertSecretReference(`config/secrets.yaml#${key}`, value);
-      // A secret that cannot be resolved is omitted, not fatal: the skills
-      // that need it stay unregistered while the rest of the runtime boots.
+      assertSecretReference(`config/secrets.yaml#${key}`, value, new Set());
       try {
         return [key, await resolveExpression(value, resolver)] as const;
       } catch {
@@ -508,11 +551,20 @@ const loadSecrets = async (
     }),
   );
   for (const entry of entries) {
-    if (entry !== undefined) output[entry[0]] = entry[1];
+    if (entry === undefined) continue;
+    output[entry[0]] = entry[1];
+    resolver.onSecret?.(entry[1]);
   }
   return output;
 };
 
+// Resolve every `${ENV:…}`/`${VAULT:…}` reference in the config tree. Recording
+// is driven by the FIELD, not the resolver: only a secret-named field whose value
+// was a reference hands its resolved value to `onSecret`. A non-secret reference
+// (a timezone, a base_url) resolves normally but is never recorded, so it cannot
+// mangle diagnostic output; a pointer field (its value is a secrets.yaml key, not
+// a reference) is not recorded here — the credential it names is recorded by
+// resolveSecrets instead.
 const resolveTree = async (
   value: unknown,
   resolver: SecretResolver,
@@ -523,9 +575,16 @@ const resolveTree = async (
   }
   if (!isJsonRecord(value)) return value;
   const entries = await Promise.all(
-    Object.entries(value).map(async ([key, item]) =>
-      [key, await resolveTree(item, resolver)] as const
-    ),
+    Object.entries(value).map(async ([key, item]) => {
+      const resolvedItem = await resolveTree(item, resolver);
+      if (
+        typeof item === "string" && typeof resolvedItem === "string"
+        && isSecretFieldName(key) && isSecretReference(item)
+      ) {
+        resolver.onSecret?.(resolvedItem);
+      }
+      return [key, resolvedItem] as const;
+    }),
   );
   return Object.fromEntries(entries);
 };
@@ -547,43 +606,4 @@ const resolveExpression = async (
     return result;
   }
   return value;
-};
-
-// A resolver that records every value it returns. Because secret-bearing fields
-// must be opaque references (see loadRuntimeSettings' reference check), every
-// secret reaches settings via `${ENV:…}`/`${VAULT:…}` and therefore through
-// here — so loading settings through this wrapper yields the COMPLETE secret set
-// BY CONSTRUCTION: no maintained list of where secrets live. `skipEnv` names the
-// non-secret configuration variables (the LLM provider/model/base_url) that are
-// ALSO resolved through the resolver but must not be treated as secrets — the
-// only place the config boundary distinguishes non-secret config, kept small and
-// closed so everything else defaults to "secret". The doctor uses `recorded()`
-// as its redaction set.
-export const recordingResolver = (
-  inner: SecretResolver,
-  skipEnv: readonly string[] = [],
-): {
-  readonly resolver: SecretResolver;
-  readonly recorded: () => readonly string[];
-} => {
-  const values = new Set<string>();
-  const skip = new Set(skipEnv);
-  const keep = (value: string | undefined): void => {
-    if (value !== undefined && value.length > 0) values.add(value);
-  };
-  return {
-    resolver: {
-      env: (name) => {
-        const value = inner.env(name);
-        if (!skip.has(name)) keep(value);
-        return value;
-      },
-      vault: async (secretPath, field) => {
-        const value = await inner.vault(secretPath, field);
-        keep(value);
-        return value;
-      },
-    },
-    recorded: () => [...values],
-  };
 };

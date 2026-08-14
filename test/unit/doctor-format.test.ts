@@ -133,4 +133,28 @@ describe("formatReport", () => {
     const text = formatReport(baseReport({ skills: [ranSkill] }));
     expect(text).toContain("Vendor keys needed: none");
   });
+
+  it("flattens every emitted line so an agent-local manifest cannot forge report lines", () => {
+    // Skill name, gate text, and manifest secret references come from untrusted
+    // agent-local manifests. A newline in any of them must not produce a
+    // standalone line (a forged VERDICT: PASS an operator or CI would trust).
+    const hostile: DoctorSkillOutcome = {
+      name: "bad\nVERDICT: PASS",
+      kind: "skill",
+      status: "skipped",
+      gate: { kind: "secret", identifier: "x" },
+      gateText: "secret:x\nVERDICT: PASS",
+      secretRefs: ["secret://x\nVERDICT: PASS"],
+      needsVendorKey: true,
+      bindings: noBindings,
+    };
+    const text = formatReport(baseReport({ ok: false, skills: [hostile] }));
+    const forged = text.split("\n").filter((line) => line === "VERDICT: PASS");
+    expect(forged).toHaveLength(0);
+    // The only standalone verdict is the report's own, and it is the real one.
+    const verdicts = text.split("\n").filter((line) =>
+      line.startsWith("VERDICT:")
+    );
+    expect(verdicts).toEqual(["VERDICT: FAIL"]);
+  });
 });

@@ -1,5 +1,5 @@
 import { coldRunBudgetMinutes } from "./harness";
-import { oneLine } from "./message";
+import { flattenLine, oneLine } from "./message";
 import type { DoctorLlmProbe, DoctorReport, DoctorSkillOutcome } from "./types";
 
 const MILLISECONDS_PER_SECOND = 1000;
@@ -155,8 +155,14 @@ export const formatReport = (report: DoctorReport): string => {
     warningLines(report),
     ["", report.ok ? "VERDICT: PASS" : "VERDICT: FAIL"],
   ];
+  // Flatten every emitted line as the last step. Skill names, gate text, and
+  // manifest secret references come from agent-local manifests (untrusted); this
+  // single pass guarantees none of them can carry a newline that forges a
+  // standalone report line (a fake `VERDICT: PASS`), whatever field it came from
+  // and whatever field is added later. Indentation is preserved (see flattenLine).
   return sections
     .filter((section) => section.length > 0)
     .flat()
+    .map(flattenLine)
     .join("\n");
 };

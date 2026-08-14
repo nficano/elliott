@@ -20,6 +20,12 @@ export interface RuntimeRoots {
 export interface SecretResolver {
   env(name: string): string | undefined;
   vault(path: string, field: string): Promise<string>;
+  // Optional sink the settings loader calls with each resolved SECRET value — the
+  // resolved value of a secret-bearing config field (decided by the field's role)
+  // and every config/secrets.yaml entry, never an ordinary referenced setting. A
+  // resolver without it (the runtime boot's) records nothing; the doctor supplies
+  // one to obtain its redaction set complete by construction.
+  onSecret?(value: string): void;
 }
 
 export interface McpEndpointSettings {

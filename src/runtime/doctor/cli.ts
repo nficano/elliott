@@ -6,7 +6,6 @@ import type { BundledPackage } from "../../catalog/types";
 import {
   envBackedSecretResolver,
   loadRuntimeSettings,
-  recordingResolver,
   runtimeEnvironment,
 } from "../config";
 import { RuntimeModelClient } from "../model/client";
@@ -39,27 +38,17 @@ const DEFAULT_OPENAI_MODEL = "gpt-4o-mini";
 const LLM_PROVIDER_VAR = "ELLIOTT_LLM_PROVIDER";
 const LLM_API_KEY_VAR = "ELLIOTT_LLM_API_KEY";
 const LLM_MODEL_VAR = "ELLIOTT_LLM_MODEL";
-const LLM_BASE_URL_VAR = "ELLIOTT_LLM_BASE_URL";
 const ANTHROPIC_KEY_VAR = "ANTHROPIC_API_KEY";
 const OPENAI_KEY_VAR = "OPENAI_API_KEY";
 
-// The non-secret LLM configuration variables — provider, model, base_url. They
-// are resolved through the same SecretResolver as secrets, so the recording
-// resolver is told to skip them; everything else it resolves defaults to secret.
-// A closed list of the KNOWN non-secrets, inverting the open-ended "which values
-// are secret" question.
-const NON_SECRET_LLM_VARS: readonly string[] = [
-  LLM_PROVIDER_VAR,
-  LLM_MODEL_VAR,
-  LLM_BASE_URL_VAR,
-];
-
-// A present, non-empty value, else undefined. An empty environment variable
-// (`ANTHROPIC_API_KEY=`) is an ABSENT credential, not a supplied one, so the
-// missing-key path (with its guidance) runs instead of a downstream
-// "missing api_key" error that omits the guidance.
+// A present, non-BLANK value, else undefined. An empty or whitespace-only
+// environment variable (`ANTHROPIC_API_KEY=` or `=" "`) is an ABSENT credential,
+// not a supplied one: a blank key would otherwise build a full overlay and send
+// the run down the probe/authentication-failure path instead of the missing-key
+// path with its guidance. Tested on the trimmed value; the original is returned
+// so a real key is never silently altered.
 const present = (value: string | undefined): string | undefined =>
-  value !== undefined && value.length > 0 ? value : undefined;
+  value !== undefined && value.trim().length > 0 ? value : undefined;
 
 const inferProvider = (env: DoctorEnv): string | undefined => {
   if (present(env[ANTHROPIC_KEY_VAR]) !== undefined) return "anthropic";
@@ -195,14 +184,17 @@ export const runDoctorCli = async (
 ): Promise<boolean> => {
   if (argv[0] !== DOCTOR_COMMAND) return false;
   const { overlay, modelDefaulted } = doctorEnvOverlay(env);
-  // Load settings through a RECORDING resolver: every value it returns is the
-  // complete, by-construction set of secrets to redact — except the non-secret
-  // LLM configuration variables, which it is told to skip so a plain provider or
-  // model diagnosis is not redacted or mangled (see recordingResolver).
-  const { resolver, recorded } = recordingResolver(
-    overlayResolver(overlay),
-    NON_SECRET_LLM_VARS,
-  );
+  // Collect every resolved secret the load touches into one set — the doctor's
+  // redaction set, complete by construction and secret-only: the config boundary
+  // decides what is secret by the field's role, so a plain provider/model/timezone
+  // diagnosis keeps its real value while every credential is captured (see
+  // loadRuntimeSettings' onSecret).
+  const secretValues = new Set<string>();
+  const recorded = (): readonly string[] => [...secretValues];
+  const resolver: SecretResolver = {
+    ...overlayResolver(overlay),
+    onSecret: (value) => secretValues.add(value),
+  };
   let loaded;
   try {
     loaded = await loadRuntimeSettings(
@@ -211,11 +203,10 @@ export const runDoctorCli = async (
       resolver,
     );
   } catch (error) {
-    // Redact everything the recorder captured BEFORE the failure — not just the
-    // overlay key. A reference resolved during the load (say a provider that
-    // interpolates ${ENV:DB_PASSWORD}) is already in recorded() and would
-    // otherwise surface in the validation error. Every printing path uses the
-    // same set.
+    // Redact everything captured BEFORE the failure — a reference resolved during
+    // the load (say a secret-bearing field interpolating ${ENV:DB_PASSWORD}) is
+    // already in the set and would otherwise surface in the validation error.
+    // Every printing path uses the same set.
     console.error(
       `elliott doctor: ${configErrorLine(error, recorded())}`
         + configErrorHint(overlay),

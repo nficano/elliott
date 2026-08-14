@@ -139,6 +139,51 @@ describe("G27 — secret-bearing config fields reject literal credentials", () =
     }
   });
 
+  // The decisive case: a credential field owned by an agent-local skill schema,
+  // under the `skills.*` passthrough, at a path no framework list could name. The
+  // role predicate (the key's final word) still catches it.
+  it("rejects a literal in an arbitrary skills.* credential field", async () => {
+    await withConfig({
+      "elliott.yaml": llmConfig(
+        "skills:\n  local:\n    token: literal-agent-secret\n",
+      ),
+    }, async (root) => {
+      let message: string;
+      try {
+        await loadRuntimeSettings(root, "elliott", resolver({ LLM_KEY: "k" }));
+        throw new Error("expected a literal skills.local.token to be rejected");
+      } catch (error_) {
+        message = error_ instanceof Error ? error_.message : String(error_);
+      }
+      expect(message).toContain("skills.local.token");
+      expect(message).toContain("opaque reference");
+      expect(message).not.toContain("literal-agent-secret");
+    });
+  });
+
+  // The indirection pattern: a secret-named field whose value is the NAME of a
+  // config/secrets.yaml entry is accepted (the credential lives in secrets.yaml,
+  // enforced there). Recognised structurally — value is a declared secrets key —
+  // so google `refresh_token_secret`, litellm `secret`, and any future pointer
+  // are covered without a hand-list of pointer field names.
+  it("accepts a secret-named field that names a config/secrets.yaml entry", async () => {
+    await withConfig({
+      "elliott.yaml": llmConfig(
+        "skills:\n  local:\n    account_secret: pointed\n",
+      ),
+      "secrets.yaml": "pointed: \"${ENV:P}\"\n",
+    }, async (root) => {
+      const settings = await loadRuntimeSettings(
+        root,
+        "elliott",
+        resolver({ LLM_KEY: "k", P: "v" }),
+      );
+      expect(settings.skillConfig?.["local"]).toEqual({
+        account_secret: "pointed",
+      });
+    });
+  });
+
   it("rejects a literal entry in config/secrets.yaml", async () => {
     await withConfig({
       "elliott.yaml": llmConfig(""),

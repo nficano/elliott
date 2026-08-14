@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import {
   cleanMessage,
   dropCodeFrame,
+  flattenLine,
   oneLine,
   redactSecrets,
   sanitizeForDisplay,
@@ -137,8 +138,33 @@ describe("stripUrlUserinfo", () => {
     );
   });
 
+  it("removes userinfo up to the LAST @ when the password contains @", () => {
+    // URL parsing uses the last @ of the authority as the delimiter, so a
+    // password may itself contain @; stopping at the first @ would leak a suffix.
+    expect(stripUrlUserinfo("failed at https://user:p@ss@example.com/v1")).toBe(
+      "failed at https://example.com/v1",
+    );
+  });
+
+  it("does not treat an @ in the path as userinfo", () => {
+    expect(stripUrlUserinfo("https://example.com/u@x")).toBe(
+      "https://example.com/u@x",
+    );
+  });
+
   it("returns a non-URL string unchanged", () => {
     expect(stripUrlUserinfo("not a url")).toBe("not a url");
+  });
+});
+
+describe("flattenLine", () => {
+  it("replaces line-forging characters with a space but preserves indentation", () => {
+    expect(flattenLine("  - bad\nVERDICT: PASS")).toBe("  - bad VERDICT: PASS");
+  });
+
+  it("flattens Unicode line separators too, without collapsing ordinary spaces", () => {
+    const lineSep = String.fromCodePoint(0x20_28);
+    expect(flattenLine(`  + a${lineSep}b   c`)).toBe("  + a b   c");
   });
 });
 
