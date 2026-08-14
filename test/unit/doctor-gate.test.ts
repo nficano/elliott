@@ -161,4 +161,43 @@ describe("classifyOutcome", () => {
     expect(outcome.status).toBe("error");
     expect(outcome.error).toContain("did not load");
   });
+
+  // An agent-local manifest is untrusted in EVERY field it contributes to the
+  // report, not only under secret.use. Its gate string and its metadata.name are
+  // printed too, so a credential parked in either reaches the terminal. The
+  // report keeps only what the framework derived: the parsed gate KIND and the
+  // directory the loader found the package in.
+  it("withholds an agent-local manifest's gate text, identifier, and name", () => {
+    const outcome = classifyOutcome(
+      view({
+        name: "sk-live-name-secret",
+        directory: "/agents/elliott/skills/local",
+        topology: { gate: "secret:sk-live-gate-secret" },
+      }),
+      { threw: false, secretRefs: [], bundled: false },
+    );
+    expect(outcome.status).toBe("skipped");
+    // The kind survives — it is this repo's parse, not the author's text — so
+    // the operator still learns the skill is dormant awaiting a secret.
+    expect(outcome.gate.kind).toBe("secret");
+    expect(outcome.needsVendorKey).toBe(true);
+    // Nothing the manifest author wrote reaches the outcome.
+    expect(outcome.gateText).not.toContain("sk-live-gate-secret");
+    expect(outcome.gate.identifier).toBeUndefined();
+    expect(outcome.name).not.toContain("sk-live-name-secret");
+    expect(outcome.name).toBe("local");
+  });
+
+  // The counter-direction: a bundled manifest is framework-authored and trusted,
+  // so its gate identifier and name are exactly what the operator needs printed.
+  it("keeps a bundled manifest's gate identifier and name", () => {
+    const outcome = classifyOutcome(
+      view({ name: "search-brave", topology: { gate: "secret:braveApiKey" } }),
+      bundled(false, ["secret://search/brave/api-key"]),
+    );
+    expect(outcome.name).toBe("search-brave");
+    expect(outcome.gate.identifier).toBe("braveApiKey");
+    expect(outcome.gateText).toBe("secret:braveApiKey");
+    expect(outcome.secretRefs).toEqual(["secret://search/brave/api-key"]);
+  });
 });

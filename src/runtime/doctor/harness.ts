@@ -78,13 +78,19 @@ const reportedError = (
 const isBundled = (directory: string, agentName: string): boolean =>
   !directory.includes(path.join("agents", agentName, "skills"));
 
+// Keyed by DIRECTORY, not name. `metadata.name` is manifest-authored, so an
+// agent-local package is free to claim a bundled package's name; keying by name
+// let that collision overwrite the bundled entry, and the bundled row — the one
+// treated as trusted — would then print the agent-local manifest's text. A
+// package's directory is assigned by the loader from where the package was found,
+// so it is unique per package and carries its provenance.
 const secretRefsFor = async (
   packages: readonly BundledPackage[],
   read: (directory: string) => Promise<readonly string[]>,
 ): Promise<ReadonlyMap<string, readonly string[]>> => {
   const entries = await Promise.all(
     packages.map(async (item) =>
-      [item.name, await read(item.directory)] as const
+      [item.directory, await read(item.directory)] as const
     ),
   );
   return new Map(entries);
@@ -100,7 +106,7 @@ const classifierFor = (
 (view) =>
   classifyOutcome(view, {
     threw: reportedError(view.name, reports),
-    secretRefs: secretRefs.get(view.name) ?? [],
+    secretRefs: secretRefs.get(view.directory) ?? [],
     bundled: isBundled(view.directory, agentName),
   });
 

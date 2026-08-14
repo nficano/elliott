@@ -13,16 +13,40 @@ import { openaiWire } from "./wire/openai";
 const RESPONSE_DETAIL_MAX_CHARACTERS = 500;
 const MILLISECONDS_PER_SECOND = 1000;
 
+const REDACTION = "‹redacted›";
+
+// Strip the userinfo (`user:pass@`) from any URL the endpoint echoes back, and
+// replace the credential this client authenticates with. The endpoint is the one
+// party that is GIVEN the api key, so a hostile or compromised one can quote it
+// straight back in an error body; `detail` is endpoint-controlled text. Both
+// scrubs target values this process already knows, so neither is a guess about
+// what a credential looks like. Doctrine (CLAUDE.md) forbids logging a secret,
+// not merely transmitting one — process logs get shipped off-box in every real
+// deployment, so "local console only" is not a safe place to put a key.
+const URL_WITH_USERINFO = /([a-zA-Z][a-zA-Z0-9+.-]{0,31}:\/\/)[^/?#\s]*@/g;
+const scrubDetail = (detail: string, apiKey: string | undefined): string => {
+  const withoutUserinfo = detail.replaceAll(URL_WITH_USERINFO, "$1");
+  return apiKey === undefined || apiKey.trim().length === 0
+    ? withoutUserinfo
+    : withoutUserinfo.split(apiKey).join(REDACTION);
+};
+
 // A non-2xx model response. Carries the HTTP `status` as structured data so a
 // caller (e.g. the doctor) can classify the failure from a fact it derived —
 // the status code — without parsing or echoing the provider's response body,
-// which is endpoint-controlled and may quote credentials. The message keeps the
-// body for LOCAL debugging (the runtime's error reporter transmits only the
-// class name and stack frames, never the message).
+// which is endpoint-controlled and may quote credentials. The body is kept for
+// LOCAL debugging, but only after the credentials this process knows are
+// scrubbed out of it: an endpoint that echoes the api key must not be able to
+// write it into the operator's logs.
 export class ModelHttpError extends Error {
   readonly status: number;
-  constructor(wireName: string, status: number, detail: string) {
-    super(`${wireName} ${status}: ${detail}`);
+  constructor(
+    wireName: string,
+    status: number,
+    detail: string,
+    apiKey?: string,
+  ) {
+    super(`${wireName} ${status}: ${scrubDetail(detail, apiKey)}`);
     this.name = "ModelHttpError";
     this.status = status;
   }
@@ -114,7 +138,12 @@ export class RuntimeModelClient {
         0,
         RESPONSE_DETAIL_MAX_CHARACTERS,
       );
-      throw new ModelHttpError(this.#wire.name, response.status, detail);
+      throw new ModelHttpError(
+        this.#wire.name,
+        response.status,
+        detail,
+        this.#settings.llmApiKey,
+      );
     }
     return this.#attest(await this.#decode(response, onTextDelta, watchdog));
   }

@@ -1,3 +1,4 @@
+import path from "node:path";
 import { isJsonRecord } from "../../providers/http";
 import type { SkillPackageView } from "../skills/types";
 import type { DoctorGate, DoctorSkillOutcome } from "./types";
@@ -64,11 +65,22 @@ export const classifyOutcome = (
   },
 ): DoctorSkillOutcome => {
   const { threw, secretRefs, bundled } = observed;
-  const gateText = gateTextOf(view);
-  const gate = parseGate(gateText);
+  const rawGateText = gateTextOf(view);
+  const rawGate = parseGate(rawGateText);
+  // An agent-local manifest is untrusted text end to end, not just under
+  // `secret.use`. Its `metadata.name` and its `spec.topology.gate` are printed by
+  // the report as readily as its references, so withholding only the references
+  // left two fields a credential could ride in. For an untrusted package the
+  // report states what the framework DERIVED — the gate's kind, parsed by this
+  // repo's own grammar, and the directory the loader found the package in — and
+  // none of the strings the manifest author wrote. The identifier tail is dropped
+  // with the raw text: `secret:api` and `secret:sk-live-…` are indistinguishable
+  // in shape, so nothing structural could keep one and drop the other.
+  const gate = bundled ? rawGate : { kind: rawGate.kind };
+  const gateText = bundled ? rawGateText : rawGate.kind;
   const bindings = view.bindings;
   const base = {
-    name: view.name,
+    name: bundled ? view.name : path.basename(view.directory),
     kind: view.kind,
     gate,
     gateText,

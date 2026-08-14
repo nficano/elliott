@@ -78,12 +78,18 @@ export const readMountedSecrets = (
   // and it was not valid JSON" — the two failures need different fixes. Neither
   // message echoes the file's bytes: it holds secrets, and a JSON parse error
   // would quote the offending source. The cause is kept for local debugging.
+  //
+  // The PATH is not echoed either. This runs before any recorder exists, so
+  // nothing downstream can redact what it emits, and the path is taken straight
+  // from the environment — a deploy that parameterises it (a per-tenant mount, a
+  // token-bearing path) would put a credential in the one string this error
+  // prints. Naming the variable is enough to act on: whoever set it can read it.
   let raw: string;
   try {
     raw = read(file);
   } catch (error) {
     throw new Error(
-      `${SECRETS_FILE_VARIABLE} ${file} could not be read`,
+      `${SECRETS_FILE_VARIABLE} could not be read`,
       { cause: error },
     );
   }
@@ -92,13 +98,13 @@ export const readMountedSecrets = (
     parsed = JSON.parse(raw);
   } catch (error) {
     throw new Error(
-      `${SECRETS_FILE_VARIABLE} ${file} is not valid JSON`,
+      `${SECRETS_FILE_VARIABLE} is not valid JSON`,
       { cause: error },
     );
   }
   if (!isJsonRecord(parsed)) {
     throw new Error(
-      `${SECRETS_FILE_VARIABLE} ${file} must hold a JSON object`,
+      `${SECRETS_FILE_VARIABLE} must hold a JSON object`,
     );
   }
   return Object.fromEntries(
@@ -316,10 +322,15 @@ export const loadRuntimeSettings = async (
     isJsonRecord(rawSecrets) ? Object.keys(rawSecrets) : [],
   );
   assertConfigSecretReferences(config, secretKeys);
-  const secrets = await resolveSecrets(rawSecrets, resolver);
+  const resolvedSecrets = await resolveSecrets(rawSecrets, resolver);
+  const secrets = resolvedSecrets.secrets;
   const agent = await loadAgentDefinition(root, agentName);
   const evolution = await loadEvolutionConfig(root);
-  const resolved = await makeResolveTree(resolver, secretKeys, secrets)(config);
+  const resolved = await makeResolveTree(
+    resolver,
+    secretKeys,
+    resolvedSecrets,
+  )(config);
   // The GlitchTip DSN's fallback source is a direct env var, not a config-tree
   // reference, so record it here — it is a secret and reaches settings.
   const glitchtipDsn = resolver.env("ELLIOTT_GLITCHTIP_DSN");
@@ -557,12 +568,22 @@ const loadYaml = async (file: string): Promise<unknown> => {
 // pointer field (a litellm account `secret`, a google `refresh_token_secret`)
 // names. A secret that cannot be resolved is omitted, not fatal: the skills that
 // need it stay unregistered while the rest of the runtime boots.
+// `unresolved` records WHY an entry was omitted, keyed by its secrets.yaml name.
+// The omission itself stays silent (a dormant skill is the intended outcome), but
+// a config field that POINTS at the entry is a different case: that field is
+// required by reference, and reporting it as plain absent loses the one fact the
+// operator needs. Keeping the reason lets the dereference explain itself without
+// making an unresolvable optional secret fatal for everyone else.
 const resolveSecrets = async (
   raw: unknown,
   resolver: SecretResolver,
-): Promise<Readonly<Record<string, string>>> => {
+): Promise<{
+  readonly secrets: Readonly<Record<string, string>>;
+  readonly unresolved: ReadonlyMap<string, string>;
+}> => {
   const output: Record<string, string> = {};
-  if (!isJsonRecord(raw)) return output;
+  const unresolved = new Map<string, string>();
+  if (!isJsonRecord(raw)) return { secrets: output, unresolved };
   const entries = await Promise.all(
     Object.entries(raw).map(async ([key, value]) => {
       if (typeof value !== "string") {
@@ -571,7 +592,9 @@ const resolveSecrets = async (
       assertSecretReference(`config/secrets.yaml#${key}`, value, new Set());
       try {
         return [key, await resolveExpression(value, resolver)] as const;
-      } catch {
+      } catch (error) {
+        // The reason names the missing ENV/VAULT key, never a resolved value.
+        unresolved.set(key, cleanReason(error));
         return undefined;
       }
     }),
@@ -581,8 +604,14 @@ const resolveSecrets = async (
     output[entry[0]] = entry[1];
     resolver.onSecret?.(entry[1]);
   }
-  return output;
+  return { secrets: output, unresolved };
 };
+
+// A resolver failure's message names the variable it could not find (see
+// resolveExpression), which is exactly what the operator must act on. Anything
+// that is not an Error contributes no detail rather than a stringified object.
+const cleanReason = (error: unknown): string =>
+  error instanceof Error ? error.message : "could not be resolved";
 
 // A tree resolver bound to one load's resolver and resolved secrets. A
 // secret-bearing field (by the secret-name schema) is resolved AND recorded: a
@@ -595,8 +624,14 @@ const resolveSecrets = async (
 const makeResolveTree = (
   resolver: SecretResolver,
   secretKeys: ReadonlySet<string>,
-  secrets: Readonly<Record<string, string>>,
+  // The two halves of one secrets.yaml load: what resolved, and why the rest did
+  // not. They are always produced and consumed together (see resolveSecrets).
+  resolvedSecrets: {
+    readonly secrets: Readonly<Record<string, string>>;
+    readonly unresolved: ReadonlyMap<string, string>;
+  },
 ): (value: unknown) => Promise<unknown> => {
+  const { secrets, unresolved } = resolvedSecrets;
   const resolveSecret = async (
     value: string,
   ): Promise<string | undefined> => {
@@ -604,6 +639,16 @@ const makeResolveTree = (
     if (isSecretReference(value)) {
       resolved = await resolveExpression(value, resolver);
     } else if (secretKeys.has(value)) {
+      // A field pointing at an entry that did not resolve fails HERE, naming the
+      // key the entry needed. Falling through to undefined would surface as
+      // "Missing configuration: llm.api_key" — true, but it blames the field the
+      // operator set correctly instead of the variable they did not set.
+      const reason = unresolved.get(value);
+      if (reason !== undefined) {
+        throw new Error(
+          `config/secrets.yaml#${value} could not be resolved: ${reason}`,
+        );
+      }
       resolved = secrets[value];
     } else {
       resolved = value;

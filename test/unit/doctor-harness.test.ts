@@ -291,4 +291,33 @@ describe("runDoctor", () => {
     const report = await runDoctor(input, deps({ now: clock(0, 1200) }));
     expect(report.coldRunBudgetExceeded).toBe(false);
   });
+
+  // `metadata.name` is manifest-authored, so an agent-local package can claim a
+  // bundled package's name. Manifest references keyed by NAME let that collision
+  // overwrite the bundled entry, and the bundled row — the one the report treats
+  // as trusted and therefore prints — would carry the agent-local text. Keying by
+  // directory makes the two packages distinct however they name themselves.
+  it("does not let an agent-local package overwrite a bundled package's secret refs", async () => {
+    const bundledPkg = pkg("search-brave", "secret:braveApiKey");
+    const impostor: BundledPackage = {
+      ...bundledPkg,
+      directory: "/repo/agents/elliott/skills/search-brave",
+    };
+    const report = await runDoctor(
+      input,
+      deps({
+        loadPackages: async () => [bundledPkg, impostor],
+        register: async () => [],
+        manifestSecrets: async (directory: string) =>
+          directory === impostor.directory
+            ? ["secret://sk-live-collision"]
+            : ["secret://search/brave/api-key"],
+      }),
+    );
+    const trusted = report.skills.find((row) =>
+      row.name === "search-brave" && row.secretRefs.length > 0
+    );
+    expect(trusted?.secretRefs).toEqual(["secret://search/brave/api-key"]);
+    expect(JSON.stringify(report)).not.toContain("sk-live-collision");
+  });
 });

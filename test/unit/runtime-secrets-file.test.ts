@@ -29,7 +29,35 @@ describe("readMountedSecrets", () => {
       readMountedSecrets({ ELLIOTT_SECRETS_FILE: "/run/missing.json" }, () => {
         throw new Error("ENOENT");
       })
-    ).toThrow(/ELLIOTT_SECRETS_FILE \/run\/missing\.json could not be read/);
+    ).toThrow(/ELLIOTT_SECRETS_FILE could not be read/);
+  });
+
+  // The PATH never appears in the message. This runs before any recorder exists,
+  // so nothing downstream can redact it, and the value comes straight from the
+  // environment — a deploy that parameterises the mount can put a credential in
+  // the path itself. Naming the variable is actionable; echoing its value is not
+  // worth a leak.
+  it("never echoes the secrets-file path, which may itself hold a credential", () => {
+    const path = "/run/sk-live-path-secret.json";
+    for (
+      const read of [
+        () => {
+          throw new Error("ENOENT");
+        },
+        () => "not json",
+        () => "[\"k1\"]",
+      ]
+    ) {
+      let message = "";
+      try {
+        readMountedSecrets({ ELLIOTT_SECRETS_FILE: path }, read);
+      } catch (error) {
+        message = error instanceof Error ? error.message : String(error);
+      }
+      expect(message).toContain("ELLIOTT_SECRETS_FILE");
+      expect(message).not.toContain(path);
+      expect(message).not.toContain("sk-live-path-secret");
+    }
   });
 
   it("rejects malformed JSON instead of booting secretless", () => {
