@@ -13,7 +13,7 @@ import type { EvolutionControlPlaneBinding } from "../learning/evolution/cli";
 import { SessionStore } from "../memory/session-store/index";
 import { isJsonRecord } from "../providers/http";
 import { RuntimeAgent } from "./agent";
-import { loadRuntimeSettings } from "./config";
+import { envBackedSecretResolver, loadRuntimeSettings } from "./config";
 import { RuntimeConversationSnapshots } from "./conversation-snapshots";
 import { makeRuntimeEvolutionIntegration } from "./evolution";
 import { RuntimeEvolutionEvidence } from "./evolution-evidence";
@@ -178,6 +178,17 @@ export class ElliottRuntime {
     this.#evolutionControlPlane = evolutionControlPlane;
   }
 
+  // Every secret the config boundary resolved during THIS boot. Collected only
+  // so a failure can be rendered without printing one: the entrypoint sanitizes
+  // its message against this set (see main.ts). Never logged, never exposed on
+  // settings, never transmitted — the error reporter still sends a message-free
+  // TransmittableError, so this widens no egress surface.
+  readonly #resolvedSecrets: string[] = [];
+
+  get resolvedSecrets(): readonly string[] {
+    return this.#resolvedSecrets;
+  }
+
   // Boot is deliberately ordered: kernel, static packages, immutable
   // Snapshot, evolution bindings, then externally reachable routes.
   // eslint-disable-next-line max-lines-per-function, max-statements, complexity
@@ -185,6 +196,12 @@ export class ElliottRuntime {
     const settings = await loadRuntimeSettings(
       this.#agentRoot,
       this.#agentName,
+      {
+        ...envBackedSecretResolver,
+        onSecret: (value) => {
+          this.#resolvedSecrets.push(value);
+        },
+      },
     );
     this.#settings = settings;
     await mkdir(settings.stateDirectory, { recursive: true });
