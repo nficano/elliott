@@ -49,7 +49,19 @@ nothing, because the shipped config never reads it.
 Skip one of the three and the boot stops with the variable's name in the error,
 which is the behavior you want the first time you deploy this somewhere real.
 
-## Step 3: Boot
+## Step 3: Check it before you boot it
+
+```bash
+bun src/cli.ts doctor
+```
+
+`doctor` loads the same config the runtime does, probes the model endpoint once,
+and prints which skills woke up, which stayed dormant and what each is waiting
+on, every host it contacted, and how long it took. It exits non-zero on a failure.
+Run it first: a config mistake shows up here as one line naming the field,
+instead of as a stack trace at boot. See [CLI](../reference/cli.md#elliott-doctor).
+
+## Step 4: Boot
 
 ```bash
 bun run start
@@ -58,7 +70,16 @@ bun run start
 The process serves until you interrupt it. Leave it running and open a second
 shell for the rest of the tutorial.
 
-## Step 4: Ask it what loaded
+If the port is already taken you will see
+`Failed to start server. Is port 8080 in use?`. Pick another one:
+
+```bash
+ELLIOTT_HTTP_PORT=8099 bun run start
+```
+
+Use that port in place of 8080 for the rest of this tutorial.
+
+## Step 5: Ask it what loaded
 
 ```bash
 curl -s localhost:8080/healthz
@@ -97,7 +118,7 @@ for.
 A skill with nothing configured registers nothing rather than registering
 something permissive. You will see that pattern everywhere.
 
-## Step 5: Watch a dormant skill wake up
+## Step 6: Watch a dormant skill wake up
 
 Let's activate one. Open `config/elliott.yaml` and find the `tools.terminal`
 block. Set it to:
