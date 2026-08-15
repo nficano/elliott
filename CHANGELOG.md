@@ -112,7 +112,7 @@ of these notes named none of them:
   `session`, `access_url`, `webhook_url`. A `notify.webhook_url: https://…`
   literal that loaded on the old pin now fails at boot; it must become a
   `${VAULT:…}` / `${ENV:…}` reference or the name of a `secrets.yaml` entry.
-- **Two moved skills tightened their own activation gate.** Registry
+- **Three moved skills tightened their own activation gate.** Registry
   `search-duckduckgo` registered `duckduckgo_search` unconditionally; the bundled
   copy needs `tools.search_duckduckgo.enabled: true`
   ([src/runtime/settings-tools.ts:163](src/runtime/settings-tools.ts#L163)) or the
@@ -121,6 +121,14 @@ of these notes named none of them:
   `webhookGatewaySecret` (`secrets.webhook_gateway_secret`,
   [src/runtime/config.ts:556](src/runtime/config.ts#L556)), so its inbound
   `POST /v1/gateways/webhook` route goes silent unless that new key is provisioned.
+  `gateway-gmail` now requires `gmail.enabled: true`
+  ([src/runtime/settings.ts:157](src/runtime/settings.ts#L157)) IN ADDITION to its
+  three secrets: supplying `gmail_client_id`, `gmail_client_secret`, and
+  `gmail_refresh_token` alone yields no settings and no gateway. The manifest gate
+  reads `secret:gmail`, which names only the secret half, so the enable flag is
+  easy to miss — having the credentials present (left over from a registry
+  install, or shared with `optionalGoogle`'s legacy account) is deliberately not
+  treated as an act of activation.
 
 **Fix**: remove all eleven names from `install.skills` and from
 `skills.lock.json`, then enable elliott's built-in equivalents through
@@ -128,7 +136,8 @@ of these notes named none of them:
 by default — see
 [Activation gates](docs/reference/activation-gates.md)). To preserve behavior a
 consumer must also: set `tools.search_duckduckgo.enabled: true` where the
-registry tool was relied on; provision `webhook_gateway_secret` (it may point at
+registry tool was relied on; set `gmail.enabled: true` where the registry gmail
+gateway was relied on; provision `webhook_gateway_secret` (it may point at
 the same Vault field the shared `webhook_signing_secret` used, to keep the
 inbound route on its old secret); turn any `webhook_url`/`access_url` literal
 into an opaque reference; and add an `installErrorSink` to any hand-built
@@ -137,11 +146,41 @@ into an opaque reference; and add an `installErrorSink` to any hand-built
 
 ### Rollback
 
-```bash
-# Undo the tag if it was cut in error:
-git tag -d v0.1.0 && git push origin :refs/tags/v0.1.0
+Deleting the tag does NOT roll back a published release. The release commit
+stays on `main`, and a GitHub Release created from the tag survives its tag's
+deletion (it reverts to a draft-like state still visible at its URL). Both have
+to be handled explicitly.
 
-# Pin a consumer back to the commit before this release:
+**Un-publishing a release that should not have shipped:**
+
+```bash
+# 1. Remove the GitHub Release artifact FIRST — deleting only the tag orphans it
+#    and leaves the notes and any attached assets reachable.
+gh release delete v0.1.0 --yes
+
+# 2. Then the tag, locally and on the remote.
+git tag -d v0.1.0
+git push origin :refs/tags/v0.1.0
+
+# 3. Verify nothing survives: both must report "not found".
+gh release view v0.1.0 || echo "release gone"
+git ls-remote --tags origin 'refs/tags/v0.1.0' # expect empty output
+```
+
+Step 3 is not optional. The failure mode this procedure exists to prevent is a
+half-rollback that reports success while the artifact is still downloadable.
+
+**Reverting the code**, which is a separate decision from un-publishing. The
+release commit is on `main`; removing the tag does not move it. Prefer a revert
+over a history rewrite on any branch that has been pushed:
+
+```bash
+git revert --no-commit 556c2f5..HEAD && git commit -m "revert v0.1.0"
+```
+
+**Pinning a consumer back**, which needs neither of the above:
+
+```bash
 bun add "elliott@git+ssh://git@github.com/nficano/elliott.git#4904d38326f1b59aac362540ac92878b85ca0763"
 ```
 
