@@ -32,7 +32,9 @@ const EXPECTED = {
   tools: 28,
   gateways: 4,
   routes: 41,
-  services: 4,
+  // +1 for cloudflared's tunnel watch, which registers a service whenever
+  // gateways.cloudflared.ready_url is configured.
+  services: 5,
   facilities: 2,
 } as const;
 

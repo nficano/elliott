@@ -1,3 +1,4 @@
+/* eslint-disable max-lines */
 import { egressClass } from "../placement/egress";
 import type { BundledComponentDescriptor } from "./types";
 
@@ -225,6 +226,16 @@ export const BUNDLED_CATALOG: readonly BundledComponentDescriptor[] = Object
       egress: egressClass("declared", ["api.parallel.ai"]),
       isolation: "container",
       secretRefs: ["secret://web/parallel/api-key"],
+      senderAllowlistRequired: false,
+      untrustedOutput: true,
+    }),
+    descriptor({
+      name: "cloudflared",
+      kind: "extension",
+      protocols: ["facility.consumer"],
+      egress: egressClass("lan"),
+      isolation: "container",
+      secretRefs: [],
       senderAllowlistRequired: false,
       untrustedOutput: true,
     }),

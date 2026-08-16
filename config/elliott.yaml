@@ -90,6 +90,25 @@ tools:
     address: "" # e.g. https://vault.internal:8200
     paths: [] # full KV v2 API paths, e.g. secret/data/myapp
 
+# Inbound webhooks. A containerized runtime has no public IP: Cloudflare
+# terminates the hooks hostname, a cloudflared tunnel carries the request to
+# this process, and webhook-provisioner verifies it and dispatches to whichever
+# skill acquired the `ingress.webhook` grant (gateway-slack does).
+#
+# Both are OFF until configured. Uncomment together — a hooks_base_url with no
+# tunnel behind it mints URLs that resolve to nothing, and elliott only learns
+# the tunnel is down if cloudflared.ready_url lets it look.
+#
+# gateways:
+#   webhook_provisioner:
+#     enabled: true
+#     hooks_base_url: https://hooks.example.com
+#   cloudflared:
+#     # The tunnel sidecar's metrics endpoint, on the container network — start
+#     # cloudflared with `--metrics 0.0.0.0:20241`. elliott watches this; it
+#     # never starts, stops, or supervises the tunnel process.
+#     ready_url: http://cloudflared:20241/ready
+
 skills:
   deep_trace:
     # The observability map ships enabled and serves on the runtime HTTP port

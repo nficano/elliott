@@ -9,6 +9,7 @@ import { collectPackageViews } from "../../src/runtime/skills/loader";
 const root = path.resolve(import.meta.dir, "../..");
 
 const IMPLEMENTED = [
+  "cloudflared",
   "deep-trace",
   "evaluator-agent-benchmarks",
   "evaluator-darwinian",

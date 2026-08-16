@@ -1,0 +1,38 @@
+apiVersion: elliott/v1
+kind: extension
+profile: extension-standard
+metadata: { namespace: core, name: cloudflared, version: 1.0.0 }
+spec:
+  document: SKILL.md
+  protocols: [facility.consumer]
+  capabilities:
+    # cloudflared's metrics server. It is a sidecar in the deployment, reachable
+    # on the container network, never the public internet — the tunnel's OWN
+    # egress to Cloudflare's edge belongs to that container, not to this skill.
+    - { capability: network.connect, resources: [declared://cloudflared] }
+  egress: { class: lan, hosts: [] }
+  isolation: container
+  outputTrust: untrusted
+  topology:
+    node:
+      {
+        id: extension.cloudflared,
+        kind: extension,
+        domain: ingress,
+        trustZone: lan,
+        dataClassification: operational-metadata,
+        criticality: supporting,
+      }
+    dispatch: service
+    gate: config
+    egressTargets: [cloudflared metrics]
+    edges:
+      - {
+          from: self,
+          to: extension.webhook-provisioner,
+          kind: control,
+          protocol: none,
+          label: tunnel carries the public hooks hostname this provisions URLs on,
+        }
+  exports:
+    - { ref: extension/cloudflared, implementation: src/index.ts }

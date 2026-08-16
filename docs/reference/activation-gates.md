@@ -36,6 +36,7 @@ failures do not.
 | `search-duckduckgo` | `tools.search_duckduckgo.enabled: true`. No secret, but an operator opts in explicitly |
 | `traefik` | `tools.traefik.enabled: true` and `tools.traefik.api_url`. Provides `proxy.route` |
 | `webhook-provisioner` | `gateways.webhook_provisioner.enabled: true`, `gateways.webhook_provisioner.hooks_base_url`, and the internal `webhook_signing_secret`. Provides `ingress.webhook` |
+| `cloudflared` | `gateways.cloudflared.ready_url` — the tunnel sidecar's metrics endpoint. Watches the tunnel that carries `hooks_base_url`; registers a `cloudflared` service reporting `ready` in `/healthz`. Never runs the tunnel |
 | `store` vectors | a reachable Postgres with `pgvector` at `store.dsn` |
 
 Registry-installed components such as `gateway-home-assistant` and `pihole` gate
