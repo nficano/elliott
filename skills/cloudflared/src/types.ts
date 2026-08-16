@@ -33,4 +33,59 @@ export interface TunnelProbeDependencies {
     tick: () => void,
     intervalMilliseconds: number,
   ) => () => void;
+  // Returns what it established, or undefined when provisioning is not
+  // configured or failed. Injected so tests never reach Cloudflare.
+  readonly provision: (
+    settings: import("../../../src/runtime/types").CloudflaredSettings,
+    input: { servicePort: number; stateDirectory: string; },
+  ) => Promise<TunnelProvisionState | undefined>;
+}
+
+// What the operator supplies to let elliott provision its own tunnel. The token
+// is the highest-blast-radius credential the runtime holds — it can create and
+// delete DNS records in the zone — so it arrives as a resolved secret reference
+// and never appears in a message, a log, or a persisted artifact.
+export interface CloudflareCredentials {
+  readonly apiToken: string;
+  readonly accountId: string;
+  readonly zoneId: string;
+}
+
+// One request to Cloudflare's API, already carrying auth. Injected so the
+// reconciler is testable without a network and without a real token.
+export interface CloudflareApi {
+  request: (
+    method: string,
+    path: string,
+    body?: unknown,
+  ) => Promise<CloudflareResult>;
+}
+
+// Cloudflare's uniform envelope: `success` plus a `result` payload, or `errors`.
+// The reconciler never forwards `errors` verbatim — an API error can echo the
+// request, and the request carries the hostname and account id.
+export interface CloudflareResult {
+  readonly success: boolean;
+  readonly result: unknown;
+  // A phrase derived from the HTTP status and Cloudflare's numeric error code,
+  // never the API's own message text.
+  readonly reason?: string;
+}
+
+// What one reconcile pass established, and what changed to get there. `changes`
+// is what the operator sees in the log — the reason a boot took action.
+export interface TunnelProvisionState {
+  readonly tunnelId: string;
+  readonly hostname: string;
+  readonly publicBaseUrl: string;
+  readonly changes: readonly string[];
+}
+
+// api + credentials + the running change log, threaded through every ensure*
+// step of a reconcile pass so each takes what it needs without a four-argument
+// signature.
+export interface ReconcileContext {
+  readonly api: CloudflareApi;
+  readonly credentials: CloudflareCredentials;
+  readonly changes: string[];
 }

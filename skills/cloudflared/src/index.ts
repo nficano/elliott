@@ -3,8 +3,16 @@ import type {
   SkillContext,
   SkillRegistration,
 } from "../../../src/runtime/skills/types";
+import type { CloudflaredSettings } from "../../../src/runtime/types";
+import { cloudflareApi } from "./api";
+import { writeConnectorToken } from "./handoff";
 import { probeTunnel } from "./probe";
-import type { TunnelProbeDependencies, TunnelWatchState } from "./types";
+import { fetchConnectorToken, reconcileTunnel } from "./reconcile";
+import type {
+  TunnelProbeDependencies,
+  TunnelProvisionState,
+  TunnelWatchState,
+} from "./types";
 
 const SERVICE_NAME = "cloudflared";
 const PROBE_INTERVAL_MILLISECONDS = 30_000;
@@ -32,13 +40,44 @@ export const register = (
   if (settings === undefined) return {};
   return {
     services: [
-      tunnelWatch(settings.readyUrl, context, {
+      tunnelWatch(settings, context, {
         probe: dependencies?.probe ?? probeTunnel,
         now: dependencies?.now ?? (() => Date.now()),
         schedule: dependencies?.schedule ?? defaultSchedule,
+        provision: dependencies?.provision ?? defaultProvision,
       }),
     ],
   };
+};
+
+// Provision on start when the credential set is complete. The connector token
+// is fetched but NEVER returned into the runtime's own state: it is written to
+// the handoff file for the sidecar and dropped. Returning it would place a
+// credential on an object the report path can reach.
+const defaultProvision = async (
+  settings: CloudflaredSettings,
+  input: { servicePort: number; stateDirectory: string; },
+): Promise<TunnelProvisionState | undefined> => {
+  if (
+    settings.apiToken === undefined || settings.accountId === undefined
+    || settings.zoneId === undefined || settings.hostname === undefined
+  ) return undefined;
+  const credentials = {
+    apiToken: settings.apiToken,
+    accountId: settings.accountId,
+    zoneId: settings.zoneId,
+  };
+  const api = cloudflareApi(credentials);
+  const state = await reconcileTunnel(api, credentials, {
+    hostname: settings.hostname,
+    servicePort: input.servicePort,
+  });
+  if (state === undefined) return undefined;
+  const token = await fetchConnectorToken(api, credentials, state.tunnelId);
+  if (token !== undefined) {
+    await writeConnectorToken(input.stateDirectory, token);
+  }
+  return state;
 };
 
 const defaultSchedule = (
@@ -94,15 +133,54 @@ const runCheck = async (
   return next;
 };
 
+// Provision, then say only what is worth saying: the changes a boot actually
+// made, or a loud failure when provisioning was configured and did not work. A
+// steady-state boot is silent — an operator who sees a line every restart stops
+// reading them.
+const runProvision = async (
+  settings: CloudflaredSettings,
+  context: SkillContext,
+  dependencies: TunnelProbeDependencies,
+): Promise<boolean> => {
+  const result = await dependencies.provision(settings, {
+    servicePort: context.settings.port,
+    stateDirectory: context.stateDirectory,
+  });
+  if (result !== undefined && result.changes.length > 0) {
+    context.report(
+      new Error(
+        `cloudflared provisioned ${result.hostname}: ${
+          result.changes.join("; ")
+        }`,
+      ),
+      `skill:${SERVICE_NAME}`,
+    );
+  }
+  if (settings.hostname !== undefined && result === undefined) {
+    context.report(
+      new Error(
+        "cloudflared could not provision its tunnel; "
+          + "inbound webhooks will not reach this runtime.",
+      ),
+      `skill:${SERVICE_NAME}`,
+    );
+  }
+  return result !== undefined;
+};
+
 const tunnelWatch = (
-  readyUrl: string,
+  settings: CloudflaredSettings,
   context: SkillContext,
   dependencies: TunnelProbeDependencies,
 ): ServiceBinding => {
   let cancel: (() => void) | undefined;
+  let started = false;
+  let provisioned = false;
   let state = initialState();
+  const readyUrl = settings.readyUrl;
 
   const check = async (): Promise<void> => {
+    if (readyUrl === undefined) return;
     state = await runCheck(state, { readyUrl, context, dependencies });
   };
 
@@ -111,7 +189,12 @@ const tunnelWatch = (
     start: async () => {
       // Idempotent: a second start() without a stop() must not strand the first
       // interval, which would double the poll rate and leak on every restart.
-      if (cancel !== undefined) return;
+      if (started) return;
+      started = true;
+      // Provision BEFORE probing: on a cold account the tunnel does not exist
+      // yet, so a probe first would report a failure the next few seconds fix.
+      provisioned = await runProvision(settings, context, dependencies);
+      if (readyUrl === undefined) return;
       // Probe once before returning so a tunnel that is already down is
       // reported at boot rather than up to one interval later.
       await check();
@@ -123,8 +206,10 @@ const tunnelWatch = (
     stop: () => {
       cancel?.();
       cancel = undefined;
+      started = false;
     },
     health: () => ({
+      provisioned: provisioned ? READY : NOT_READY,
       ready: state.ready ? READY : NOT_READY,
       readyConnections: state.readyConnections,
       consecutiveFailures: state.consecutiveFailures,

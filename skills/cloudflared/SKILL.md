@@ -1,74 +1,114 @@
 ---
 name: cloudflared
-description: Watch the cloudflared tunnel that carries inbound webhooks, so a dead tunnel is visible instead of silent.
+description: Provision and maintain the Cloudflare tunnel that carries inbound webhooks, and watch that it stays up.
 ---
 
 # cloudflared
 
 A containerized elliott has no public IP. Inbound webhooks reach it through a
-cloudflared tunnel: Cloudflare terminates `https://hooks.example.com`, the
-tunnel carries the request to the runtime's HTTP port, and
-[webhook-provisioner](../webhook-provisioner/SKILL.md) verifies and dispatches
+Cloudflare tunnel: Cloudflare terminates `https://hooks.example.com`, the tunnel
+carries the request to the runtime's HTTP port, and
+[webhook-provisioner](../webhook-provisioner/SKILL.md) verifies it and dispatches
 it to whichever skill acquired the `ingress.webhook` grant.
 
-That tunnel is load-bearing and, until this skill, invisible. `webhook-provisioner`
-mints `<hooksBaseUrl>/w/<slug>` and `gateway-slack` registers it with Slack, but
-nothing checked the hostname resolves to anything. With the tunnel down, every
-delivery is dropped at Cloudflare's edge: Slack shows a delivery failure, the
-runtime shows a healthy process and an empty log, and the two are never
-connected.
+Give this skill Cloudflare credentials and it builds that path itself.
 
-This skill closes that gap. It does not run the tunnel.
+## What it provisions
 
-## What it does
+On every boot, idempotently:
 
-Polls cloudflared's metrics `/ready` endpoint every 30 seconds and:
+1. **A named tunnel** — `elliott-<hostname>`, adopted if it already exists.
+   Deleted tunnels are excluded from the lookup, because adopting one yields an
+   id that can never connect.
+2. **Ingress rules** — the hostname routed to `http://localhost:<runtime port>`,
+   with a catch-all 404. This is the rule that keeps a provisioned tunnel from
+   becoming general-purpose ingress into the host: whatever hostname is routed,
+   it terminates at this runtime's own port.
+3. **A proxied CNAME** — `hooks.example.com → <tunnel-id>.cfargotunnel.com`.
+   Proxied is not optional; unproxied would expose the tunnel target directly.
 
-- reports `ready: 0` in `/healthz` while the tunnel cannot carry traffic,
-- reports through the error sink on the transition to down, once per incident
-  rather than once per poll,
-- counts `readyConnections` — the established connections to Cloudflare's edge.
-  A process that is alive with zero connections is routing nothing, which for
-  inbound webhooks is the same as down, so it is not treated as ready.
+A boot on an already-provisioned account performs three GETs and changes
+nothing. It reports only what it actually changed, so a restart is silent and
+the one boot that took action stands out.
 
-## What it deliberately does not do
+It also heals drift. A DNS record left pointing at a deleted tunnel, or ingress
+pointing at the wrong port, is rewritten — both are failures that look fine
+until someone sends a webhook.
 
-**It never starts, stops, or supervises cloudflared.** The tunnel runs as its
-own container, supervised by compose. Exec'ing a binary that opens public
-ingress is a capability this framework does not take: the whole placement model
-rests on a skill's egress being declarable and its blast radius bounded, and a
-managed tunnel process is neither.
+## What it does not do
 
-It also does not discover the hostname. `hooksBaseUrl` stays operator
-configuration, because Slack and every other sender need a URL that survives a
-restart — an ephemeral quick-tunnel hostname would silently invalidate every
-registered endpoint.
+**It never runs the connector.** `cloudflared` runs in its own locked-down
+container, supervised by compose. elliott is not given a Docker socket: a socket
+is root-equivalent on the host and would dwarf every other capability in this
+framework.
+
+**It does not choose your hostname.** You do, in config. An ephemeral
+quick-tunnel name would change on every restart and silently invalidate every
+URL already registered with Slack and every other sender.
 
 ## Configuration
 
 ```yaml
 gateways:
   cloudflared:
+    api_token: ${VAULT:infra/cloudflare#api_token}
+    account_id: "…"
+    zone_id: "…"
+    hostname: hooks.example.com
+    # Optional: the sidecar's metrics endpoint. Supply it and the tunnel's
+    # health is watched too, not just provisioned.
     ready_url: http://cloudflared:20241/ready
-```
-
-Absent the key the skill registers nothing, like every other gate here. The URL
-is the sidecar's metrics endpoint on the container network — start cloudflared
-with `--metrics 0.0.0.0:20241`.
-
-Pair it with the hostname the tunnel terminates:
-
-```yaml
-gateways:
   webhook_provisioner:
+    enabled: true
     hooks_base_url: https://hooks.example.com
 ```
+
+The API token needs `Zone:DNS:Edit` on the zone and
+`Account:Cloudflare Tunnel:Edit` on the account. **Scope it to the one zone.**
+It is the highest-blast-radius credential this runtime holds — it can create and
+delete DNS records — so it is a secret-bearing field and must be an opaque
+reference, never a literal.
+
+The four provisioning fields are supplied together or not at all. Three of four
+registers nothing rather than silently degrading to watch-only, which would look
+like success while no hostname was ever routed.
+
+## Connector token handoff
+
+The connector token is fetched from the API on each boot and written to
+`<stateDirectory>/cloudflared/connector-token`, owner-read-only, via a temp file
+and rename so the sidecar never reads a partial value.
+
+This is the one place a credential this runtime holds is written to disk, and it
+is deliberate: a sibling container cannot read another's memory, and the
+alternatives are worse — a Docker socket, or making elliott a secret server.
+
+```yaml
+# compose
+cloudflared:
+  image: cloudflare/cloudflared:latest
+  command: tunnel --no-autoupdate --metrics 0.0.0.0:20241 run
+  environment:
+    TUNNEL_TOKEN_FILE: /run/elliott/cloudflared/connector-token
+  volumes:
+    - elliott-state:/run/elliott:ro
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+  depends_on: [elliott]
+```
+
+`depends_on` matters: elliott writes the token during its own boot, so the
+connector has nothing to read until it has run once.
 
 ## Health
 
 ```json
-{"cloudflared":{"ready":1,"readyConnections":4,"consecutiveFailures":0,"checks":12,"lastCheckMs":1786883298106}}
+{"cloudflared":{"provisioned":1,"ready":1,"readyConnections":4,"consecutiveFailures":0,"checks":12,"lastCheckMs":1786883298106}}
 ```
 
-`ready: 0` with a nonzero `consecutiveFailures` is the signal that public
-webhook delivery is broken, regardless of what the rest of `/healthz` says.
+`provisioned: 0` means the tunnel and DNS could not be established — the
+hostname routes nowhere. `ready: 0` means they exist but the connector is not
+carrying traffic. `readyConnections: 0` with a 200 from the metrics endpoint is
+a process that is alive and routing nothing, which for inbound webhooks is the
+same as down and is not treated as ready.

@@ -117,7 +117,20 @@ export interface HomeAssistantSettings {
 }
 
 export interface CloudflaredSettings {
-  readonly readyUrl: string;
+  // The tunnel sidecar's metrics endpoint. Watching only — present whenever the
+  // skill is active, with or without provisioning.
+  readonly readyUrl?: string;
+  // Supplied together or not at all: with all four, elliott provisions its own
+  // named tunnel, pins its ingress to the loopback, and points `hostname` at it
+  // via a proxied CNAME. Without them it watches a tunnel someone else built.
+  //
+  // `apiToken` is the highest-blast-radius credential this runtime holds — it
+  // can create and delete DNS records in the zone — so it is a secret-bearing
+  // field like any other and must arrive as an opaque reference.
+  readonly apiToken?: string;
+  readonly accountId?: string;
+  readonly zoneId?: string;
+  readonly hostname?: string;
 }
 
 export interface PiholeSettings {

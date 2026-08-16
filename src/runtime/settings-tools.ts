@@ -3,6 +3,7 @@ import { isJsonRecord } from "../providers/http";
 import {
   optionalNumberAt,
   optionalStringAt,
+  optionalValue,
   stringArrayAt,
   stringAt,
   valueAt,
@@ -255,13 +256,28 @@ export const optionalVault = (
   return { vault: { address, token, paths } };
 };
 
+// Two independent capabilities behind one block: watching a tunnel (ready_url)
+// and provisioning one (the credential trio plus hostname). Either alone is
+// useful, so the skill registers when EITHER is present — but a partial
+// provisioning set registers nothing for it, because three of four fields
+// cannot create a tunnel and silently degrading to "watch only" would look like
+// success while no hostname was ever routed.
 export const optionalCloudflared = (
   value: unknown,
 ): { readonly cloudflared?: CloudflaredSettings; } => {
-  const readyUrl = optionalStringAt(value, [
-    "gateways",
-    "cloudflared",
-    "ready_url",
-  ]);
-  return readyUrl === undefined ? {} : { cloudflared: { readyUrl } };
+  const base = ["gateways", "cloudflared"];
+  const readyUrl = optionalStringAt(value, [...base, "ready_url"]);
+  const apiToken = optionalStringAt(value, [...base, "api_token"]);
+  const accountId = optionalStringAt(value, [...base, "account_id"]);
+  const zoneId = optionalStringAt(value, [...base, "zone_id"]);
+  const hostname = optionalStringAt(value, [...base, "hostname"]);
+  const provisioning = apiToken !== undefined && accountId !== undefined
+    && zoneId !== undefined && hostname !== undefined;
+  if (readyUrl === undefined && !provisioning) return {};
+  return {
+    cloudflared: {
+      ...optionalValue("readyUrl", readyUrl),
+      ...(provisioning && { apiToken, accountId, zoneId, hostname }),
+    },
+  };
 };

@@ -31,6 +31,7 @@ const contextWith = (
 ): SkillContext =>
   ({
     settings: {
+      port: 8080,
       ...(readyUrl !== undefined && { cloudflared: { readyUrl } }),
     } as unknown as RuntimeSettings,
     stateDirectory: stateDir,
@@ -89,6 +90,7 @@ describe("cloudflared register", () => {
       register(contextWith("http://cloudflared:20241/ready", reports), {
         probe: async () => DOWN,
         now: () => 1000,
+        provision: async () => undefined,
       }),
     );
 
@@ -110,6 +112,7 @@ describe("cloudflared register", () => {
       register(contextWith("http://cloudflared:20241/ready", reports), {
         probe: async () => UP,
         now: () => 1000,
+        provision: async () => undefined,
       }),
     );
 
@@ -133,6 +136,7 @@ describe("cloudflared register", () => {
       register(contextWith("http://cloudflared:20241/ready", reports), {
         probe: async () => readiness,
         now: () => 1000,
+        provision: async () => undefined,
         schedule: (fn) => {
           tick = fn;
           return () => {
@@ -169,6 +173,7 @@ describe("cloudflared register", () => {
       register(contextWith("http://cloudflared:20241/ready", []), {
         probe: async () => UP,
         now: () => 1000,
+        provision: async () => undefined,
         schedule: (fn) => {
           scheduled.push(fn);
           return () => {};
@@ -182,5 +187,112 @@ describe("cloudflared register", () => {
     await service.stop();
 
     expect(scheduled).toHaveLength(1);
+  });
+});
+
+describe("cloudflared provisioning", () => {
+  const provisioningContext = (
+    reports: { mechanism: string; message: string; }[],
+  ): SkillContext =>
+    ({
+      settings: {
+        port: 8080,
+        cloudflared: {
+          apiToken: "cf-token",
+          accountId: "acct-1",
+          zoneId: "zone-1",
+          hostname: "hooks.example.com",
+        },
+      } as unknown as RuntimeSettings,
+      stateDirectory: stateDir,
+      report: (error: unknown, mechanism: string) => {
+        reports.push({
+          mechanism,
+          message: error instanceof Error ? error.message : String(error),
+        });
+      },
+    }) as unknown as SkillContext;
+
+  it("registers with credentials alone, without a ready_url to watch", () => {
+    const registration = register(provisioningContext([]));
+    expect(registration.services).toHaveLength(1);
+  });
+
+  it("reports what provisioning changed, so a boot that acted says so", async () => {
+    const reports: { mechanism: string; message: string; }[] = [];
+    const service = serviceOf(
+      register(provisioningContext(reports), {
+        provision: async () => ({
+          tunnelId: "tun-1",
+          hostname: "hooks.example.com",
+          publicBaseUrl: "https://hooks.example.com",
+          changes: ["created tunnel elliott-hooks.example.com"],
+        }),
+      }),
+    );
+
+    await service.start();
+    await service.stop();
+
+    expect(service.health?.()["provisioned"]).toBe(1);
+    expect(reports).toHaveLength(1);
+    expect(reports[0]?.message).toContain("created tunnel");
+  });
+
+  // A steady-state boot must be quiet. An operator who sees a provisioning line
+  // every restart stops reading them, and then misses the one that matters.
+  it("says nothing when provisioning changed nothing", async () => {
+    const reports: { mechanism: string; message: string; }[] = [];
+    const service = serviceOf(
+      register(provisioningContext(reports), {
+        provision: async () => ({
+          tunnelId: "tun-1",
+          hostname: "hooks.example.com",
+          publicBaseUrl: "https://hooks.example.com",
+          changes: [],
+        }),
+      }),
+    );
+
+    await service.start();
+    await service.stop();
+
+    expect(service.health?.()["provisioned"]).toBe(1);
+    expect(reports).toEqual([]);
+  });
+
+  // Configured to provision but could not: the hostname routes nowhere, so
+  // every webhook is dropped. This must be loud, not a silent `provisioned: 0`.
+  it("reports loudly when provisioning was configured but failed", async () => {
+    const reports: { mechanism: string; message: string; }[] = [];
+    const service = serviceOf(
+      register(provisioningContext(reports), {
+        provision: async () => undefined,
+      }),
+    );
+
+    await service.start();
+    await service.stop();
+
+    expect(service.health?.()["provisioned"]).toBe(0);
+    expect(reports).toHaveLength(1);
+    expect(reports[0]?.message).toContain("could not provision");
+    expect(reports[0]?.message).toContain("webhooks will not reach");
+  });
+
+  // The credential must never reach an operator-facing string, even when the
+  // skill is describing its own failure.
+  it("never echoes the API token in any report", async () => {
+    const reports: { mechanism: string; message: string; }[] = [];
+    const service = serviceOf(
+      register(provisioningContext(reports), {
+        provision: async () => undefined,
+      }),
+    );
+
+    await service.start();
+    await service.stop();
+
+    expect(JSON.stringify(reports)).not.toContain("cf-token");
   });
 });

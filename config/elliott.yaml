@@ -104,9 +104,18 @@ tools:
 #     enabled: true
 #     hooks_base_url: https://hooks.example.com
 #   cloudflared:
-#     # The tunnel sidecar's metrics endpoint, on the container network — start
-#     # cloudflared with `--metrics 0.0.0.0:20241`. elliott watches this; it
-#     # never starts, stops, or supervises the tunnel process.
+#     # Give elliott these four and it provisions the tunnel, pins its ingress to
+#     # this runtime's port, and points the hostname at it via a proxied CNAME —
+#     # reconciled on every boot. The token needs Zone:DNS:Edit on the zone and
+#     # Account:Cloudflare Tunnel:Edit; scope it to the one zone. It can delete
+#     # DNS records, so it is secret-bearing and must be a reference.
+#     api_token: ${VAULT:infra/cloudflare#api_token}
+#     account_id: ""
+#     zone_id: ""
+#     hostname: hooks.example.com
+#     # Optional. The sidecar's metrics endpoint (`--metrics 0.0.0.0:20241`);
+#     # supply it and tunnel health is watched too. elliott never starts, stops,
+#     # or supervises the connector process — that container is compose's.
 #     ready_url: http://cloudflared:20241/ready
 
 skills:
